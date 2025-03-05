@@ -30,7 +30,7 @@ if (isset($_GET['parent_id'])) {
                         <a href='./bulk_regional_send.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-success'>Bulk Regional Send</a>
                         <a href='./brs.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-info'>BRS</a>
                         <a href='./enable_regions.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-secondary'>E-R</a>
-                        <a href='./bulk_regional_send.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-warning'>Clear</a>
+                        <a href='./clear_single.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-warning'>Clear</a>
                         <a target='_blank' href='child_account.php?child_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "' class='btn btn-primary'>Setup</a>
                     </td>
                   </tr>";

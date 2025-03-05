@@ -303,7 +303,7 @@ if (isset($_POST['submit'])) {
                                 Actions
                                 </button>
                                 <div class='dropdown-menu' aria-labelledby='actionDropdown{$row['id']}'>
-                                    <a class='dropdown-item' href='manage_acounts.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'>Manage Account</a>
+                                    <a class='dropdown-item' href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'>Manage Account</a>
                                     <a class='dropdown-item check-status-btn' href='#' data-id='" . $row['id'] . "'>Check Status</a>
                                     <a class='dropdown-item' href='bulk_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'>Bulk Send</a>
                                     <a class='dropdown-item' href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'>Bulk Regional Send</a>
