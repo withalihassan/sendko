@@ -18,9 +18,16 @@ use Aws\Exception\AwsException;
 if (isset($_GET['action']) && $_GET['action'] === 'delete_region' && isset($_GET['region'])) {
     header('Content-Type: application/json');
 
+    // Use the values as strings to preserve formatting (e.g. leading zeros)
     $region    = $_GET['region'];
-    $ac_id     = isset($_GET['ac_id']) ? intval($_GET['ac_id']) : 0;
-    $parent_id = isset($_GET['parent_id']) ? intval($_GET['parent_id']) : 0;
+    $ac_id     = isset($_GET['ac_id']) ? $_GET['ac_id'] : '';
+    $parent_id = isset($_GET['parrent_id']) ? $_GET['parrent_id'] : '';
+
+    // Ensure both parameters are provided
+    if ($ac_id === '' || $parent_id === '') {
+        echo json_encode(['error' => 'Both ac_id and parrent_id must be provided.']);
+        exit;
+    }
 
     // Fetch the account from child_accounts where parent_id and account_id match the URL parameters.
     $stmt = $pdo->prepare("SELECT `id`, `parent_id`, `email`, `account_id`, `status`, `created_at`, `name`, `aws_access_key`, `aws_secret_key` FROM `child_accounts` WHERE parent_id = ? AND account_id = ?");
@@ -173,15 +180,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_region' && isset($_GET
 <body>
     <div class="container">
         <?php
-            echo $_GET['parrent_id'];
+            // Debug display of the parent id (as provided)
+            echo "Provided Parent ID: " . htmlspecialchars($_GET['parrent_id']);
         ?>
         <h1>Contact Cleanup</h1>
         <?php
-        // Ensure both ac_id and parent_id are provided via URL.
-        $ac_id = $_GET['ac_id'];;
-        $parent_id = $_GET['parrent_id'];
-        if ($ac_id === 0 || $parent_id === 0) {
-            echo '<p class="error">Both ac_id and parent_id must be provided.</p>';
+        // Ensure both ac_id and parrent_id are provided via URL.
+        $ac_id = isset($_GET['ac_id']) ? $_GET['ac_id'] : '';
+        $parent_id = isset($_GET['parrent_id']) ? $_GET['parrent_id'] : '';
+        if ($ac_id === '' || $parent_id === '') {
+            echo '<p class="error">Both ac_id and parrent_id must be provided.</p>';
             exit;
         }
         ?>
@@ -220,7 +228,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_region' && isset($_GET
             for (let region of regions) {
                 appendLog(`Processing region: <strong>${region}</strong>...`);
                 try {
-                    const response = await fetch(`?action=delete_region&ac_id=${ac_id}&parent_id=${parent_id}&region=${region}`);
+                    const response = await fetch(`?action=delete_region&ac_id=${ac_id}&parrent_id=${parent_id}&region=${region}`);
                     const result = await response.json();
                     if (result.error) {
                         appendLog(`Region ${region} error: ${result.error}`, "error");
