@@ -6,7 +6,7 @@
 include "./session.php";
 // index.php
 include "./header.php";
-// Include your local database connection file
+// Include your database connection file
 include('db.php');
 
 // Include the AWS PHP SDK autoloader (ensure the path is correct)
@@ -82,11 +82,143 @@ if (isset($_POST['submit'])) {
 </head>
 
 <body>
+    <div class="container mt-3">
+        <div class="row">
+            <!-- Cards for statistics -->
+            <div class="col-6 col-md-2 mb-3">
+                <div class="card text-center bg-info text-white">
+                    <div class="card-body py-2">
+                        <?php $stmt = $pdo->query("SELECT COUNT(*) AS count FROM accounts WHERE DATE(added_date)=CURDATE()"); ?>
+                        <h6 class="card-title">Today New</h6>
+                        <p class="card-text"><strong><?php echo $stmt->fetch(PDO::FETCH_ASSOC)['count']; ?></strong></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2 mb-3">
+                <div class="card text-center bg-warning text-dark">
+                    <div class="card-body py-2">
+                        <?php $stmt = $pdo->query("SELECT COUNT(*) AS count FROM accounts WHERE DATE(suspended_date)=CURDATE()"); ?>
+                        <h6 class="card-title">Susp. Today</h6>
+                        <p class="card-text"><?php echo $stmt->fetch(PDO::FETCH_ASSOC)['count']; ?></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2 mb-3">
+                <div class="card text-center bg-success text-white">
+                    <div class="card-body py-2">
+                        <?php $stmt = $pdo->query("SELECT COUNT(*) AS count FROM accounts WHERE status='active'"); ?>
+                        <h6 class="card-title">Total Active</h6>
+                        <p class="card-text"><?php echo $stmt->fetch(PDO::FETCH_ASSOC)['count']; ?></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2 mb-3">
+                <div class="card text-center bg-secondary text-white">
+                    <div class="card-body py-2">
+                        <?php $stmt = $pdo->query("SELECT COUNT(*) AS count FROM accounts WHERE DATE(last_used)=CURDATE()"); ?>
+                        <h6 class="card-title">Done Today</h6>
+                        <p class="card-text"><?php echo $stmt->fetch(PDO::FETCH_ASSOC)['count']; ?></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2 mb-3">
+                <div class="card text-center bg-primary text-white">
+                    <div class="card-body py-2">
+                        <?php $stmt = $pdo->query("SELECT COUNT(*) AS count FROM accounts WHERE ac_state='orphan'"); ?>
+                        <h6 class="card-title">Claimable</h6>
+                        <p class="card-text"><?php echo $stmt->fetch(PDO::FETCH_ASSOC)['count']; ?></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2 mb-3">
+                <div class="card text-center bg-danger text-white">
+                    <div class="card-body py-2">
+                        <?php $stmt = $pdo->query("SELECT COUNT(*) AS count FROM accounts WHERE status='suspended'"); ?>
+                        <h6 class="card-title">Total Susp.</h6>
+                        <p class="card-text"><?php echo $stmt->fetch(PDO::FETCH_ASSOC)['count']; ?></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="container-fluid" style="padding: 4%;">
+        <h2 class="mt-4">Claim Accounts</h2>
+        <table id="accountsTable" class="display">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Account ID</th>
+                    <th>AWS Key</th>
+                    <th>Status</th>
+                    <th>State</th>
+                    <th>Account Score</th>
+                    <th>Account Age</th>
+                    <th>Credit Offset</th>
+                    <th>Added Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                // Fetch orphan accounts
+                $stmt = $pdo->query("SELECT * FROM accounts WHERE ac_state = 'orphan' ORDER by id DESC");
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    echo "<tr>";
+                    echo "<td>" . $row['id'] . "</td>";
+                    echo "<td>" . htmlspecialchars($row['account_id']) . "</td>";
+                    echo "<td>" . htmlspecialchars($row['aws_key']) . "</td>";
+                    
+                    // Account Status: Active or Suspended
+                    if ($row['status'] == 'active') {
+                        echo "<td><span class='badge badge-success'>Active</span></td>";
+                    } else {
+                        echo "<td><span class='badge badge-danger'>Suspended</span></td>";
+                    }
+                    
+                    // Account State: Orphan, Claimed, Rejected
+                    if ($row['ac_state'] == 'orphan') {
+                        echo "<td><span class='badge badge-warning'>Orphan</span></td>";
+                    } else if ($row['ac_state'] == 'claimed') {
+                        echo "<td><span class='badge badge-success'>Claimed</span></td>";
+                    } else {
+                        echo "<td><span class='badge badge-danger'>Rejected</span></td>";
+                    }
+                    
+                    echo "<td>" . htmlspecialchars($row['ac_score']) . "</td>";
+                    
+                    // Account Age calculation
+                    if ($row['status'] == 'active') {
+                        $td_Added_date = new DateTime($row['added_date']);
+                        $td_current_date = new DateTime();
+                        $diff = $td_Added_date->diff($td_current_date);
+                        echo "<td>" . $diff->format('%a days') . "</td>";
+                    } else {
+                        $td_Added_date = new DateTime($row['added_date']);
+                        $td_current_date = new DateTime($row['suspended_date']);
+                        $diff = $td_Added_date->diff($td_current_date);
+                        echo "<td>" . $diff->format('%a days') . "</td>";
+                    }
+                    
+                    echo "<td>" . htmlspecialchars($row['cr_offset']) . "</td>";
+                    echo "<td>" . (new DateTime($row['added_date'], new DateTimeZone('Asia/Karachi')))->format('d M g:i a') . "</td>";
+                    
+                    echo "<td>
+                            <button class='btn btn-info btn-sm check-status-btn' data-id='" . $row['id'] . "'>Chk-Status</button>
+                            <button class='btn btn-success btn-sm claim-btn' data-id='" . $row['id'] . "'>Claim</button>
+                            <a class='btn btn-secondary btn-sm' href='check_quality.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'>Chk-Qlty</a>
+                            <a class='btn btn-primary btn-sm' href='aws_account.php?id=" . $row['id'] . "' target='_blank'>En-Reg</a>
+                            <a class='btn btn-success btn-sm' href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'>BRS</a>
+                            <button class='btn btn-danger btn-sm reject-btn' data-id='" . $row['id'] . "'>Reject</button>
+                            <a class='btn btn-primary btn-sm' href='clear_region.php?ac_id=" . $row['id'] . "' target='_blank'>Clear</a>
+                          </td>";
+                    echo "</tr>";
+                }
+                ?>
+            </tbody>
+        </table>
+        <hr>
         <h2>Accounts List</h2>
-        <!-- Sync Button to fetch new records from remote DB -->
-        <button id="syncBtn" class="btn btn-primary mb-3">Sync Remote Records</button>
-        <div id="syncResult" class="mb-3"></div>
         <table id="myaccountsTable" class="display">
             <thead>
                 <tr>
@@ -195,31 +327,14 @@ if (isset($_POST['submit'])) {
 
     <script>
         $(document).ready(function() {
+            // Initialize DataTables with pagination
+            $('#accountsTable').DataTable();
             $('#myaccountsTable').DataTable();
         });
 
-        // Sync Button Event Handler
-        $(document).on('click', '#syncBtn', function(e) {
-            e.preventDefault();
-            $('#syncResult').html("<span class='text-info'>Syncing records...</span>");
-            $.ajax({
-                url: 'sync_remote.php',
-                type: 'POST',
-                dataType: 'json',
-                success: function(response) {
-                    if(response.success) {
-                        $('#syncResult').html("<span class='text-success'>"+response.new_records+" new record(s) fetched.</span>");
-                        // Optionally, reload the table or page here
-                    } else {
-                        $('#syncResult').html("<span class='text-danger'>"+response.message+"</span>");
-                    }
-                },
-                error: function() {
-                    $('#syncResult').html("<span class='text-danger'>An error occurred while syncing records.</span>");
-                }
-            });
-        });
+        // Delegated event binding for dynamically generated elements
 
+        // Check Status button
         $(document).on('click', '.check-status-btn', function(e) {
             e.preventDefault();
             var id = $(this).data('id');
@@ -236,11 +351,12 @@ if (isset($_POST['submit'])) {
             });
         });
 
+        // Claim button (for orphan accounts) with prompt for claim type
         $(document).on('click', '.claim-btn', function() {
             var accountId = $(this).data("id");
             var claimType = prompt("Enter claim type (full or half)", "full");
             if (claimType === null) {
-                return;
+                return; // User cancelled
             }
             claimType = claimType.trim().toLowerCase();
             if (claimType !== "full" && claimType !== "half") {
@@ -261,6 +377,7 @@ if (isset($_POST['submit'])) {
             });
         });
 
+        // Mark-Full option for already claimed accounts
         $(document).on('click', '.mark-full-btn', function(e) {
             e.preventDefault();
             var accountId = $(this).data("id");
@@ -278,6 +395,7 @@ if (isset($_POST['submit'])) {
             });
         });
 
+        // Mark-Half option for already claimed accounts
         $(document).on('click', '.mark-half-btn', function(e) {
             e.preventDefault();
             var accountId = $(this).data("id");
@@ -295,6 +413,7 @@ if (isset($_POST['submit'])) {
             });
         });
 
+        // Delete account event handler
         $(document).on('click', '.delete-btn', function() {
             if (confirm("Are you sure you want to delete this account?")) {
                 var id = $(this).data('id');
@@ -313,6 +432,7 @@ if (isset($_POST['submit'])) {
             }
         });
         
+        // New event handler for Reject button
         $(document).on('click', '.reject-btn', function(e) {
             e.preventDefault();
             if (confirm("Are you sure you want to reject this account?")) {
@@ -333,4 +453,5 @@ if (isset($_POST['submit'])) {
         });
     </script>
 </body>
+
 </html>
