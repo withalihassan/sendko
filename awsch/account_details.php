@@ -6,7 +6,6 @@ if (!isset($_GET['ac_id'])) {
 }
 
 $accountId = htmlspecialchars($_GET['ac_id']);
-
 ?>
 
 <!DOCTYPE html>
@@ -15,7 +14,7 @@ $accountId = htmlspecialchars($_GET['ac_id']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo  $accountId ?> | Manage AWS Nodes</title>
+    <title><?php echo $accountId; ?> | Manage AWS Nodes</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 </head>
 
@@ -45,12 +44,18 @@ $accountId = htmlspecialchars($_GET['ac_id']);
             </div>
         </div>
 
-        <!-- Button to Fetch Existing Child Accounts -->
+        <!-- Buttons for various actions -->
         <div class="card mt-4">
             <div class="card-body">
-                <a target="_blank" href="./child/delete_all_child.php?parent_id=<?php echo $accountId; ?>"><button type="submit" name="delete_all" class="btn btn-danger">Delete All Mini Accounts</button></a>
+                <a target="_blank" href="./child/delete_all_child.php?parent_id=<?php echo $accountId; ?>">
+                    <button type="button" class="btn btn-danger">Delete All Mini Accounts</button>
+                </a>
                 <button id="fetchExistingAccounts" class="btn btn-secondary">Fetch Existing Mini Accounts</button>
                 <button id="refresh" class="btn btn-success">Refresh</button>
+                <!-- New button for creating an organization in AWS parent account -->
+                <button id="createOrg" class="btn btn-primary">Create Organization</button>
+                <!-- Div to display responses from Create Organization -->
+                <div id="orgResponse" class="mt-2"></div>
             </div>
         </div>
 
@@ -79,18 +84,36 @@ $accountId = htmlspecialchars($_GET['ac_id']);
         </div>
     </div>
 
+    <!-- jQuery CDN -->
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 
     <!-- Pass the PHP parent account ID to JS -->
     <script>
         var parentAccountId = "<?php echo $accountId; ?>";
-        
+
         document.getElementById("refresh").addEventListener("click", function() {
             location.reload();
         });
+
+        // Event handler for Create Organization button
+        $(document).on('click', '#createOrg', function(e) {
+            e.preventDefault();
+            $("#orgResponse").html("<span class='text-info'>Creating organization...</span>");
+            $.ajax({
+                url: 'child/create_org.php',
+                type: 'GET',
+                data: { ac_id: parentAccountId },
+                success: function(response) {
+                    $("#orgResponse").html("<span class='text-success'>" + response + "</span>");
+                },
+                error: function() {
+                    $("#orgResponse").html("<span class='text-danger'>An error occurred while creating the organization.</span>");
+                }
+            });
+        });
     </script>
 
-    <!-- Include the external JS file for AJAX -->
+    <!-- Include the external JS files for AJAX actions -->
     <script src="child/scripts.js"></script>
     <script src="child/existac.js"></script>
 </body>
