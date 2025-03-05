@@ -34,19 +34,20 @@ try {
 
         if ($exists['cnt'] == 0) {
             // Insert record into local DB.
-            $by_user    = 0;
-            $aws_key    = $record['aws_key'];
-            $aws_secret = $record['aws_secret'];
-            $account_id = $record['account_id'];
-            $status     = $record['status'];
-            $ac_state   = isset($record['ac_state']) ? $record['ac_state'] : 'orphan';
-            $ac_score   = isset($record['ac_score']) ? $record['ac_score'] : 0;
-            $ac_age     = isset($record['ac_age']) ? $record['ac_age'] : 0;
-            $cr_offset  = isset($record['cr_offset']) ? $record['cr_offset'] : 0;
-            $added_date = $record['added_date'];
+            $by_user      = 0;
+            $aws_key      = $record['aws_key'];
+            $aws_secret   = $record['aws_secret'];
+            $account_id   = $record['account_id'];
+            $status       = $record['status'];
+            $ac_state     = isset($record['ac_state']) ? $record['ac_state'] : 'orphan';
+            $ac_score     = isset($record['ac_score']) ? $record['ac_score'] : 0;
+            $ac_age       = isset($record['ac_age']) ? $record['ac_age'] : 0;
+            $cr_offset    = isset($record['cr_offset']) ? $record['cr_offset'] : 0;
+            $suspend_mode = isset($record['suspend_mode']) ? $record['suspend_mode'] : 'none';
+            $added_date   = $record['added_date'];
 
-            $stmtInsert = $pdo->prepare("INSERT INTO accounts (by_user, aws_key, aws_secret, account_id, status, ac_state, ac_score, ac_age, cr_offset, added_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            if ($stmtInsert->execute([$by_user, $aws_key, $aws_secret, $account_id, $status, $ac_state, $ac_score, $ac_age, $cr_offset, $added_date])) {
+            $stmtInsert = $pdo->prepare("INSERT INTO accounts (by_user, aws_key, aws_secret, account_id, status, ac_state, ac_score, ac_age, cr_offset, suspend_mode, added_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            if ($stmtInsert->execute([$by_user, $aws_key, $aws_secret, $account_id, $status, $ac_state, $ac_score, $ac_age, $cr_offset, $suspend_mode, $added_date])) {
                 $newRecordsCount++;
             }
         }
