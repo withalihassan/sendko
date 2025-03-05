@@ -44,10 +44,12 @@ try {
             $ac_state   = isset($record['ac_state']) ? $record['ac_state'] : 'orphan';
             // If remote record contains ac_score, use it; otherwise default to 0
             $ac_score   = isset($record['ac_score']) ? $record['ac_score'] : 0;
+            // If remote record contains ac_age, use it; otherwise default to 0
+            $ac_age     = isset($record['ac_age']) ? $record['ac_age'] : 0;
             $added_date = $record['added_date'];
 
-            $stmtInsert = $pdo->prepare("INSERT INTO accounts (by_user, aws_key, aws_secret, account_id, status, ac_state, ac_score, added_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            if ($stmtInsert->execute([$by_user, $aws_key, $aws_secret, $account_id, $status, $ac_state, $ac_score, $added_date])) {
+            $stmtInsert = $pdo->prepare("INSERT INTO accounts (by_user, aws_key, aws_secret, account_id, status, ac_state, ac_score, ac_age, added_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            if ($stmtInsert->execute([$by_user, $aws_key, $aws_secret, $account_id, $status, $ac_state, $ac_score, $ac_age, $added_date])) {
                 $newRecordsCount++;
             }
         }
