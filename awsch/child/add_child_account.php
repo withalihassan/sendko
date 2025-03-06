@@ -45,8 +45,8 @@ if (isset($_POST['parent_id'], $_POST['email'], $_POST['name'])) {
 
             if ($accountId) {
                 // Insert the child account record into the database.
-                $insert = $pdo->prepare("INSERT INTO child_accounts (parent_id, email, account_id, status) VALUES (?, ?, ?, ?)");
-                $insert->execute([$parentId, $email, $accountId, $status]);
+                // $insert = $pdo->prepare("INSERT INTO child_accounts (parent_id, email, account_id, status) VALUES (?, ?, ?, ?)");
+                // $insert->execute([$parentId, $email, $accountId, $status]);
                 echo "Child account created successfully!";
             } else {
                 echo "Child account creation initiated, but AccountId not available yet.";
