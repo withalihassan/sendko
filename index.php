@@ -107,7 +107,7 @@ if (isset($_POST['submit'])) {
             <tbody>
                 <?php
                 // Fetch already claimed accounts by the current user
-                $stmt = $pdo->query("SELECT * FROM accounts WHERE ac_state = 'claimed' AND claimed_by = '$session_id' AND status='active' ORDER by id DESC");
+                $stmt = $pdo->query("SELECT * FROM accounts WHERE ac_state = 'claimed' AND status='active' ORDER by 1 DESC");
                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     echo "<tr>";
                     echo "<td>" . $row['id'] . "</td>";
