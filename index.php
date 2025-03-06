@@ -83,7 +83,7 @@ if (isset($_POST['submit'])) {
 
 <body>
     <div class="container-fluid" style="padding: 4%;">
-        <h2>Accounts List</h2>
+        <h2>Accounts Lists</h2>
         <!-- Sync Button to fetch new records from remote DB -->
         <button id="syncBtn" class="btn btn-primary mb-3">Sync Remote Records</button>
         <div id="syncResult" class="mb-3"></div>
