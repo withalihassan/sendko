@@ -9,8 +9,8 @@ if (!isset($_GET['ac_id'])) {
     exit;
 }
 
-$ac_id = intval($_GET['ac_id']);
-$parrent_id = isset($_GET['parrent_id']) ? intval($_GET['parrent_id']) : 0;
+$ac_id = htmlspecialchars($_GET['ac_id']);
+$parrent_id = isset($_GET['parrent_id']) ? htmlspecialchars($_GET['parrent_id']) : 0;
 
 // Fetch the AWS credentials for the provided account ID from child_accounts table
 $stmt = $pdo->prepare("SELECT aws_access_key, aws_secret_key FROM child_accounts WHERE account_id = ?");
