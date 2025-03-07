@@ -59,12 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             if ($childAccountId === null) {
                 $childAccountId = "pending";
             }
-            $status = 'Pending';
             
-            // Insert the new child account into the database.
-            $stmtInsert = $pdo->prepare("INSERT INTO child_accounts (parent_id, email, account_id, status, name) VALUES (?, ?, ?, ?, ?)");
-            $stmtInsert->execute([$parentId, $email, $childAccountId, $status, $name]);
-            
+            // Return the API response without storing anything in the database.
             if ($childAccountId !== "pending") {
                 echo json_encode(['status' => 'success', 'message' => 'Child account created successfully! AccountId: ' . $childAccountId]);
             } else {
@@ -80,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // For GET requests, fetch one child account email (if available) associated with this parent.
-// This email is used as the base for generating additional child emails.
+// (This part remains intact if any child accounts were previously stored.)
 $query = "SELECT email FROM child_accounts WHERE parent_id = :accountId AND account_id !='$accountId' ORDER BY id ASC LIMIT 1";
 $stmt  = $pdo->prepare($query);
 $stmt->execute(['accountId' => $accountId]);

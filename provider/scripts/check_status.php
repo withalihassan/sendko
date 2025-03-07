@@ -46,8 +46,9 @@ try {
 
 if ($status === "suspended") {
     $suspended_date = date("Y-m-d H:i:s");
-    $updateStmt = $pdo->prepare("UPDATE accounts SET status = ?, suspended_date = ? WHERE id = ?");
-    $updateStmt->execute([$status, $suspended_date, $id]);
+    $suspend_mode="auto";
+    $updateStmt = $pdo->prepare("UPDATE accounts SET status = ?, suspended_date = ?, suspend_mode  = ? WHERE id = ?");
+    $updateStmt->execute([$status, $suspended_date, $suspend_mode, $id]);
 } else {
     $updateStmt = $pdo->prepare("UPDATE accounts SET status = ? WHERE id = ?");
     $updateStmt->execute([$status, $id]);

@@ -192,12 +192,123 @@ if (isset($_POST['submit'])) {
             </tbody>
         </table>
     </div>
-
+    <div class="container-fluid" style="padding: 4%;">
+        <h2>Accounts List</h2>
+        <!-- Sync Button to fetch new records from remote DB -->
+        <button id="syncBtn" class="btn btn-primary mb-3">Sync Remote Records</button>
+        <div id="syncResult" class="mb-3"></div>
+        <table id="MyManualSuspendedTable" class="display">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Account ID</th>
+                    <th>AWS Key</th>
+                    <th>Status</th>
+                    <th>State</th>
+                    <th>Account Score</th>
+                    <th>Account Age</th>
+                    <th>Next Atm</th>
+                    <th>Type</th>
+                    <th>Added Date</th>
+                    <th>Actions</th>
+                    <th>Last Used</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                // Fetch already claimed accounts by the current user
+                $stmt = $pdo->query("SELECT * FROM accounts WHERE ac_state = 'claimed' AND suspend_mode='manual' ORDER by 1 DESC");
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    echo "<tr>";
+                    echo "<td>" . $row['id'] . "</td>";
+                    echo "<td>" . htmlspecialchars($row['account_id']) . "</td>";
+                    echo "<td>" . htmlspecialchars($row['aws_key']) . "</td>";
+                    
+                    if ($row['status'] == 'active') {
+                        echo "<td><span class='badge badge-success'>Active</span></td>";
+                    } else {
+                        echo "<td><span class='badge badge-danger'>Suspended</span></td>";
+                    }
+                    
+                    if ($row['ac_state'] == 'orphan') {
+                        echo "<td><span class='badge badge-warning'>Orphan</span></td>";
+                    } else if ($row['ac_state'] == 'claimed') {
+                        echo "<td><span class='badge badge-success'>Claimed</span></td>";
+                    } else {
+                        echo "<td><span class='badge badge-danger'>Rejected</span></td>";
+                    }
+                    
+                    echo "<td>" . htmlspecialchars($row['ac_score']) . "</td>";
+                    
+                    if ($row['status'] == 'active') {
+                        $td_Added_date = new DateTime($row['added_date']);
+                        $td_current_date = new DateTime();
+                        $diff = $td_Added_date->diff($td_current_date);
+                        echo "<td>" . $diff->format('%a days') . "</td>";
+                    } else {
+                        $td_Added_date = new DateTime($row['added_date']);
+                        $td_current_date = new DateTime($row['suspended_date']);
+                        $diff = $td_Added_date->diff($td_current_date);
+                        echo "<td>" . $diff->format('%a days') . "</td>";
+                    }
+                    
+                    if (empty($row['last_used'])) {
+                        echo "<td><span class='badge badge-warning'>No date provided</span></td>";
+                    } else {
+                        $initial = DateTime::createFromFormat('Y-m-d H:i:s', $row['last_used'], new DateTimeZone('Asia/Karachi'));
+                        if (!$initial) {
+                            echo "<td><span class='badge badge-danger'>Invalid date format</span></td>";
+                        } else {
+                            $expiry = clone $initial;
+                            $expiry->modify('+1 day');
+                            $now = new DateTime();
+                            $diff = $now->diff($expiry);
+                            if ($diff->invert) {
+                                echo "<td><span class='badge badge-success'>Ready to go</span></td>";
+                            } else {
+                                $hours = ($diff->days * 24) + $diff->h;
+                                echo "<td><span class='badge badge-secondary'>{$hours}H {$diff->i}m left</span></td>";
+                            }
+                        }
+                    }
+                    
+                    echo "<td>" . htmlspecialchars($row['worth_type']) . "</td>";
+                    echo "<td>" . (new DateTime($row['added_date']))->format('d M g:i a') . "</td>";
+                    
+                    echo "<td>
+                            <div class='dropdown'>
+                                <button class='btn btn-info btn-sm dropdown-toggle' type='button' id='actionDropdown{$row['id']}' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>
+                                Actions
+                                </button>
+                                <div class='dropdown-menu' aria-labelledby='actionDropdown{$row['id']}'>
+                                    <a class='dropdown-item' href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'>Manage Account</a>
+                                    <a class='dropdown-item check-status-btn' href='#' data-id='" . $row['id'] . "'>Check Status</a>
+                                    <a class='dropdown-item' href='bulk_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'>Bulk Send</a>
+                                    <a class='dropdown-item' href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'>Bulk Regional Send</a>
+                                    <a class='dropdown-item' href='brs.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'>BRS</a>
+                                    <a class='dropdown-item' href='aws_account.php?id=" . $row['id'] . "' target='_blank'>EnableReg</a>
+                                    <a class='dropdown-item' href='nodesender/sender.php?id=" . $row['id'] . "' target='_blank'>NodeSender</a>
+                                    <a class='dropdown-item' href='clear_region.php?ac_id=" . $row['id'] . "' target='_blank'>Clear</a>
+                                    <!-- New options to update claim type -->
+                                    <a class='dropdown-item mark-full-btn' href='#' data-id='" . $row['id'] . "'>Mark-Full</a>
+                                    <a class='dropdown-item mark-half-btn' href='#' data-id='" . $row['id'] . "'>Mark-Half</a>
+                                </div>
+                            </div>
+                          </td>";
+                    echo "<td>" . (new DateTime($row['last_used']))->format('d M g:i a') . "</td>";
+                    echo "</tr>";
+                }
+                ?>
+            </tbody>
+        </table>
+    </div>  
     <script>
         $(document).ready(function() {
             $('#myaccountsTable').DataTable();
         });
-
+        $(document).ready(function() {
+            $('#MyManualSuspendedTable').DataTable();
+        });
         // Sync Button Event Handler
         $(document).on('click', '#syncBtn', function(e) {
             e.preventDefault();
