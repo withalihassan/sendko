@@ -287,7 +287,7 @@ if ($row) {
         // Re-enable the submit button after 4 seconds.
         setTimeout(function(){
           submitButton.prop("disabled", false);
-        }, 4000);
+        }, 5000);
       }
     });
   });
