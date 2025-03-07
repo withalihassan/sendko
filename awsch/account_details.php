@@ -76,7 +76,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // For GET requests, fetch one child account email (if available) associated with this parent.
-// (This part remains intact if any child accounts were previously stored.)
 $query = "SELECT email FROM child_accounts WHERE parent_id = :accountId AND account_id !='$accountId' ORDER BY id ASC LIMIT 1";
 $stmt  = $pdo->prepare($query);
 $stmt->execute(['accountId' => $accountId]);
@@ -127,7 +126,7 @@ if ($row) {
           <label for="name" class="form-label">Mini Account Name</label>
           <input type="text" class="form-control" id="name" required>
         </div>
-        <button type="submit" class="btn btn-primary">Add Account</button>
+        <button type="submit" class="btn btn-primary" id="manualSubmitBtn">Add Account</button>
       </form>
     </div>
   </div>
@@ -262,11 +261,13 @@ if ($row) {
     autoCreateAccounts();
   });
 
-  // Manual form submission for adding one account.
+  // Manual form submission for adding one account with a 4-second delay between submissions.
   $("#addChildAccountForm").submit(function(e) {
     e.preventDefault();
     var email = $("#email").val();
     var name = $("#name").val();
+    var submitButton = $("#manualSubmitBtn");
+    submitButton.prop("disabled", true); // Disable to prevent duplicate submissions.
     $.ajax({
       url: '', // Current file.
       type: 'POST',
@@ -281,6 +282,12 @@ if ($row) {
       },
       error: function() {
         alert("Error creating account.");
+      },
+      complete: function() {
+        // Re-enable the submit button after 4 seconds.
+        setTimeout(function(){
+          submitButton.prop("disabled", false);
+        }, 4000);
       }
     });
   });
