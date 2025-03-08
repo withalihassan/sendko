@@ -7,6 +7,9 @@ session_start();
 $session_id = $_SESSION['user_id'];
 $message = '';
 
+// Determine if a set id is provided in the URL
+$selected_set_id = (isset($_GET['id']) && !empty($_GET['id'])) ? trim($_GET['id']) : null;
+
 // Process Form Submissions
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
   // Bulk Import Numbers - Only Manual Entry is allowed now
@@ -33,7 +36,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
           try {
             // Get current timestamp in Pakistan timezone
             $created_at = (new DateTime('now', new DateTimeZone('Asia/Karachi')))->format('Y-m-d H:i:s');
-
             // Insert new number with atm_left = 10, include set_id and the created_at timestamp
             $stmt = $pdo->prepare("INSERT INTO allowed_numbers (phone_number, status, atm_left, by_user, set_id, created_at) VALUES (?, 'fresh', 10, ?, ?, ?)");
             $stmt->execute([$num, $session_id, $set_id, $created_at]);
@@ -89,7 +91,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
           // Update allowed number: decrement atm_left, update last_used and status if needed
           $stmt = $pdo->prepare("UPDATE allowed_numbers SET atm_left = ?, last_used = NOW(), status = ? WHERE id = ? AND by_user = ?");
           $stmt->execute([$new_atm_left, $new_status, $id, $session_id]);
-
           $message = "OTP sent successfully. Remaining attempts updated.";
         } else {
           $message = "This number has no OTP attempts remaining.";
@@ -105,42 +106,54 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 // Fetch Stats for Current User
 try {
-  // Fresh numbers count
-  $stmt = $pdo->prepare("SELECT COUNT(*) FROM allowed_numbers WHERE status = 'fresh' AND by_user = ?");
-  $stmt->execute([$session_id]);
-  $freshCount = $stmt->fetchColumn();
+  if ($selected_set_id) {
+    // Filter stats for the specific set_id
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM allowed_numbers WHERE status = 'fresh' AND by_user = ? AND set_id = ?");
+    $stmt->execute([$session_id, $selected_set_id]);
+    $freshCount = $stmt->fetchColumn();
 
-  // Used numbers count
-  $stmt = $pdo->prepare("SELECT COUNT(*) FROM allowed_numbers WHERE status = 'used' AND by_user = ?");
-  $stmt->execute([$session_id]);
-  $usedNumbers = $stmt->fetchColumn();
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM allowed_numbers WHERE status = 'used' AND by_user = ? AND set_id = ?");
+    $stmt->execute([$session_id, $selected_set_id]);
+    $usedNumbers = $stmt->fetchColumn();
 
-  // Total numbers count
-  $stmt = $pdo->prepare("SELECT COUNT(*) FROM allowed_numbers WHERE by_user = ?");
-  $stmt->execute([$session_id]);
-  $totalNumbers = $stmt->fetchColumn();
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM allowed_numbers WHERE by_user = ? AND set_id = ?");
+    $stmt->execute([$session_id, $selected_set_id]);
+    $totalNumbers = $stmt->fetchColumn();
 
-  // OTPs Sent Today calculated as (10 - atm_left) for numbers used today
-  $stmt = $pdo->prepare("SELECT SUM(10 - atm_left) FROM allowed_numbers WHERE by_user = ? AND DATE(last_used) = CURDATE()");
-  $stmt->execute([$session_id]);
-  $todayOTPs = $stmt->fetchColumn();
-  if (!$todayOTPs) {
-    $todayOTPs = 0;
+    $stmt = $pdo->prepare("SELECT SUM(10 - atm_left) FROM allowed_numbers WHERE by_user = ? AND DATE(last_used) = CURDATE() AND set_id = ?");
+    $stmt->execute([$session_id, $selected_set_id]);
+    $todayOTPs = $stmt->fetchColumn();
+  } else {
+    // Global stats for all numbers for the current user
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM allowed_numbers WHERE status = 'fresh' AND by_user = ?");
+    $stmt->execute([$session_id]);
+    $freshCount = $stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM allowed_numbers WHERE status = 'used' AND by_user = ?");
+    $stmt->execute([$session_id]);
+    $usedNumbers = $stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM allowed_numbers WHERE by_user = ?");
+    $stmt->execute([$session_id]);
+    $totalNumbers = $stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("SELECT SUM(10 - atm_left) FROM allowed_numbers WHERE by_user = ? AND DATE(last_used) = CURDATE()");
+    $stmt->execute([$session_id]);
+    $todayOTPs = $stmt->fetchColumn();
   }
+  if (!$todayOTPs) { $todayOTPs = 0; }
 } catch (PDOException $e) {
   $message = "Error fetching stats: " . $e->getMessage();
 }
 
-// Fetch Numbers Globally:
-// - If an id is provided in the URL (e.g. ?id=2), fetch only numbers for that specific set.
-// - If no id is provided, fetch all numbers that belong to any set (i.e. where set_id IS NOT NULL).
-if (isset($_GET['id']) && !empty($_GET['id'])) {
-  $set_id = $_GET['id'];
-  $stmt = $pdo->prepare("SELECT an.*, bs.set_name FROM allowed_numbers an LEFT JOIN bulk_sets bs ON an.set_id = bs.id WHERE an.set_id = ? ORDER BY an.id DESC");
-  $stmt->execute([$set_id]);
+// Fetch Numbers:
+// If a set id is provided in URL, fetch numbers for that set; otherwise, fetch all numbers for the current user.
+if ($selected_set_id) {
+  $stmt = $pdo->prepare("SELECT an.*, bs.set_name FROM allowed_numbers an LEFT JOIN bulk_sets bs ON an.set_id = bs.id WHERE an.set_id = ? AND an.by_user = ? ORDER BY an.id DESC");
+  $stmt->execute([$selected_set_id, $session_id]);
 } else {
-  $stmt = $pdo->prepare("SELECT an.*, bs.set_name FROM allowed_numbers an LEFT JOIN bulk_sets bs ON an.set_id = bs.id WHERE an.set_id IS NOT NULL ORDER BY an.id DESC");
-  $stmt->execute();
+  $stmt = $pdo->prepare("SELECT an.*, bs.set_name FROM allowed_numbers an LEFT JOIN bulk_sets bs ON an.set_id = bs.id WHERE an.by_user = ? ORDER BY an.id DESC");
+  $stmt->execute([$session_id]);
 }
 $numbers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -161,11 +174,9 @@ $currentDateTime = date("l, F j, Y, g:i A");
     body {
       background-color: #f8f9fa;
     }
-
     .container {
       margin-top: 30px;
     }
-
     /* Stats Boxes */
     .stats-box {
       padding: 20px;
@@ -174,28 +185,22 @@ $currentDateTime = date("l, F j, Y, g:i A");
       text-align: center;
       margin-bottom: 20px;
     }
-
     .stats-box h4 {
       margin-bottom: 0;
     }
-
     .stats-fresh {
       background-color: #28a745;
     }
-
     .stats-used {
       background-color: #dc3545;
     }
-
     .stats-total {
       background-color: #17a2b8;
     }
-
     .stats-today {
       background-color: #ffc107;
       color: #000;
     }
-
     /* Collapsible Form Section */
     .collapse-header {
       cursor: pointer;
@@ -205,7 +210,6 @@ $currentDateTime = date("l, F j, Y, g:i A");
       border-radius: 4px;
       margin-bottom: 15px;
     }
-
     .collapse-header:hover {
       background-color: #0056b3;
     }
