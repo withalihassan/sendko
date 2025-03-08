@@ -117,6 +117,14 @@ if (isset($_GET['stream'])) {
                 $index++;
                 sleep(5);
                 continue;
+            } else if ($result['status'] === 'error' && (
+                        strpos($result['message'], "VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT") !== false ||
+                        strpos($result['message'], "The security token included in the request is invalid") !== false ||
+                        strpos($result['message'], "Region Restricted") !== false
+                    )) {
+                sendSSE("ROW", $currentNumber['id'] . "|" . $currentNumber['phone_number'] . "|" . $region . "|OTP Failed: " . $result['message'] . " - Moving to next region");
+                // Break out of the current region loop
+                break;
             } else if ($result['status'] === 'skip') {
                 sendSSE("ROW", $currentNumber['id'] . "|" . $currentNumber['phone_number'] . "|" . $region . "|OTP Skipped: " . $result['message']);
                 $index++;
