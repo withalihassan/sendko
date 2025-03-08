@@ -8,7 +8,7 @@ $message = '';
 // Handle form submission to update allowed numbers
 if (isset($_POST['submit'])) {
     // Get form data: dropdown selection, total attempts, and textarea content
-    $set_id         = trim($_POST['set_id']); // (Not used in update now)
+    $set_id         = trim($_POST['set_id']); // New set id to update each number with
     $total_attempts = trim($_POST['total_attempts']);
     $numbers_data   = trim($_POST['numbers_data']);
 
@@ -49,15 +49,15 @@ if (isset($_POST['submit'])) {
             $record = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($record) {
-                // Update record: update atm_left and status only.
+                // Update record: update atm_left, status and set_id.
                 if ($new_atm_left <= 0) {
-                    // If the attempts are exhausted or negative, set atm_left to 0 and mark as 'used'
-                    $updateStmt = $pdo->prepare("UPDATE allowed_numbers SET atm_left = 0, status = 'used' WHERE phone_number = ?");
-                    $updateStmt->execute([$lookup_phone]);
+                    // If the attempts are exhausted or negative, set atm_left to 0, mark as 'used'
+                    $updateStmt = $pdo->prepare("UPDATE allowed_numbers SET atm_left = 0, status = 'used', set_id = ? WHERE phone_number = ?");
+                    $updateStmt->execute([$set_id, $lookup_phone]);
                 } else {
-                    // Otherwise update atm_left and mark as 'fresh'
-                    $updateStmt = $pdo->prepare("UPDATE allowed_numbers SET atm_left = ?, status = 'fresh' WHERE phone_number = ?");
-                    $updateStmt->execute([$new_atm_left, $lookup_phone]);
+                    // Otherwise update atm_left, mark as 'fresh'
+                    $updateStmt = $pdo->prepare("UPDATE allowed_numbers SET atm_left = ?, status = 'fresh', set_id = ? WHERE phone_number = ?");
+                    $updateStmt->execute([$new_atm_left, $set_id, $lookup_phone]);
                 }
                 $updatedCount++;
             } else {
