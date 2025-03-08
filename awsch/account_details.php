@@ -135,14 +135,19 @@ if ($row) {
   <div class="card mt-4">
     <div class="card-body">
       <a target="_blank" href="./child/delete_all_child.php?parent_id=<?php echo $accountId; ?>">
-        <button type="button" class="btn btn-danger">Delete All Mini Accounts</button>
+        <button type="button" class="btn btn-danger">Del All</button>
       </a>
-      <button id="fetchExistingAccounts" class="btn btn-secondary">Fetch Existing Mini Accounts</button>
+      <button id="fetchExistingAccounts" class="btn btn-secondary">Fetch All</button>
       <button id="refresh" class="btn btn-success">Refresh</button>
       <!-- Existing Create Organization functionality -->
-      <button id="createOrg" class="btn btn-primary">Create Organization</button>
+      <button id="createOrg" class="btn btn-primary">Create Org</button>
       <!-- Button for auto-creating additional child accounts -->
       <button id="autoCreate" class="btn btn-info">Auto Create Mini Accounts</button>
+      <!-- Button for All Regions Enabled  -->
+      <a href="enable_all_regions.php?parent_id=<?php echo $accountId;?>" target="_blank"><button id="autoCreate" class="btn btn-success">E-R All</button></a>
+      <!-- Button for All Regions Clearance  -->
+      <a href="clear_all_regions.php?parent_id=<?php echo $accountId;?>" target="_blank"><button id="autoCreate" class="btn btn-danger">Clear All Regions</button></a>
+      <a href="bulk_regional_otp.php?parent_id=<?php echo $accountId;?>" target="_blank"><button id="autoCreate" class="btn btn-primary">Global Send</button></a>
       <div id="orgResponse" class="mt-2"></div>
       <!-- Log area for auto-creation status -->
       <div id="autoCreateLog" class="mt-3 border p-2" style="max-height:300px; overflow:auto;"></div>
