@@ -93,10 +93,14 @@ if (isset($_GET['stream'])) {
         while ($otpSentCount < $desiredOtpCount && $index < count($allowedNumbers)) {
             $currentNumber = $allowedNumbers[$index];
             sendSSE("STATUS", "Attempting OTP for: " . $currentNumber['phone_number'] . " in region " . $region);
+            
+            // Delay before each AWS API request
+            sleep(5);
             $sns = initSNS($aws_key, $aws_secret, $region);
             if (is_array($sns) && isset($sns['error'])) {
                 sendSSE("ROW", $currentNumber['id'] . "|" . $currentNumber['phone_number'] . "|" . $region . "|OTP Failed: " . $sns['error']);
                 $index++;
+                sleep(5);
                 continue;
             }
             $result = send_otp_single($currentNumber['id'], $currentNumber['phone_number'], $region, $aws_key, $aws_secret, $pdo, $sns);
@@ -106,18 +110,22 @@ if (isset($_GET['stream'])) {
                 $otpSentCount++;
                 $otpSentInThisRegion = true;
                 sendSSE("COUNTERS", "Total OTP sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
-                sleep(5);
+                // 2.5 second delay after a successful OTP send
+                usleep(2500000);
             } else if ($result['status'] === 'error' && strpos($result['message'], "No remaining OTP attempts") !== false) {
                 sendSSE("ROW", $currentNumber['id'] . "|" . $currentNumber['phone_number'] . "|" . $region . "|OTP Failed: " . $result['message'] . " - Switching to next number");
                 $index++;
+                sleep(5);
                 continue;
             } else if ($result['status'] === 'skip') {
                 sendSSE("ROW", $currentNumber['id'] . "|" . $currentNumber['phone_number'] . "|" . $region . "|OTP Skipped: " . $result['message']);
                 $index++;
+                sleep(5);
                 continue;
             } else {
                 sendSSE("ROW", $currentNumber['id'] . "|" . $currentNumber['phone_number'] . "|" . $region . "|OTP Failed: " . $result['message']);
                 $index++;
+                sleep(5);
                 continue;
             }
         }
@@ -149,6 +157,8 @@ if (isset($_GET['stream'])) {
     .card { margin-bottom: 20px; }
     .scroll-box { max-height: 200px; overflow-y: auto; background: #f9f9f9; padding: 10px; border: 1px solid #ccc; }
     .global-stats { margin-bottom: 20px; }
+    /* Minimized font size for OTP responses and logs */
+    .otp-log, .numbers-box, .otp-stats { font-size: 12px; }
   </style>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
