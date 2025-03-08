@@ -41,7 +41,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $stmt->execute([$num, $session_id, $set_id, $created_at]);
             $importedCount++;
           } catch (PDOException $e) {
-            // Optionally log error and count as skipped
             $skippedCount++;
           }
         }
@@ -123,6 +122,11 @@ try {
     $stmt = $pdo->prepare("SELECT SUM(10 - atm_left) FROM allowed_numbers WHERE by_user = ? AND DATE(last_used) = CURDATE() AND set_id = ?");
     $stmt->execute([$session_id, $selected_set_id]);
     $todayOTPs = $stmt->fetchColumn();
+
+    // New box: Total ATM Left for the set
+    $stmt = $pdo->prepare("SELECT SUM(atm_left) FROM allowed_numbers WHERE by_user = ? AND set_id = ?");
+    $stmt->execute([$session_id, $selected_set_id]);
+    $totalAtmLeft = $stmt->fetchColumn();
   } else {
     // Global stats for all numbers for the current user
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM allowed_numbers WHERE status = 'fresh' AND by_user = ?");
@@ -140,8 +144,14 @@ try {
     $stmt = $pdo->prepare("SELECT SUM(10 - atm_left) FROM allowed_numbers WHERE by_user = ? AND DATE(last_used) = CURDATE()");
     $stmt->execute([$session_id]);
     $todayOTPs = $stmt->fetchColumn();
+
+    // New box: Total ATM Left for all numbers
+    $stmt = $pdo->prepare("SELECT SUM(atm_left) FROM allowed_numbers WHERE by_user = ?");
+    $stmt->execute([$session_id]);
+    $totalAtmLeft = $stmt->fetchColumn();
   }
   if (!$todayOTPs) { $todayOTPs = 0; }
+  if (!$totalAtmLeft) { $totalAtmLeft = 0; }
 } catch (PDOException $e) {
   $message = "Error fetching stats: " . $e->getMessage();
 }
@@ -201,6 +211,9 @@ $currentDateTime = date("l, F j, Y, g:i A");
       background-color: #ffc107;
       color: #000;
     }
+    .stats-atmleft {
+      background-color: #6f42c1;
+    }
     /* Collapsible Form Section */
     .collapse-header {
       cursor: pointer;
@@ -224,30 +237,36 @@ $currentDateTime = date("l, F j, Y, g:i A");
       <div class="alert alert-info"><?php echo $message; ?></div>
     <?php endif; ?>
 
-    <!-- STATS BOXES (4 boxes: Fresh, Used, Total, OTPs Today) -->
+    <!-- STATS BOXES (5 boxes: Fresh, Used, Total, OTPs Today, Total ATM Left) -->
     <div class="row">
-      <div class="col-md-3">
+      <div class="col-md-2">
         <div class="stats-box stats-fresh">
           <h4><?php echo $freshCount; ?></h4>
           <p>Fresh</p>
         </div>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-2">
         <div class="stats-box stats-used">
           <h4><?php echo $usedNumbers; ?></h4>
           <p>Used</p>
         </div>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-2">
         <div class="stats-box stats-total">
           <h4><?php echo $totalNumbers; ?></h4>
-          <p>Total Numbers</p>
+          <p>Total</p>
         </div>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-2">
         <div class="stats-box stats-today">
           <h4><?php echo $todayOTPs; ?></h4>
           <p>OTPs Today</p>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="stats-box stats-atmleft">
+          <h4><?php echo $totalAtmLeft; ?></h4>
+          <p>Total ATM Left</p>
         </div>
       </div>
     </div>
