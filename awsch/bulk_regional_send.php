@@ -138,7 +138,7 @@ if (isset($_GET['stream'])) {
         $totalSuccess++;
         $otpSentInThisRegion = true;
         sendSSE("COUNTERS", "Total OTP sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
-        sleep(4);
+        sleep(5);
         // usleep(2500000);
       } else if ($result['status'] === 'skip') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Skipped: " . $result['message']);
@@ -206,7 +206,7 @@ if (isset($_GET['stream'])) {
     <h1>Bulk Regional OTP Sending</h1>
     <?php
     // Fetch available sets from bulk_sets.
-    $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets ORDER BY set_name ASC");
+    $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets Where status = 'fresh' ORDER BY set_name ASC");
     $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
     ?>
     <form id="bulk-regional-otp-form">
