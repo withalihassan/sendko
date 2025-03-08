@@ -138,8 +138,8 @@ if (isset($_GET['stream'])) {
         $totalSuccess++;
         $otpSentInThisRegion = true;
         sendSSE("COUNTERS", "Total OTP sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
-        // sleep(3);
-        usleep(2500000);
+        sleep(5);
+        // usleep(2500000);
       } else if ($result['status'] === 'skip') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Skipped: " . $result['message']);
       } else if ($result['status'] === 'error') {
@@ -164,7 +164,7 @@ if (isset($_GET['stream'])) {
       sleep(5);
     } else if ($otpSentInThisRegion) {
       sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 10 seconds...");
-      sleep(10);
+      sleep(30);
     } else {
       sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 5 seconds...");
       sleep(5);
