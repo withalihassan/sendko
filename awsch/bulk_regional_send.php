@@ -155,19 +155,19 @@ if (isset($_GET['stream'])) {
           sendSSE("STATUS", "[$region] Critical error (" . $result['message'] . "). Skipping region.");
           break;
         } else {
-          sleep(5);
+          sleep(3);
         }
       }
     }
     if ($verifDestError) {
       sendSSE("STATUS", "Region $region encountered an error. Waiting 5 seconds...");
-      sleep(5);
+      sleep(3);
     } else if ($otpSentInThisRegion) {
       sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 15 seconds...");
       sleep(15);
     } else {
       sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 5 seconds...");
-      sleep(5);
+      sleep(3);
     }
   }
 
