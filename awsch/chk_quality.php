@@ -58,19 +58,15 @@ if (isset($_GET['stream'])) {
   sendSSE("STATUS", "Starting Bulk Regional OTP Process for Set ID: " . $set_id);
 
   $regions = array(
-    "me-central-1",
-    "ap-southeast-3",
-    "ap-southeast-4",
-    "eu-south-2",
-    "eu-central-2",
-    "ap-south-2"
+    "us-east-1"
+    // "ap-south-2"
   );
   $totalRegions = count($regions);
   $totalSuccess = 0;
   $usedRegions = 0;
 
   $internal_call = true;
-  require_once('region_ajax_handler_brs.php');
+  require_once('region_ajax_handler_chk.php');
 
   foreach ($regions as $region) {
     $usedRegions++;
@@ -249,7 +245,7 @@ if (isset($_GET['stream'])) {
           return;
         }
         $.ajax({
-          url: 'region_ajax_handler_brs.php',
+          url: 'region_ajax_handler_chk.php',
           type: 'POST',
           dataType: 'json',
           data: {
@@ -288,7 +284,7 @@ if (isset($_GET['stream'])) {
         $('#counters').html('');
 
         // Start SSE connection with the selected set_id.
-        var evtSource = new EventSource("brs.php?ac_id=" + acId + "&set_id=" + set_id + "&stream=1");
+        var evtSource = new EventSource("chk_quality.php?ac_id=" + acId + "&set_id=" + set_id + "&stream=1");
         evtSource.onmessage = function(e) {
           var data = e.data;
           var parts = data.split("|");

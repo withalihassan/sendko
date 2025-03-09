@@ -148,6 +148,7 @@ if ($row) {
       <!-- Button for All Regions Clearance  -->
       <a href="clear_all_regions.php?parent_id=<?php echo $accountId;?>" target="_blank"><button id="autoCreate" class="btn btn-danger">Clear All Regions</button></a>
       <a href="bulk_regional_otp.php?parent_id=<?php echo $accountId;?>" target="_blank"><button id="autoCreate" class="btn btn-primary">Global Send</button></a>
+      <a href="setup_all.php?parent_id=<?php echo $accountId;?>" target="_blank"><button id="autoCreate" class="btn btn-primary">Setup all</button></a>
       <div id="orgResponse" class="mt-2"></div>
       <!-- Log area for auto-creation status -->
       <div id="autoCreateLog" class="mt-3 border p-2" style="max-height:300px; overflow:auto;"></div>

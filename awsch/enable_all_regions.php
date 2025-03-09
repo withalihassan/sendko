@@ -62,7 +62,8 @@ $staticRegions = [
   <!-- Global Bulk Enable Buttons -->
   <div class="global-buttons text-center">
     <button id="global-enable-set1" class="btn btn-success mr-2">Enable Set1 of All Childs</button>
-    <button id="global-enable-set2" class="btn btn-success">Enable Set2 of All Childs</button>
+    <button id="global-enable-set2" class="btn btn-success mr-2">Enable Set2 of All Childs</button>
+    <button id="global-enable-half" class="btn btn-success">Enable Half Ac Regions</button>
   </div>
   
   <!-- Child Account Cards (3 per row) -->
@@ -231,6 +232,18 @@ $(document).ready(function(){
       $(this).find('.child-response').html('');
       var set2 = staticRegions.slice(7);
       enableRegionSetForChild(this, set2, 0);
+    });
+  });
+  
+  // Global button for Half Ac Regions
+  $('#global-enable-half').click(function(){
+    $('.child-box').each(function(){
+      $(this).find('.child-response').html('');
+      // Define the half regions to enable
+      var halfSet = staticRegions.filter(function(region){
+        return ["me-central-1", "ap-southeast-3", "ap-southeast-4", "eu-south-2", "eu-central-2", "ap-south-2"].indexOf(region.code) !== -1;
+      });
+      enableRegionSetForChild(this, halfSet, 0);
     });
   });
 });
