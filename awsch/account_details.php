@@ -86,6 +86,25 @@ if ($row) {
 } else {
     $childEmail = null;
 }
+
+if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
+  if ($accountId > 0) {
+      // Get the current Pakistan time
+      // $now = (new DateTime('now', new DateTimeZone('Asia/Karachi')))->format('Y-m-d H:i:s');
+      
+      // Update the account with Pakistan time
+      $stmt = $pdo->prepare("UPDATE accounts SET ac_score = ac_score + 1, last_used = :last_used WHERE id = :id");
+      try {
+          $stmt->execute([':id' => $accountId, ':last_used' => $currentTimestamp]);
+          echo json_encode(['success' => true, 'message' => 'Account updated successfully.', 'time' => $currentTimestamp]);
+      } catch (PDOException $e) {
+          echo json_encode(['success' => false, 'message' => 'Database update failed: ' . $e->getMessage()]);
+      }
+  } else {
+      echo json_encode(['success' => false, 'message' => 'Invalid account ID.']);
+  }
+  exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -94,6 +113,20 @@ if ($row) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?php echo $accountId; ?> | Manage AWS Nodes</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    button {
+      background: #007bff;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    button:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+    }
+  </style>
 </head>
 <body>
 <div class="container mt-5">
@@ -101,7 +134,8 @@ if ($row) {
   <?php if (isset($message)) : ?>
     <div class="alert alert-info"><?php echo $message; ?></div>
   <?php endif; ?>
-
+  <button id="updateButton" class="btnb btn-secondary">Mark as Completed</button>
+  <div id="result"></div>
   <!-- Display base child account email or a message if none available -->
   <div class="alert alert-info">
     <?php 
@@ -301,5 +335,30 @@ if ($row) {
 <!-- Include external JS files if needed -->
 <script src="child/scripts.js"></script>
 <script src="child/existac.js"></script>
+<script>
+    $(document).ready(function() {
+      $("#updateButton").click(function() {
+        $.ajax({
+          url: window.location.href,
+          type: 'POST',
+          dataType: 'json',
+          data: {
+            action: 'update_account'
+          },
+          success: function(response) {
+            if (response.success) {
+              $("#result").html("<p style='color: green;'>" + response.message + "</p>");
+            } else {
+              $("#result").html("<p style='color: red;'>" + response.message + "</p>");
+            }
+          },
+          error: function() {
+            $("#result").html("<p style='color: red;'>An error occurred while updating the account.</p>");
+          }
+        });
+      });
+    });
+  </script>
 </body>
+
 </html>
