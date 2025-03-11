@@ -107,7 +107,7 @@ if (isset($_POST['submit'])) {
             <tbody>
                 <?php
                 // Fetch already claimed accounts by the current user
-                $stmt = $pdo->query("SELECT * FROM accounts WHERE ac_state = 'claimed' AND status='active' ORDER by 1 DESC");
+                $stmt = $pdo->query("SELECT * FROM accounts WHERE ac_state = 'claimed' AND status='active'  AND ac_worth IS NULL ORDER by 1 DESC");
                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     echo "<tr>";
                     echo "<td>" . $row['id'] . "</td>";
@@ -193,7 +193,7 @@ if (isset($_POST['submit'])) {
         </table>
     </div>
     <div class="container-fluid" style="padding: 4%;">
-        <h2>Accounts List</h2>
+        <h2>Manually Suspended List</h2>
         <!-- Sync Button to fetch new records from remote DB -->
         <button id="syncBtn" class="btn btn-primary mb-3">Sync Remote Records</button>
         <div id="syncResult" class="mb-3"></div>
@@ -217,7 +217,7 @@ if (isset($_POST['submit'])) {
             <tbody>
                 <?php
                 // Fetch already claimed accounts by the current user
-                $stmt = $pdo->query("SELECT * FROM accounts WHERE ac_state = 'claimed' AND suspend_mode='manual' ORDER by 1 DESC");
+                $stmt = $pdo->query("SELECT * FROM accounts WHERE ac_state = 'claimed' AND suspend_mode='manual'  AND ac_worth IS NULL ORDER by 1 DESC");
                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     echo "<tr>";
                     echo "<td>" . $row['id'] . "</td>";
