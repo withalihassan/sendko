@@ -3,7 +3,7 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-date_default_timezone_set('Asia/Karachi');
+// date_default_timezone_set('Asia/Karachi');
 require '../db.php';
 require '../aws/aws-autoloader.php';
 
@@ -91,11 +91,11 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
   if ($accountId > 0) {
       // Get the current Pakistan time
       $currentTimestamp = (new DateTime('now', new DateTimeZone('Asia/Karachi')))->format('Y-m-d H:i:s');
-      
+
       // Update the account with Pakistan time
-      $stmt = $pdo->prepare("UPDATE accounts SET ac_score = ac_score + 1, last_used = :last_used WHERE id = :id");
+      $stmt = $pdo->prepare("UPDATE accounts SET ac_score = ac_score + 1, last_used = :last_used WHERE account_id = :id");
       try {
-          $stmt->execute([':id' => $accountId, ':last_used' => $currentTimestamp]);
+          $stmt->execute([':last_used' => $currentTimestamp, ':id' => $accountId]);
           echo json_encode(['success' => true, 'message' => 'Account updated successfully.', 'time' => $currentTimestamp]);
       } catch (PDOException $e) {
           echo json_encode(['success' => false, 'message' => 'Database update failed: ' . $e->getMessage()]);
@@ -105,6 +105,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
   }
   exit;
 }
+
 
 ?>
 <!DOCTYPE html>
