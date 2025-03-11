@@ -90,7 +90,7 @@ if ($row) {
 if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
   if ($accountId > 0) {
       // Get the current Pakistan time
-      // $now = (new DateTime('now', new DateTimeZone('Asia/Karachi')))->format('Y-m-d H:i:s');
+      $currentTimestamp = (new DateTime('now', new DateTimeZone('Asia/Karachi')))->format('Y-m-d H:i:s');
       
       // Update the account with Pakistan time
       $stmt = $pdo->prepare("UPDATE accounts SET ac_score = ac_score + 1, last_used = :last_used WHERE id = :id");
@@ -105,6 +105,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
   }
   exit;
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
