@@ -1,14 +1,15 @@
 <?php
 // db.php
 
-// Check if the server's IP address is 47.251.28.20.
-// If so, use 'localhost' as the host; otherwise, use '47.251.28.20'.
-// if (isset($_SERVER['SERVER_ADDR']) && $_SERVER['SERVER_ADDR'] == '47.251.28.20') {
-//    echo  $host = 'localhost';
-// } else {
-//    echo  $host = '47.251.28.20';
-// }
-echo  $host = 'localhost';
+// Determine the database host based on the URL used to access the site.
+if (isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] === '47.251.28.20') {
+    // When accessed via http://47.251.28.20, use 'localhost' for the DB connection.
+    $host = 'localhost';
+} else {
+    // Otherwise, use the remote IP address.
+    $host = '47.251.28.20';
+}
+
 $dbname   = 'sender';
 $username = 'sender';
 $password = 'Tech@#009';
@@ -20,4 +21,3 @@ try {
     die("Database connection failed: " . $e->getMessage());
 }
 ?>
-
