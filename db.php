@@ -4,15 +4,15 @@
 // Check if the server's IP address is 47.251.28.20.
 // If so, use 'localhost' as the host; otherwise, use '47.251.28.20'.
 if (isset($_SERVER['SERVER_ADDR']) && $_SERVER['SERVER_ADDR'] == '47.251.28.20') {
-    $host = 'localhost';
+   echo  $host = 'localhost';
 } else {
-    $host = '47.251.28.20';
+   echo  $host = '47.251.28.20';
 }
 
 $dbname   = 'sender';
 $username = 'sender';
 $password = 'Tech@#009';
-echo $host;
+
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
