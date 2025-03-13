@@ -116,7 +116,7 @@ if (!isset($_GET['parent_id'])) {
 $parent_id = $_GET['parent_id'];
 
 // Fetch all child accounts belonging to the given parent.
-$stmt = $pdo->prepare("SELECT * FROM child_accounts WHERE parent_id = ?");
+$stmt = $pdo->prepare("SELECT * FROM child_accounts WHERE parent_id = ? AND account_id!='$parent_id' AND  status!='pending'");
 $stmt->execute([$parent_id]);
 $childAccounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -142,14 +142,14 @@ $childAccounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </style>
 </head>
 <body>
-<div class="container mt-5">
+<div class="container-fluid p-5">
     <h1 class="mb-4">Clear Regions for Child Accounts</h1>
     <p>Parent ID: <?php echo htmlspecialchars($parent_id); ?></p>
     <!-- Global Button to start cleanup for all child accounts -->
     <button id="startAll" class="btn btn-primary mb-4">Start Cleanup For All Child Accounts</button>
     <div id="childCards" class="row">
         <?php foreach ($childAccounts as $child): ?>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="card" id="child_<?php echo $child['account_id']; ?>">
                     <div class="card-body">
                         <h5 class="card-title">Child Account: <?php echo htmlspecialchars($child['account_id']); ?></h5>
