@@ -217,7 +217,7 @@ if (isset($_POST['submit'])) {
             <tbody>
                 <?php
                 // Fetch already claimed accounts by the current user
-                $stmt = $pdo->query("SELECT * FROM accounts WHERE ac_state = 'claimed' AND suspend_mode='manual'  AND ac_worth IS NULL ORDER by 1 DESC");
+                $stmt = $pdo->query("SELECT * FROM accounts WHERE ac_state = 'claimed' AND suspend_mode='manual'  AND ac_worth IS NULL AND wasted IS NULL ORDER by 1 DESC");
                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     echo "<tr>";
                     echo "<td>" . $row['id'] . "</td>";
@@ -276,13 +276,13 @@ if (isset($_POST['submit'])) {
                     echo "<td>" . (new DateTime($row['added_date']))->format('d M g:i a') . "</td>";
                     
                     echo "<td>
+                            <a class='check-status-btn btn btn-sm btn-primary p-1' href='#' data-id='" . $row['id'] . "'>Check Status</a>
                             <div class='dropdown'>
                                 <button class='btn btn-info btn-sm dropdown-toggle' type='button' id='actionDropdown{$row['id']}' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>
                                 Actions
                                 </button>
                                 <div class='dropdown-menu' aria-labelledby='actionDropdown{$row['id']}'>
                                     <a class='dropdown-item' href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'>Manage Account</a>
-                                    <a class='dropdown-item check-status-btn' href='#' data-id='" . $row['id'] . "'>Check Status</a>
                                     <a class='dropdown-item' href='bulk_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'>Bulk Send</a>
                                     <a class='dropdown-item' href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'>Bulk Regional Send</a>
                                     <a class='dropdown-item' href='brs.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'>BRS</a>
