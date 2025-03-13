@@ -4,10 +4,10 @@
 // Determine the database host based on the URL used to access the site.
 if (isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] === '47.251.28.20') {
     // When accessed via http://47.251.28.20, use 'localhost' for the DB connection.
-    $host = 'localhost';
+   echo $host = 'localhost';
 } else {
     // Otherwise, use the remote IP address.
-    $host = '47.251.28.20';
+   echo $host = '47.251.28.20';
 }
 
 $dbname   = 'sender';
