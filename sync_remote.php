@@ -59,8 +59,8 @@ try {
             }
         } else {
             // Update existing record with remote data.
-            $stmtUpdate = $pdo->prepare("UPDATE accounts SET aws_key = ?, aws_secret = ?, status = ?, ac_state = ?, ac_score = ?, ac_age = ?, cr_offset = ?, suspend_mode = ?, added_date = ? WHERE account_id = ?");
-            if ($stmtUpdate->execute([$aws_key, $aws_secret, $status, $ac_state, $ac_score, $ac_age, $cr_offset, $suspend_mode, $added_date, $account_id])) {
+            $stmtUpdate = $pdo->prepare("UPDATE accounts SET aws_key = ?, aws_secret = ?, ac_state = ?, ac_score = ?, ac_age = ?, cr_offset = ?, suspend_mode = ?, added_date = ? WHERE account_id = ?");
+            if ($stmtUpdate->execute([$aws_key, $aws_secret, $ac_state, $ac_score, $ac_age, $cr_offset, $suspend_mode, $added_date, $account_id])) {
                 $updatedRecordsCount++;
             }
         }
