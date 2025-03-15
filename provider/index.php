@@ -34,6 +34,7 @@ if (isset($_POST['submit'])) {
     // Trim and fetch the AWS credentials from the form
     $aws_key    = trim($_POST['aws_key']);
     $aws_secret = trim($_POST['aws_secret']);
+    $ac_worth = trim($_POST['ac_worth']);
 
     // Check if fields are not empty
     if (empty($aws_key) || empty($aws_secret)) {
@@ -66,8 +67,8 @@ if (isset($_POST['submit'])) {
                 $added_date = (new DateTime('now', new DateTimeZone('Asia/Karachi')))->format('Y-m-d H:i:s');
 
                 // Insert the account into the database with default status "active"
-                $stmt = $pdo->prepare("INSERT INTO accounts (by_user, aws_key, aws_secret, account_id, status, ac_state, ac_score, ac_age, cr_offset, added_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                if ($stmt->execute([$session_id, $aws_key, $aws_secret, $account_id, 'active', 'orphan', '0', '0', '0', $added_date])) {
+                $stmt = $pdo->prepare("INSERT INTO accounts (by_user, aws_key, aws_secret, account_id, status, ac_state, ac_score, ac_age, cr_offset, added_date,ac_worth) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                if ($stmt->execute([$session_id, $aws_key, $aws_secret, $account_id, 'active', 'orphan', '0', '0', '0', $added_date, $ac_worth])) {
                     $message = "Account added successfully. AWS Account ID: " . htmlspecialchars($account_id);
                 } else {
                     $message = "Failed to insert account into the database.";
@@ -256,6 +257,13 @@ if (isset($_POST['submit'])) {
             <div class="form-group">
                 <label for="aws_secret">AWS Secret Key:</label>
                 <input type="text" name="aws_secret" id="aws_secret" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="selectExample">Select an Account Worth</label>
+                <select class="form-control" id="ac_worth" name="ac_worth">
+                    <option value="special">Special</option>
+                    <option value="normal">Normal</option>
+                </select>
             </div>
             <button type="submit" name="submit" class="btn btn-primary">Add Account</button>
         </form>

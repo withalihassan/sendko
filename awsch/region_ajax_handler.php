@@ -32,12 +32,14 @@ function initSNS($awsKey, $awsSecret, $awsRegion) {
     }
 }
 
-// Fetch phone numbers based solely on the set_id
+// Fetch phone numbers based solely on the set_id.
 function fetch_numbers($region, $pdo, $set_id = null) {
     if (empty($region)) {
         return ['error' => 'Region is required.'];
     }
-    $query = "SELECT id, phone_number, atm_left, DATE_FORMAT(created_at, '%Y-%m-%d') as formatted_date FROM allowed_numbers WHERE status = 'fresh' AND atm_left > 0";
+    $query = "SELECT id, phone_number, atm_left, DATE_FORMAT(created_at, '%Y-%m-%d') as formatted_date 
+              FROM allowed_numbers 
+              WHERE status = 'fresh' AND atm_left > 0";
     $params = array();
     if (!empty($set_id)) {
         $query .= " AND set_id = ?";

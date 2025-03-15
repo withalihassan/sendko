@@ -5,10 +5,30 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 include('../db.php'); // This file must initialize your $pdo connection
 
+// ============================================================
+// Handle worth_type update via AJAX
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_worth') {
+    if (!isset($_GET['ac_id'])) {
+        echo json_encode(['status' => 'error', 'message' => 'Account ID missing']);
+        exit;
+    }
+    $ac_id = htmlspecialchars($_GET['ac_id']);
+    $worth_type = $_POST['worth_type'] ?? '';
+    if (!in_array($worth_type, ['full', 'half'])) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid worth type']);
+        exit;
+    }
+    $stmt = $pdo->prepare("UPDATE child_accounts SET worth_type = ? WHERE account_id = ?");
+    $stmt->execute([$worth_type, $ac_id]);
+    echo json_encode(['status' => 'success', 'message' => "Child account marked as $worth_type"]);
+    exit;
+}
+
+// ============================================================
 // Ensure account ID is provided via GET
 if (!isset($_GET['ac_id'])) {
-  echo "Account ID required.";
-  exit;
+    echo "Account ID required.";
+    exit;
 }
 
 $id = htmlspecialchars($_GET['ac_id']);
@@ -19,8 +39,8 @@ $stmt->execute([$id]);
 $account = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$account) {
-  echo "Account not found.";
-  exit;
+    echo "Account not found.";
+    exit;
 }
 
 $accountId = $id; // using provided account id
@@ -33,123 +53,115 @@ $currentTimestamp = date('Y-m-d H:i:s');
 $aws_key    = $account['aws_access_key'];
 $aws_secret = $account['aws_secret_key'];
 
-// STREAMING MODE: If stream=1 is present, run the SSE loop.
+// ============================================================
+// STREAMING MODE: Run the SSE loop if stream=1 is provided.
 if (isset($_GET['stream'])) {
-  if (!isset($_GET['set_id']) || intval($_GET['set_id']) <= 0) {
-    echo "No set selected.";
-    exit;
-  }
-  $set_id = intval($_GET['set_id']);
+    if (!isset($_GET['set_id']) || intval($_GET['set_id']) <= 0) {
+        echo "No set selected.";
+        exit;
+    }
+    if (!isset($_GET['region']) || !in_array($_GET['region'], ['us-east-1', 'us-east-2'])) {
+        echo "No valid region selected.";
+        exit;
+    }
+    $set_id = intval($_GET['set_id']);
+    $selectedRegion = $_GET['region'];
 
-  header('Content-Type: text/event-stream');
-  header('Cache-Control: no-cache');
-  while (ob_get_level()) {
-    ob_end_flush();
-  }
-  set_time_limit(0);
-  ignore_user_abort(true);
+    header('Content-Type: text/event-stream');
+    header('Cache-Control: no-cache');
+    while (ob_get_level()) {
+        ob_end_flush();
+    }
+    set_time_limit(0);
+    ignore_user_abort(true);
 
-  function sendSSE($type, $message)
-  {
-    echo "data:" . $type . "|" . str_replace("\n", "\\n", $message) . "\n\n";
-    flush();
-  }
+    function sendSSE($type, $message) {
+        echo "data:" . $type . "|" . str_replace("\n", "\\n", $message) . "\n\n";
+        flush();
+    }
 
-  sendSSE("STATUS", "Starting Bulk Regional OTP Process for Set ID: " . $set_id);
+    sendSSE("STATUS", "Starting Bulk Regional OTP Process for Set ID: " . $set_id . " in region: " . $selectedRegion);
+    $region = $selectedRegion;
+    sendSSE("STATUS", "Processing region: " . $region);
+    sendSSE("COUNTERS", "Processing region: " . $region);
 
-  $regions = array(
-    "us-east-1"
-    // "ap-south-2"
-  );
-  $totalRegions = count($regions);
-  $totalSuccess = 0;
-  $usedRegions = 0;
+    $otpSentInThisRegion = false;
+    $verifDestError = false;
 
-  $internal_call = true;
-  require_once('region_ajax_handler_chk.php');
+    $internal_call = true;
+    require_once('region_ajax_handler_chk.php');
 
-  foreach ($regions as $region) {
-    $usedRegions++;
-    sendSSE("STATUS", "Moving to region: " . $region);
-    sendSSE("COUNTERS", "Total OTP sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
-
-    // Fetch phone numbers based solely on the set_id
+    // Fetch phone numbers based solely on the set_id for the selected region.
     $numbersResult = fetch_numbers($region, $pdo, $set_id);
     if (isset($numbersResult['error'])) {
-      sendSSE("STATUS", "Error fetching numbers for region " . $region . ": " . $numbersResult['error']);
-      sleep(5);
-      continue;
+        sendSSE("STATUS", "Error fetching numbers for region " . $region . ": " . $numbersResult['error']);
+        sleep(5);
+        exit;
     }
     $allowedNumbers = $numbersResult['data'];
     if (empty($allowedNumbers)) {
-      sendSSE("STATUS", "No allowed numbers found in region: " . $region);
-      sleep(5);
-      continue;
+        sendSSE("STATUS", "No allowed numbers found in region: " . $region);
+        sleep(5);
+        exit;
     }
 
     // Build OTP tasks.
     $otpTasks = array();
     $first = $allowedNumbers[0];
     for ($i = 0; $i < 4; $i++) {
-      $otpTasks[] = array('id' => $first['id'], 'phone' => $first['phone_number']);
+        $otpTasks[] = array('id' => $first['id'], 'phone' => $first['phone_number']);
     }
     for ($i = 1; $i < min(count($allowedNumbers), 10); $i++) {
-      $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
+        $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
     }
-
-    $otpSentInThisRegion = false;
-    $verifDestError = false;
 
     foreach ($otpTasks as $task) {
-      sendSSE("STATUS", "[$region] Sending OTP...");
-      $sns = initSNS($aws_key, $aws_secret, $region);
-      if (is_array($sns) && isset($sns['error'])) {
-        sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Failed: " . $sns['error']);
-        continue;
-      }
-      $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns);
-      if ($result['status'] === 'success') {
-        sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Sent");
-        $totalSuccess++;
-        $otpSentInThisRegion = true;
-        sendSSE("COUNTERS", "Total OTP sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
-        // sleep(5);
-        usleep(2500000);
-      } else if ($result['status'] === 'skip') {
-        sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Skipped: " . $result['message']);
-      } else if ($result['status'] === 'error') {
-        sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Failed: " . $result['message']);
-        if (strpos($result['message'], "VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT") !== false) {
-          $verifDestError = true;
-          sendSSE("STATUS", "[$region] VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT error encountered. Skipping region.");
-          break;
-        } else if (
-          strpos($result['message'], "Access Denied") !== false ||
-          strpos($result['message'], "Region Restricted") !== false
-        ) {
-          sendSSE("STATUS", "[$region] Critical error (" . $result['message'] . "). Skipping region.");
-          break;
-        } else {
-          sleep(3);
+        sendSSE("STATUS", "[$region] Sending OTP...");
+        $sns = initSNS($aws_key, $aws_secret, $region);
+        if (is_array($sns) && isset($sns['error'])) {
+            sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Failed: " . $sns['error']);
+            continue;
         }
-      }
+        $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns);
+        if ($result['status'] === 'success') {
+            sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Sent");
+            $otpSentInThisRegion = true;
+            sendSSE("COUNTERS", "OTP sent in region: " . $region);
+            usleep(2500000);
+        } else if ($result['status'] === 'skip') {
+            sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Skipped: " . $result['message']);
+        } else if ($result['status'] === 'error') {
+            sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Failed: " . $result['message']);
+            if (strpos($result['message'], "VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT") !== false) {
+                $verifDestError = true;
+                sendSSE("STATUS", "[$region] VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT error encountered. Skipping region.");
+                break;
+            } else if (
+                strpos($result['message'], "Access Denied") !== false ||
+                strpos($result['message'], "Region Restricted") !== false
+            ) {
+                sendSSE("STATUS", "[$region] Critical error (" . $result['message'] . "). Skipping region.");
+                break;
+            } else {
+                sleep(3);
+            }
+        }
     }
     if ($verifDestError) {
-      sendSSE("STATUS", "Region $region encountered an error. Waiting 5 seconds...");
-      sleep(3);
+        sendSSE("STATUS", "Region $region encountered an error. Waiting 5 seconds...");
+        sleep(3);
     } else if ($otpSentInThisRegion) {
-      sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 15 seconds...");
-      sleep(15);
+        sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 15 seconds...");
+        sleep(15);
     } else {
-      sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 5 seconds...");
-      sleep(3);
+        sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 5 seconds...");
+        sleep(3);
     }
-  }
 
-  $summary = "Final Summary:<br>Total OTP sent: $totalSuccess<br>Regions processed: $usedRegions<br>Remaining regions: " . ($totalRegions - $usedRegions);
-  sendSSE("SUMMARY", $summary);
-  sendSSE("STATUS", "Process Completed.");
-  exit;
+    $summary = "Final Summary:<br>OTP sent in region: $region<br>";
+    sendSSE("SUMMARY", $summary);
+    sendSSE("STATUS", "Process Completed.");
+    exit;
 }
 ?>
 <!DOCTYPE html>
@@ -174,14 +186,22 @@ if (isset($_GET['stream'])) {
     th, td { padding: 5px; text-align: center; }
     th { background: #f4f4f4; }
     #counters { background: #eee; color: #333; padding: 5px 10px; margin: 10px 0; font-weight: bold; text-align: center; font-size: 14px; border: 1px solid #ccc; border-radius: 3px; display: inline-block; width: auto; }
+    .inline-buttons { text-align: center; margin-bottom: 20px; }
+    .inline-buttons button { width: auto; margin: 0 10px; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Bulk Regional OTP Sending</h1>
+    <div class="inline-buttons">
+      <button id="mark-full">Mark it Full</button>
+      <button id="mark-half">Mark it Half</button>
+    </div>
+    <!-- Display response for worth_type update -->
+    <div id="worth-response" class="message"></div>
     <?php
     // Fetch available sets from bulk_sets.
-    $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets Where status = 'fresh' ORDER BY set_name ASC");
+    $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
     $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
     ?>
     <form id="bulk-regional-otp-form">
@@ -191,6 +211,12 @@ if (isset($_GET['stream'])) {
         <?php foreach ($sets as $set): ?>
           <option value="<?php echo $set['id']; ?>"><?php echo htmlspecialchars($set['set_name']); ?></option>
         <?php endforeach; ?>
+      </select>
+      
+      <label for="region">Select Region:</label>
+      <select id="region" name="region" required>
+        <option value="us-east-1" selected>us-east-1</option>
+        <option value="us-east-2">us-east-2</option>
       </select>
 
       <!-- AWS Credentials -->
@@ -250,7 +276,7 @@ if (isset($_GET['stream'])) {
           dataType: 'json',
           data: {
             action: 'fetch_numbers',
-            region: 'dummy',
+            region: $('#region').val(), // use selected region
             set_id: set_id
           },
           success: function(response) {
@@ -272,6 +298,7 @@ if (isset($_GET['stream'])) {
 
       $('#start-bulk-regional-otp').click(function() {
         var set_id = $('#set_id').val();
+        var region = $('#region').val();
         if (!set_id) {
           alert("Please select a set.");
           return;
@@ -283,8 +310,8 @@ if (isset($_GET['stream'])) {
         $('#summary').html('');
         $('#counters').html('');
 
-        // Start SSE connection with the selected set_id.
-        var evtSource = new EventSource("chk_quality.php?ac_id=" + acId + "&set_id=" + set_id + "&stream=1");
+        // Start SSE connection with the selected set_id and region.
+        var evtSource = new EventSource("chk_quality.php?ac_id=" + acId + "&set_id=" + set_id + "&region=" + region + "&stream=1");
         evtSource.onmessage = function(e) {
           var data = e.data;
           var parts = data.split("|");
@@ -312,6 +339,45 @@ if (isset($_GET['stream'])) {
           $('#process-status').text("An error occurred with the SSE connection.").addClass('error').show();
           evtSource.close();
         };
+      });
+
+      // Handle worth_type update buttons.
+      $('#mark-full').click(function() {
+        $.ajax({
+          url: "chk_quality.php?ac_id=" + acId,
+          type: "POST",
+          dataType: "json",
+          data: { action: "update_worth", worth_type: "full" },
+          success: function(response) {
+            if (response.status === "success") {
+              $('#worth-response').removeClass('error').addClass('success').text(response.message).show();
+            } else {
+              $('#worth-response').removeClass('success').addClass('error').text(response.message).show();
+            }
+          },
+          error: function(xhr, status, error) {
+            $('#worth-response').removeClass('success').addClass('error').text("AJAX error: " + error).show();
+          }
+        });
+      });
+
+      $('#mark-half').click(function() {
+        $.ajax({
+          url: "chk_quality.php?ac_id=" + acId,
+          type: "POST",
+          dataType: "json",
+          data: { action: "update_worth", worth_type: "half" },
+          success: function(response) {
+            if (response.status === "success") {
+              $('#worth-response').removeClass('error').addClass('success').text(response.message).show();
+            } else {
+              $('#worth-response').removeClass('success').addClass('error').text(response.message).show();
+            }
+          },
+          error: function(xhr, status, error) {
+            $('#worth-response').removeClass('success').addClass('error').text("AJAX error: " + error).show();
+          }
+        });
       });
     });
   </script>

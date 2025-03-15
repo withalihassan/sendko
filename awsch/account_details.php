@@ -227,6 +227,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
               <th>Name</th>
               <th>Email</th>
               <th>Status</th>
+              <th>Type</th>
               <th>AWS Account ID</th>
               <th>Action</th>
             </tr>

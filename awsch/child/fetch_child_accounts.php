@@ -25,6 +25,7 @@ if (isset($_GET['parent_id'])) {
                     <td>" . htmlspecialchars($account['name']) . "</td>
                     <td>" . htmlspecialchars($account['email']) . "</td>
                     <td>$statusBadge</td>
+                    <td>" . $account['worth_type']. "</td>
                     <td>" . htmlspecialchars($account['account_id']) . "</td>
                     <td>
                         <a href='./bulk_regional_send.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-success'>Bulk Regional Send</a>
