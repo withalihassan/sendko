@@ -11,9 +11,9 @@ if (!isset($_GET['parent_id'])) {
 
 $parent_id = htmlspecialchars($_GET['parent_id']);
 
-// Fetch all child accounts for the provided parent id
-$stmt = $pdo->prepare("SELECT `id`, `parent_id`, `email`, `account_id`, `status`, `created_at`, `name`, `aws_access_key`, `aws_secret_key` FROM child_accounts WHERE parent_id = ? AND account_id != '$parent_id' ");
-$stmt->execute([$parent_id]);
+// Fetch all child accounts for the provided parent id (excluding the parent itself)
+$stmt = $pdo->prepare("SELECT `id`, `parent_id`, `email`, `account_id`, `status`, `created_at`, `name`, `aws_access_key`, `aws_secret_key`, `worth_type` FROM child_accounts WHERE parent_id = ? AND account_id != ?");
+$stmt->execute([$parent_id, $parent_id]);
 $childAccounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Define the static list of regions
@@ -49,9 +49,21 @@ $staticRegions = [
     }
     .card {
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      position: relative;
     }
     .global-buttons {
       margin-bottom: 20px;
+    }
+    /* Display the worth_type in the top-right corner */
+    .worth-type {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: #ffc107;
+      padding: 5px 10px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      border-bottom-left-radius: 5px;
     }
   </style>
 </head>
@@ -74,7 +86,11 @@ $staticRegions = [
           <div class="card child-box" 
                data-child-id="<?php echo htmlspecialchars($child['account_id']); ?>" 
                data-aws-key="<?php echo htmlspecialchars($child['aws_access_key']); ?>" 
-               data-aws-secret="<?php echo htmlspecialchars($child['aws_secret_key']); ?>">
+               data-aws-secret="<?php echo htmlspecialchars($child['aws_secret_key']); ?>"
+               data-worth-type="<?php echo isset($child['worth_type']) ? htmlspecialchars($child['worth_type']) : 'null'; ?>">
+            <div class="worth-type">
+              <?php echo isset($child['worth_type']) ? htmlspecialchars($child['worth_type']) : 'null'; ?>
+            </div>
             <div class="card-header">
               <h5><?php echo htmlspecialchars($child['name']); ?> (<?php echo htmlspecialchars($child['email']); ?>)</h5>
             </div>
@@ -88,6 +104,7 @@ $staticRegions = [
               <div class="mb-2">
                 <button class="btn btn-primary enable-set1">Enable Set1</button>
                 <button class="btn btn-primary enable-set2">Enable Set2</button>
+                <button class="btn btn-primary enable-half">Enable Half Ac Regions</button>
               </div>
               <div class="child-response"></div>
             </div>
@@ -218,6 +235,16 @@ $(document).ready(function(){
     enableRegionSetForChild(childBox, set2, 0);
   });
   
+  $('.enable-half').click(function(){
+    var childBox = $(this).closest('.child-box');
+    $(childBox).find('.child-response').html('');
+    // Define the half regions to enable (only these regions)
+    var halfSet = staticRegions.filter(function(region){
+      return ["me-central-1", "ap-southeast-3", "ap-southeast-4", "eu-south-2", "eu-central-2", "ap-south-2"].indexOf(region.code) !== -1;
+    });
+    enableRegionSetForChild(childBox, halfSet, 0);
+  });
+  
   // Global buttons for all child boxes
   $('#global-enable-set1').click(function(){
     $('.child-box').each(function(){
@@ -235,11 +262,10 @@ $(document).ready(function(){
     });
   });
   
-  // Global button for Half Ac Regions
   $('#global-enable-half').click(function(){
     $('.child-box').each(function(){
       $(this).find('.child-response').html('');
-      // Define the half regions to enable
+      // Define the half regions to enable globally
       var halfSet = staticRegions.filter(function(region){
         return ["me-central-1", "ap-southeast-3", "ap-southeast-4", "eu-south-2", "eu-central-2", "ap-south-2"].indexOf(region.code) !== -1;
       });
