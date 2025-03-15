@@ -10,8 +10,7 @@ use Aws\Exception\AwsException;
 
 // Check if parent_id is provided via GET
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['parent_id'])) {
-    // Remove any leading zeros from parent_id
-    $parent_id = ltrim($_GET['parent_id'], '0');
+    $parent_id = $_GET['parent_id'];
     $newAccountsInserted = 0;  // Counter for newly inserted accounts
 
     try {
@@ -53,11 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['parent_id'])) {
                 // Ensure keys exist before accessing them
                 $email = isset($acc['Email']) ? $acc['Email'] : 'No email';
                 $name = isset($acc['Name']) ? $acc['Name'] : 'No name';
-                // Remove leading zeros from child account id if present
-                $account_id = isset($acc['Id']) ? ltrim($acc['Id'], '0') : 'No account ID';
+                $account_id = isset($acc['Id']) ? $acc['Id'] : 'No account ID';
                 $status = isset($acc['Status']) ? $acc['Status'] : 'Running';
 
-                // Check if account already exists in the local DB using the trimmed account_id
+                // Check if account already exists in the local DB
                 $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM child_accounts WHERE account_id = ?");
                 $checkStmt->execute([$account_id]);
                 $existingAccount = $checkStmt->fetchColumn();
@@ -71,7 +69,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['parent_id'])) {
                     $newAccountsInserted++;
                 }
             }
-
             if ($newAccountsInserted > 0) {
                 echo "$newAccountsInserted new child account(s) inserted successfully!";
             } else {
