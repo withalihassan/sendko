@@ -65,7 +65,7 @@ if (isset($_GET['parent_id']) && isset($_GET['child_id'])) {
             ]
         ]);
 
-        $userName = "child-root-user-{$child_id}";
+        $userName = "child-manual-user-{$child_id}";
 
         try {
             $userResult = $iamClient->createUser([
