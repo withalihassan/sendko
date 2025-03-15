@@ -25,6 +25,8 @@ if ($instances) {
             <th>Instance Type</th>
             <th>State</th>
             <th>Launch Time</th>
+            <th>Host</th>
+            <th>Elastic Host</th>
             <th>Public IP</th>
             <th>Elastic IP</th>
             <th>Actions</th>
@@ -36,12 +38,17 @@ if ($instances) {
     echo '<td>' . htmlspecialchars($instance['instance_type']) . '</td>';
     echo '<td>' . htmlspecialchars($instance['state']) . '</td>';
     echo '<td>' . htmlspecialchars($instance['launch_time']) . '</td>';
-    echo '<td>S > <a href="http://' . $instance['public_ip'] . '/bulk_send.php?ac_id=' . $account_id . '&user_id=' . $session_id . '" target="_blank">' . $instance['public_ip'] . '</a><br>
-              R > <a href="http://' . $instance['public_ip'] . '/bulk_regional_send.php?ac_id=' . $account_id . '&user_id=' . $session_id . '" target="_blank">' . $instance['public_ip'] . '</a>
+    echo '<td><a href="http://' . $instance['public_ip'] . '" target="_blank">' . $instance['public_ip'] . '</a><br>
           </td>';
+
+    echo '<td><a href="http://' . $instance['elastic_ip'] . '/bulk_send.php?ac_id=' . $account_id . '&user_id=' . $session_id . '" target="_blank">' . $instance['elastic_ip'] . '</a><br>
+          </td>';
+    echo '<td>S > <a href="http://' . $instance['public_ip'] . '/bulk_send.php?ac_id=' . $account_id . '&user_id=' . $session_id . '" target="_blank">' . $instance['public_ip'] . '</a><br>
+          R > <a href="http://' . $instance['public_ip'] . '/bulk_regional_send.php?ac_id=' . $account_id . '&user_id=' . $session_id . '" target="_blank">' . $instance['public_ip'] . '</a>
+      </td>';
     echo '<td>S > <a href="http://' . $instance['elastic_ip'] . '/bulk_send.php?ac_id=' . $account_id . '&user_id=' . $session_id . '" target="_blank">' . $instance['elastic_ip'] . '</a><br>
               R > <a href="http://' . $instance['elastic_ip'] . '/bulk_regional_send.php?ac_id=' . $account_id . '&user_id=' . $session_id . '" target="_blank">' . $instance['elastic_ip'] . '</a>
-                </td>';
+            </td>';
     // echo '<td>' . $instance['elastic_ip'] . '</td>';
     echo '<td>';
     // Terminate button

@@ -84,8 +84,6 @@ $account_id = intval($_GET['id']);
     
     <!-- Launched Instances with additional controls -->
     <h2 class="mt-5">Launched EC2 Instances</h2>
-    <!-- Refresh button to update instance statuses -->
-    <button id="refreshStatus" class="btn btn-info mb-3">Refresh Status</button>
     <!-- The instances table will be loaded here -->
     <div id="instancesTable"></div>
 </div>
