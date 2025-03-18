@@ -41,7 +41,7 @@ if ($instances) {
     echo '<td><a href="http://' . $instance['public_ip'] . '" target="_blank">' . $instance['public_ip'] . '</a><br>
           </td>';
 
-    echo '<td><a href="http://' . $instance['elastic_ip'] . '/bulk_send.php?ac_id=' . $account_id . '&user_id=' . $session_id . '" target="_blank">' . $instance['elastic_ip'] . '</a><br>
+    echo '<td><a href="http://' . $instance['elastic_ip'] . '" target="_blank">' . $instance['elastic_ip'] . '</a><br>
           </td>';
     echo '<td>S > <a href="http://' . $instance['public_ip'] . '/bulk_send.php?ac_id=' . $account_id . '&user_id=' . $session_id . '" target="_blank">' . $instance['public_ip'] . '</a><br>
           R > <a href="http://' . $instance['public_ip'] . '/bulk_regional_send.php?ac_id=' . $account_id . '&user_id=' . $session_id . '" target="_blank">' . $instance['public_ip'] . '</a>
