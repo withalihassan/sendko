@@ -22,6 +22,7 @@ if (!$account) {
   exit;
 }
 $accountId = intval($_GET['ac_id']);
+
 // If an AJAX request is sent for updating the account:
 if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
   // Only proceed if a valid account id exists
@@ -45,7 +46,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
   }
   exit; // End the script for the AJAX request.
 }
-// ===================================
+
 $aws_key    = htmlspecialchars($account['aws_key']);
 $aws_secret = htmlspecialchars($account['aws_secret']);
 
@@ -58,7 +59,7 @@ $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
 
 <head>
   <meta charset="UTF-8">
-  <title>CQ Accounnt ID <?php echo $accountId;?></title>
+  <title>CQ Account ID <?php echo $accountId; ?></title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
     body {
@@ -88,8 +89,8 @@ $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
       display: block;
     }
 
-    select,
     input,
+    select,
     textarea,
     #start-bulk-otp {
       width: 100%;
@@ -98,6 +99,18 @@ $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
       border-radius: 4px;
       border: 1px solid #ccc;
       box-sizing: border-box;
+    }
+
+    /* Inline group container for select fields and AWS credentials */
+    .inline-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .inline-group > div {
+      flex: 1;
+      min-width: 200px;
     }
 
     button {
@@ -179,60 +192,70 @@ $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
 
 <body>
   <div class="container">
-    <h1>Check Quality Accounnt ID <?php echo $accountId;?></h1>
+    <h1>Check Quality Account ID <?php echo $accountId; ?></h1>
     <button id="updateButton">Mark As Completed</button>
     <div id="result"></div>
     <form id="bulk-otp-form">
       <!-- Hidden input to hold the session_id -->
       <input type="hidden" id="session_id" value="<?php echo $user_id; ?>">
 
-      <label for="region">Select Region:</label>
-      <select id="region" name="region" required>
-        <option value="">-- Select a Region --</option>
-        <option value="us-east-1">Virginia (us-east-1)</option>
-        <option value="us-east-2">Ohio (us-east-2)</option>
-        <option value="us-west-1">California (us-west-1)</option>
-        <option value="us-west-2">Oregon (us-west-2)</option>
-        <option value="ap-south-1">Mumbai (ap-south-1)</option>
-        <option value="ap-northeast-3">Osaka (ap-northeast-3)</option>
-        <option value="ap-southeast-1">Singapore (ap-southeast-1)</option>
-        <option value="ap-southeast-2">Sydney (ap-southeast-2)</option>
-        <option value="ap-northeast-1">Tokyo (ap-northeast-1)</option>
-        <option value="ca-central-1">Canada (ca-central-1)</option>
-        <option value="eu-central-1">Frankfurt (eu-central-1)</option>
-        <option value="eu-west-1">Ireland (eu-west-1)</option>
-        <option value="eu-west-2">London (eu-west-2)</option>
-        <option value="eu-west-3">Paris (eu-west-3)</option>
-        <option value="eu-north-1">Stockholm (eu-north-1)</option>
-        <option value="me-central-1">UAE (me-central-1)</option>
-        <option value="sa-east-1">Sao Paulo (sa-east-1)</option>
-        <option value="af-south-1">Africa (af-south-1)</option>
-        <option value="ap-southeast-3">Jakarta (ap-southeast-3)</option>
-        <option value="ap-southeast-4">Melbourne (ap-southeast-4)</option>
-        <option value="ca-west-1">Calgary (ca-west-1)</option>
-        <option value="eu-south-1">Milan (eu-south-1)</option>
-        <option value="eu-south-2">Spain (eu-south-2)</option>
-        <option value="eu-central-2">Zurich (eu-central-2)</option>
-        <option value="me-south-1">Bahrain (me-south-1)</option>
-        <option value="il-central-1">Tel Aviv (il-central-1)</option>
-        <option value="ap-south-2">Hyderabad (ap-south-2)</option>
-      </select>
+      <!-- Inline group for Region and Set selection -->
+      <div class="inline-group">
+        <div>
+          <label for="region">Select Region:</label>
+          <select id="region" name="region" required>
+            <option value="">-- Select a Region --</option>
+            <option value="us-east-1">Virginia (us-east-1)</option>
+            <option value="us-east-2">Ohio (us-east-2)</option>
+            <option value="us-west-1">California (us-west-1)</option>
+            <option value="us-west-2">Oregon (us-west-2)</option>
+            <option value="ap-south-1">Mumbai (ap-south-1)</option>
+            <option value="ap-northeast-3">Osaka (ap-northeast-3)</option>
+            <option value="ap-southeast-1">Singapore (ap-southeast-1)</option>
+            <option value="ap-southeast-2">Sydney (ap-southeast-2)</option>
+            <option value="ap-northeast-1">Tokyo (ap-northeast-1)</option>
+            <option value="ca-central-1">Canada (ca-central-1)</option>
+            <option value="eu-central-1">Frankfurt (eu-central-1)</option>
+            <option value="eu-west-1">Ireland (eu-west-1)</option>
+            <option value="eu-west-2">London (eu-west-2)</option>
+            <option value="eu-west-3">Paris (eu-west-3)</option>
+            <option value="eu-north-1">Stockholm (eu-north-1)</option>
+            <option value="me-central-1">UAE (me-central-1)</option>
+            <option value="sa-east-1">Sao Paulo (sa-east-1)</option>
+            <option value="af-south-1">Africa (af-south-1)</option>
+            <option value="ap-southeast-3">Jakarta (ap-southeast-3)</option>
+            <option value="ap-southeast-4">Melbourne (ap-southeast-4)</option>
+            <option value="ca-west-1">Calgary (ca-west-1)</option>
+            <option value="eu-south-1">Milan (eu-south-1)</option>
+            <option value="eu-south-2">Spain (eu-south-2)</option>
+            <option value="eu-central-2">Zurich (eu-central-2)</option>
+            <option value="me-south-1">Bahrain (me-south-1)</option>
+            <option value="il-central-1">Tel Aviv (il-central-1)</option>
+            <option value="ap-south-2">Hyderabad (ap-south-2)</option>
+          </select>
+        </div>
+        <div>
+          <label for="set_id">Select Set:</label>
+          <select id="set_id" name="set_id" required>
+            <option value="">-- Select a Set --</option>
+            <?php foreach ($sets as $set): ?>
+              <option value="<?php echo $set['id']; ?>"><?php echo htmlspecialchars($set['set_name']); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
 
-      <!-- New Dropdown for selecting Set -->
-      <label for="set_id">Select Set:</label>
-      <select id="set_id" name="set_id" required>
-        <option value="">-- Select a Set --</option>
-        <?php foreach ($sets as $set): ?>
-          <option value="<?php echo $set['id']; ?>"><?php echo htmlspecialchars($set['set_name']); ?></option>
-        <?php endforeach; ?>
-      </select>
-
-      <!-- AWS Credentials (pre-filled and disabled) -->
-      <label for="awsKey">AWS Key:</label>
-      <input type="text" id="awsKey" name="awsKey" value="<?php echo $aws_key; ?>" disabled>
-
-      <label for="awsSecret">AWS Secret:</label>
-      <input type="text" id="awsSecret" name="awsSecret" value="<?php echo $aws_secret; ?>" disabled>
+      <!-- Inline group for AWS Credentials -->
+      <div class="inline-group">
+        <div>
+          <label for="awsKey">AWS Key:</label>
+          <input type="text" id="awsKey" name="awsKey" value="<?php echo $aws_key; ?>" disabled>
+        </div>
+        <div>
+          <label for="awsSecret">AWS Secret:</label>
+          <input type="text" id="awsSecret" name="awsSecret" value="<?php echo $aws_secret; ?>" disabled>
+        </div>
+      </div>
 
       <label for="numbers">Allowed Phone Numbers (from database):</label>
       <textarea id="numbers" name="numbers" rows="5" readonly></textarea>
