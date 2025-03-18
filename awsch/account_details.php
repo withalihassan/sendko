@@ -89,22 +89,51 @@ if ($row) {
 
 if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
   if ($accountId > 0) {
-    // Get the current Pakistan time
-    $currentTimestamp = (new DateTime('now', new DateTimeZone('Asia/Karachi')))->format('Y-m-d H:i:s');
+    // Create a DateTime object for the current Pakistan time
+    $currentDateTime = new DateTime('now', new DateTimeZone('Asia/Karachi'));
+    $currentTimestamp = $currentDateTime->format('Y-m-d H:i:s');
+    $currentDay = $currentDateTime->format('Y-m-d'); // Only the date part
 
-    // Update the account with Pakistan time
+    // Retrieve the last_used value from the database
+    $stmt = $pdo->prepare("SELECT last_used FROM accounts WHERE account_id = :id");
+    $stmt->execute([':id' => $accountId]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($result && !empty($result['last_used'])) {
+      // Convert last_used to Pakistan time and get its date part
+      $lastUsedDateTime = new DateTime($result['last_used'], new DateTimeZone('Asia/Karachi'));
+      $lastUsedDay = $lastUsedDateTime->format('Y-m-d');
+
+      if ($lastUsedDay === $currentDay) {
+        echo json_encode([
+          'success' => false,
+          'message' => 'This account has already been marked as complete for today. You can only mark it complete after 24 hours.'
+        ]);
+        exit;
+      }
+    }
+
+    // Proceed with the update if last_used is not today
     $stmt = $pdo->prepare("UPDATE accounts SET ac_score = ac_score + 1, last_used = :last_used WHERE account_id = :id");
     try {
       $stmt->execute([':last_used' => $currentTimestamp, ':id' => $accountId]);
-      echo json_encode(['success' => true, 'message' => 'Account updated successfully.', 'time' => $currentTimestamp]);
+      echo json_encode([
+        'success' => true,
+        'message' => 'Account updated successfully.',
+        'time' => $currentTimestamp
+      ]);
     } catch (PDOException $e) {
-      echo json_encode(['success' => false, 'message' => 'Database update failed: ' . $e->getMessage()]);
+      echo json_encode([
+        'success' => false,
+        'message' => 'Database update failed: ' . $e->getMessage()
+      ]);
     }
   } else {
     echo json_encode(['success' => false, 'message' => 'Invalid account ID.']);
   }
   exit;
 }
+
 
 
 if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
