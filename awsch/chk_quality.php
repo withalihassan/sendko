@@ -168,11 +168,11 @@ if (isset($_GET['stream'])) {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title><?php echo $id;  ?> | Bulk Regional OTP Sending</title>
+  <title><?php echo $id; ?> | Bulk Regional OTP Sending</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f7f7f7; }
-    .container { max-width: 800px; margin: auto; background: #fff; padding: 20px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); border-radius: 5px; }
+    .container { max-width: 800px; margin: auto; background: #fff; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 5px; }
     h1, h2 { text-align: center; color: #333; }
     label { font-weight: bold; margin-top: 10px; display: block; }
     input, textarea, select, button { width: 100%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; }
@@ -188,6 +188,16 @@ if (isset($_GET['stream'])) {
     #counters { background: #eee; color: #333; padding: 5px 10px; margin: 10px 0; font-weight: bold; text-align: center; font-size: 14px; border: 1px solid #ccc; border-radius: 3px; display: inline-block; width: auto; }
     .inline-buttons { text-align: center; margin-bottom: 20px; }
     .inline-buttons button { width: auto; margin: 0 10px; }
+    /* Inline groups for dropdowns and AWS credentials */
+    .inline-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .inline-group > div {
+      flex: 1;
+      min-width: 200px;
+    }
   </style>
 </head>
 <body>
@@ -205,26 +215,37 @@ if (isset($_GET['stream'])) {
     $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
     ?>
     <form id="bulk-regional-otp-form">
-      <label for="set_id">Select Set:</label>
-      <select id="set_id" name="set_id" required>
-        <option value="">-- Select a Set --</option>
-        <?php foreach ($sets as $set): ?>
-          <option value="<?php echo $set['id']; ?>"><?php echo htmlspecialchars($set['set_name']); ?></option>
-        <?php endforeach; ?>
-      </select>
-      
-      <label for="region">Select Region:</label>
-      <select id="region" name="region" required>
-        <option value="us-east-1" selected>us-east-1</option>
-        <option value="us-east-2">us-east-2</option>
-      </select>
+      <!-- Inline group for Set and Region -->
+      <div class="inline-group">
+        <div>
+          <label for="set_id">Select Set:</label>
+          <select id="set_id" name="set_id" required>
+            <option value="">-- Select a Set --</option>
+            <?php foreach ($sets as $set): ?>
+              <option value="<?php echo $set['id']; ?>"><?php echo htmlspecialchars($set['set_name']); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div>
+          <label for="region">Select Region:</label>
+          <select id="region" name="region" required>
+            <option value="us-east-1" selected>us-east-1</option>
+            <option value="us-east-2">us-east-2</option>
+          </select>
+        </div>
+      </div>
 
-      <!-- AWS Credentials -->
-      <label for="awsKey">AWS Key:</label>
-      <input type="text" id="awsKey" name="awsKey" value="<?php echo $aws_key; ?>" disabled>
-
-      <label for="awsSecret">AWS Secret:</label>
-      <input type="text" id="awsSecret" name="awsSecret" value="<?php echo $aws_secret; ?>" disabled>
+      <!-- Inline group for AWS Credentials -->
+      <div class="inline-group">
+        <div>
+          <label for="awsKey">AWS Key:</label>
+          <input type="text" id="awsKey" name="awsKey" value="<?php echo $aws_key; ?>" disabled>
+        </div>
+        <div>
+          <label for="awsSecret">AWS Secret:</label>
+          <input type="text" id="awsSecret" name="awsSecret" value="<?php echo $aws_secret; ?>" disabled>
+        </div>
+      </div>
 
       <button type="button" id="start-bulk-regional-otp">Start Bulk OTP Process for Selected Set</button>
     </form>
