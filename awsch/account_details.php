@@ -18,62 +18,62 @@ if (!isset($_GET['ac_id'])) {
 $accountId = htmlspecialchars($_GET['ac_id']);
 
 // Handle AJAX POST request for creating a child account.
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_account') {
-  $parentId = $_POST['parent_id'] ?? '';
-  $email    = $_POST['email'] ?? '';
-  $name     = $_POST['name'] ?? '';
+// if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_account') {
+//   $parentId = $_POST['parent_id'] ?? '';
+//   $email    = $_POST['email'] ?? '';
+//   $name     = $_POST['name'] ?? '';
 
-  if (!$parentId || !$email || !$name) {
-    echo json_encode(['status' => 'error', 'message' => 'Missing required parameters.']);
-    exit;
-  }
+//   if (!$parentId || !$email || !$name) {
+//     echo json_encode(['status' => 'error', 'message' => 'Missing required parameters.']);
+//     exit;
+//   }
 
-  // Fetch parent's AWS credentials from the "accounts" table.
-  $stmt = $pdo->prepare("SELECT aws_key, aws_secret FROM accounts WHERE account_id = ?");
-  $stmt->execute([$parentId]);
-  $parentAccount = $stmt->fetch(PDO::FETCH_ASSOC);
+//   // Fetch parent's AWS credentials from the "accounts" table.
+//   $stmt = $pdo->prepare("SELECT aws_key, aws_secret FROM accounts WHERE account_id = ?");
+//   $stmt->execute([$parentId]);
+//   $parentAccount = $stmt->fetch(PDO::FETCH_ASSOC);
 
-  if ($parentAccount) {
-    $awsKey    = $parentAccount['aws_key'];
-    $awsSecret = $parentAccount['aws_secret'];
+//   if ($parentAccount) {
+//     $awsKey    = $parentAccount['aws_key'];
+//     $awsSecret = $parentAccount['aws_secret'];
 
-    try {
-      // Initialize AWS Organizations Client using the parent's credentials.
-      $orgClient = new OrganizationsClient([
-        'version'     => 'latest',
-        'region'      => 'us-east-1',
-        'credentials' => [
-          'key'    => $awsKey,
-          'secret' => $awsSecret
-        ]
-      ]);
+//     try {
+//       // Initialize AWS Organizations Client using the parent's credentials.
+//       $orgClient = new OrganizationsClient([
+//         'version'     => 'latest',
+//         'region'      => 'us-east-1',
+//         'credentials' => [
+//           'key'    => $awsKey,
+//           'secret' => $awsSecret
+//         ]
+//       ]);
 
-      // Call AWS Organizations createAccount API.
-      $result = $orgClient->createAccount([
-        'AccountName' => $name,
-        'Email'       => $email
-      ]);
+//       // Call AWS Organizations createAccount API.
+//       $result = $orgClient->createAccount([
+//         'AccountName' => $name,
+//         'Email'       => $email
+//       ]);
 
-      // Capture the AccountId if available. Otherwise, use a placeholder.
-      $childAccountId = isset($result['CreateAccountStatus']['AccountId']) ? $result['CreateAccountStatus']['AccountId'] : null;
-      if ($childAccountId === null) {
-        $childAccountId = "pending";
-      }
+//       // Capture the AccountId if available. Otherwise, use a placeholder.
+//       $childAccountId = isset($result['CreateAccountStatus']['AccountId']) ? $result['CreateAccountStatus']['AccountId'] : null;
+//       if ($childAccountId === null) {
+//         $childAccountId = "pending";
+//       }
 
-      // Return the API response without storing anything in the database.
-      if ($childAccountId !== "pending") {
-        echo json_encode(['status' => 'success', 'message' => 'Child account created successfully! AccountId: ' . $childAccountId]);
-      } else {
-        echo json_encode(['status' => 'success', 'message' => 'Child account creation initiated, AccountId pending.']);
-      }
-    } catch (AwsException $e) {
-      echo json_encode(['status' => 'error', 'message' => $e->getAwsErrorMessage()]);
-    }
-  } else {
-    echo json_encode(['status' => 'error', 'message' => 'Parent account not found.']);
-  }
-  exit;
-}
+//       // Return the API response without storing anything in the database.
+//       if ($childAccountId !== "pending") {
+//         echo json_encode(['status' => 'success', 'message' => 'Child account created successfully! AccountId: ' . $childAccountId]);
+//       } else {
+//         echo json_encode(['status' => 'success', 'message' => 'Child account creation initiated, AccountId pending.']);
+//       }
+//     } catch (AwsException $e) {
+//       echo json_encode(['status' => 'error', 'message' => $e->getAwsErrorMessage()]);
+//     }
+//   } else {
+//     echo json_encode(['status' => 'error', 'message' => 'Parent account not found.']);
+//   }
+//   exit;
+// }
 
 // For GET requests, fetch one child account email (if available) associated with this parent.
 $query = "SELECT email FROM child_accounts WHERE parent_id = :accountId AND account_id !='$accountId' ORDER BY id ASC LIMIT 1";
