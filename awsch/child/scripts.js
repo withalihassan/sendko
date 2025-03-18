@@ -20,24 +20,24 @@ $(document).ready(function () {
     loadChildAccounts(); // Initial load
 
     // Add Child Account Form Submission
-    $('#addChildAccountForm').submit(function (e) {
-        e.preventDefault();
+    // $('#addChildAccountForm').submit(function (e) {
+    //     e.preventDefault();
 
-        let email = $('#email').val();
-        let name = $('#name').val();
+    //     let email = $('#email').val();
+    //     let name = $('#name').val();
 
-        $.ajax({
-            url: 'child/add_child_account.php',
-            type: 'POST',
-            data: { parent_id: parentAccountId, email: email, name: name },
-            success: function (response) {
-                alert(response);
-                $('#addChildAccountForm')[0].reset();
-                loadChildAccounts();
-            },
-            error: function () {
-                alert('Failed to add child account.');
-            }
-        });
-    });
+    //     $.ajax({
+    //         url: 'child/add_child_account.php',
+    //         type: 'POST',
+    //         data: { parent_id: parentAccountId, email: email, name: name },
+    //         success: function (response) {
+    //             alert(response);
+    //             $('#addChildAccountForm')[0].reset();
+    //             loadChildAccounts();
+    //         },
+    //         error: function () {
+    //             alert('Failed to add child account.');
+    //         }
+    //     });
+    // });
 });
