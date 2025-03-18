@@ -3,7 +3,7 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-// date_default_timezone_set('Asia/Karachi');
+
 require '../db.php';
 require '../aws/aws-autoloader.php';
 
@@ -18,89 +18,77 @@ if (!isset($_GET['ac_id'])) {
 $accountId = htmlspecialchars($_GET['ac_id']);
 
 // Handle AJAX POST request for creating a child account.
-// if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_account') {
-//   $parentId = $_POST['parent_id'] ?? '';
-//   $email    = $_POST['email'] ?? '';
-//   $name     = $_POST['name'] ?? '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_account') {
+  $parentId = $_POST['parent_id'] ?? '';
+  $email    = $_POST['email'] ?? '';
+  $name     = $_POST['name'] ?? '';
 
-//   if (!$parentId || !$email || !$name) {
-//     echo json_encode(['status' => 'error', 'message' => 'Missing required parameters.']);
-//     exit;
-//   }
+  if (!$parentId || !$email || !$name) {
+    echo json_encode(['status' => 'error', 'message' => 'Missing required parameters.']);
+    exit;
+  }
 
-//   // Fetch parent's AWS credentials from the "accounts" table.
-//   $stmt = $pdo->prepare("SELECT aws_key, aws_secret FROM accounts WHERE account_id = ?");
-//   $stmt->execute([$parentId]);
-//   $parentAccount = $stmt->fetch(PDO::FETCH_ASSOC);
+  // Fetch parent's AWS credentials from the "accounts" table.
+  $stmt = $pdo->prepare("SELECT aws_key, aws_secret FROM accounts WHERE account_id = ?");
+  $stmt->execute([$parentId]);
+  $parentAccount = $stmt->fetch(PDO::FETCH_ASSOC);
 
-//   if ($parentAccount) {
-//     $awsKey    = $parentAccount['aws_key'];
-//     $awsSecret = $parentAccount['aws_secret'];
+  if ($parentAccount) {
+    $awsKey    = $parentAccount['aws_key'];
+    $awsSecret = $parentAccount['aws_secret'];
 
-//     try {
-//       // Initialize AWS Organizations Client using the parent's credentials.
-//       $orgClient = new OrganizationsClient([
-//         'version'     => 'latest',
-//         'region'      => 'us-east-1',
-//         'credentials' => [
-//           'key'    => $awsKey,
-//           'secret' => $awsSecret
-//         ]
-//       ]);
+    try {
+      // Initialize AWS Organizations Client using the parent's credentials.
+      $orgClient = new OrganizationsClient([
+        'version'     => 'latest',
+        'region'      => 'us-east-1',
+        'credentials' => [
+          'key'    => $awsKey,
+          'secret' => $awsSecret
+        ]
+      ]);
 
-//       // Call AWS Organizations createAccount API.
-//       $result = $orgClient->createAccount([
-//         'AccountName' => $name,
-//         'Email'       => $email
-//       ]);
+      // Call AWS Organizations createAccount API.
+      $result = $orgClient->createAccount([
+        'AccountName' => $name,
+        'Email'       => $email
+      ]);
 
-//       // Capture the AccountId if available. Otherwise, use a placeholder.
-//       $childAccountId = isset($result['CreateAccountStatus']['AccountId']) ? $result['CreateAccountStatus']['AccountId'] : null;
-//       if ($childAccountId === null) {
-//         $childAccountId = "pending";
-//       }
+      // Capture the AccountId if available. Otherwise, use a placeholder.
+      $childAccountId = isset($result['CreateAccountStatus']['AccountId']) ? $result['CreateAccountStatus']['AccountId'] : null;
+      if ($childAccountId === null) {
+        $childAccountId = "pending";
+      }
 
-//       // Return the API response without storing anything in the database.
-//       if ($childAccountId !== "pending") {
-//         echo json_encode(['status' => 'success', 'message' => 'Child account created successfully! AccountId: ' . $childAccountId]);
-//       } else {
-//         echo json_encode(['status' => 'success', 'message' => 'Child account creation initiated, AccountId pending.']);
-//       }
-//     } catch (AwsException $e) {
-//       echo json_encode(['status' => 'error', 'message' => $e->getAwsErrorMessage()]);
-//     }
-//   } else {
-//     echo json_encode(['status' => 'error', 'message' => 'Parent account not found.']);
-//   }
-//   exit;
-// }
-
-// For GET requests, fetch one child account email (if available) associated with this parent.
-$query = "SELECT email FROM child_accounts WHERE parent_id = :accountId AND account_id !='$accountId' ORDER BY id ASC LIMIT 1";
-$stmt  = $pdo->prepare($query);
-$stmt->execute(['accountId' => $accountId]);
-$row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if ($row) {
-  $childEmail = $row['email'];
-} else {
-  $childEmail = null;
+      // Return the API response without storing anything in the database.
+      if ($childAccountId !== "pending") {
+        echo json_encode(['status' => 'success', 'message' => 'Child account created successfully! AccountId: ' . $childAccountId]);
+      } else {
+        echo json_encode(['status' => 'success', 'message' => 'Child account creation initiated, AccountId pending.']);
+      }
+    } catch (AwsException $e) {
+      echo json_encode(['status' => 'error', 'message' => $e->getAwsErrorMessage()]);
+    }
+  } else {
+    echo json_encode(['status' => 'error', 'message' => 'Parent account not found.']);
+  }
+  exit;
 }
 
+// Handle account update request.
 if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
   if ($accountId > 0) {
-    // Create a DateTime object for the current Pakistan time
+    // Create a DateTime object for the current Pakistan time.
     $currentDateTime = new DateTime('now', new DateTimeZone('Asia/Karachi'));
     $currentTimestamp = $currentDateTime->format('Y-m-d H:i:s');
-    $currentDay = $currentDateTime->format('Y-m-d'); // Only the date part
+    $currentDay = $currentDateTime->format('Y-m-d'); // Date part only.
 
-    // Retrieve the last_used value from the database
+    // Retrieve the last_used value from the database.
     $stmt = $pdo->prepare("SELECT last_used FROM accounts WHERE account_id = :id");
     $stmt->execute([':id' => $accountId]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($result && !empty($result['last_used'])) {
-      // Convert last_used to Pakistan time and get its date part
       $lastUsedDateTime = new DateTime($result['last_used'], new DateTimeZone('Asia/Karachi'));
       $lastUsedDay = $lastUsedDateTime->format('Y-m-d');
 
@@ -113,7 +101,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
       }
     }
 
-    // Proceed with the update if last_used is not today
+    // Proceed with the update.
     $stmt = $pdo->prepare("UPDATE accounts SET ac_score = ac_score + 1, last_used = :last_used WHERE account_id = :id");
     try {
       $stmt->execute([':last_used' => $currentTimestamp, ':id' => $accountId]);
@@ -134,18 +122,14 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
   exit;
 }
 
-
-
+// Handle account quarantine request.
 if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
   if ($accountId > 0) {
-    // Get the current Pakistan time
     $currentTimestamp = (new DateTime('now', new DateTimeZone('Asia/Karachi')))->format('Y-m-d H:i:s');
-
-    // Update the account with Pakistan time
-    $stmt = $pdo->prepare("UPDATE accounts SET last_used = :last_used , ac_worth='quarantined' WHERE account_id = :id");
+    $stmt = $pdo->prepare("UPDATE accounts SET last_used = :last_used, ac_worth='quarantined' WHERE account_id = :id");
     try {
       $stmt->execute([':last_used' => $currentTimestamp, ':id' => $accountId]);
-      echo json_encode(['success' => true, 'message' => 'Account Quarantine successfully.', 'time' => $currentTimestamp]);
+      echo json_encode(['success' => true, 'message' => 'Account quarantined successfully.', 'time' => $currentTimestamp]);
     } catch (PDOException $e) {
       echo json_encode(['success' => false, 'message' => 'Database update failed: ' . $e->getMessage()]);
     }
@@ -154,10 +138,16 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
   }
   exit;
 }
+
+// For GET requests, fetch one child account email (if available) associated with this parent.
+$query = "SELECT email FROM child_accounts WHERE parent_id = :accountId AND account_id != :accountId ORDER BY id ASC LIMIT 1";
+$stmt  = $pdo->prepare($query);
+$stmt->execute(['accountId' => $accountId]);
+$row = $stmt->fetch(PDO::FETCH_ASSOC);
+$childEmail = $row ? $row['email'] : null;
 ?>
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -171,14 +161,16 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
       cursor: pointer;
       font-size: 16px;
     }
-
     button:disabled {
       background: #6c757d;
       cursor: not-allowed;
     }
   </style>
+  <script>
+    // Set a global variable for the parent account ID.
+    window.parentAccountId = "<?php echo $accountId; ?>";
+  </script>
 </head>
-
 <body>
   <div class="container mt-5">
     <h2>Manage Nodes for Parent ID: <?php echo $accountId; ?></h2>
@@ -191,18 +183,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
       <button id="quarantineButton" class="btn btn-warning">Quarantine For 7 Days</button>
       <div id="quarantineresult" class="text-warning fw-bold"></div>
     </div>
-
-    <!-- Display base child account email or a message if none available -->
     <div class="alert alert-info">
-      <?php
-      if ($childEmail) {
-        echo "Child Account Email: " . htmlspecialchars($childEmail);
-      } else {
-        echo "No child available.";
-      }
-      ?>
+      <?php echo $childEmail ? "Child Account Email: " . htmlspecialchars($childEmail) : "No child available."; ?>
     </div>
-
     <!-- Manual form to add a child account -->
     <div class="card mb-4">
       <div class="card-header">Add Mini Account</div>
@@ -220,8 +203,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
         </form>
       </div>
     </div>
-
-    <!-- Action buttons -->
+    <!-- Other action buttons -->
     <div class="card mt-4">
       <div class="card-body">
         <a target="_blank" href="./child/delete_all_child.php?parent_id=<?php echo $accountId; ?>">
@@ -229,22 +211,24 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
         </a>
         <button id="fetchExistingAccounts" class="btn btn-secondary">Fetch All</button>
         <button id="refresh" class="btn btn-success">Refresh</button>
-        <!-- Existing Create Organization functionality -->
         <button id="createOrg" class="btn btn-primary">Create Org</button>
-        <!-- Button for auto-creating additional child accounts -->
         <button id="autoCreate" class="btn btn-info">Auto Create Mini Accounts</button>
-        <!-- Button for All Regions Enabled  -->
-        <a href="enable_all_regions.php?parent_id=<?php echo $accountId; ?>" target="_blank"><button id="autoCreate" class="btn btn-success">E-R All</button></a>
-        <!-- Button for All Regions Clearance  -->
-        <a href="clear_all_regions.php?parent_id=<?php echo $accountId; ?>" target="_blank"><button id="autoCreate" class="btn btn-danger">Clear All Regions</button></a>
-        <a href="bulk_regional_otp.php?parent_id=<?php echo $accountId; ?>" target="_blank"><button id="autoCreate" class="btn btn-primary">Global Send</button></a>
-        <a href="setup_all.php?parent_id=<?php echo $accountId; ?>" target="_blank"><button id="autoCreate" class="btn btn-primary">Setup all</button></a>
+        <a href="enable_all_regions.php?parent_id=<?php echo $accountId; ?>" target="_blank">
+          <button class="btn btn-success">E-R All</button>
+        </a>
+        <a href="clear_all_regions.php?parent_id=<?php echo $accountId; ?>" target="_blank">
+          <button class="btn btn-danger">Clear All Regions</button>
+        </a>
+        <a href="bulk_regional_otp.php?parent_id=<?php echo $accountId; ?>" target="_blank">
+          <button class="btn btn-primary">Global Send</button>
+        </a>
+        <a href="setup_all.php?parent_id=<?php echo $accountId; ?>" target="_blank">
+          <button class="btn btn-primary">Setup all</button>
+        </a>
         <div id="orgResponse" class="mt-2"></div>
-        <!-- Log area for auto-creation status -->
         <div id="autoCreateLog" class="mt-3 border p-2" style="max-height:300px; overflow:auto;"></div>
       </div>
     </div>
-
     <!-- Table to display existing child accounts -->
     <div class="card">
       <div class="card-header">Existing Child Accounts</div>
@@ -270,170 +254,37 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
       </div>
     </div>
   </div>
-
   <!-- jQuery CDN -->
   <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
-  <script>
-    var parentAccountId = "<?php echo $accountId; ?>";
-    // Use the initially fetched child email as the base for auto-generated emails.
-    var originalEmail = <?php echo json_encode($childEmail); ?>;
-
-    document.getElementById("refresh").addEventListener("click", function() {
-      location.reload();
-    });
-
-    // Create Organization button functionality (existing)
-    $(document).on('click', '#createOrg', function(e) {
-      e.preventDefault();
-      $("#orgResponse").html("<span class='text-info'>Creating organization...</span>");
-      $.ajax({
-        url: 'child/create_org.php',
-        type: 'GET',
-        data: {
-          ac_id: parentAccountId
-        },
-        success: function(response) {
-          $("#orgResponse").html("<span class='text-success'>" + response + "</span>");
-        },
-        error: function() {
-          $("#orgResponse").html("<span class='text-danger'>An error occurred while creating the organization.</span>");
-        }
-      });
-    });
-
-    // Generate a random but meaningful name.
-    function generateRandomName() {
-      var adjectives = ["Brave", "Clever", "Mighty", "Swift", "Sly", "Happy", "Gentle", "Fierce"];
-      var nouns = ["Lion", "Tiger", "Eagle", "Falcon", "Shark", "Wolf", "Panther", "Dragon"];
-      var adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-      var noun = nouns[Math.floor(Math.random() * nouns.length)];
-      return adjective + " " + noun;
-    }
-
-    // Auto-create additional child accounts with a 5-second delay between each.
-    function autoCreateAccounts() {
-      if (!originalEmail) {
-        alert("No child available. Please create a child account manually first.");
-        return;
-      }
-      var emailParts = originalEmail.split('@');
-      var emailPrefix = emailParts[0];
-      var emailDomain = emailParts[1];
-      var totalAutoAccounts = 8; // Total additional accounts to create.
-      var counter = 1;
-
-      function createAccount() {
-        if (counter <= totalAutoAccounts) {
-          var newEmail = emailPrefix + "+" + counter + "@" + emailDomain;
-          var newName = generateRandomName();
-          $("#autoCreateLog").append("<div>Creating account " + counter + ": " + newEmail + " with name: " + newName + "</div>");
-
-          $.ajax({
-            url: '', // Current file.
-            type: 'POST',
-            data: {
-              action: 'create_account',
-              email: newEmail,
-              name: newName,
-              parent_id: parentAccountId
-            },
-            success: function(response) {
-              $("#autoCreateLog").append("<div>Response for account " + counter + ": " + response + "</div>");
-            },
-            error: function() {
-              $("#autoCreateLog").append("<div>Error creating account " + counter + "</div>");
-            }
-          });
-          counter++;
-          setTimeout(createAccount, 5000);
-        } else {
-          $("#autoCreateLog").append("<div><strong>All " + totalAutoAccounts + " accounts created.</strong></div>");
-          alert(totalAutoAccounts + " accounts created.");
-        }
-      }
-      createAccount();
-    }
-
-    // Attach event handler to the Auto Create button.
-    $("#autoCreate").click(function(e) {
-      e.preventDefault();
-      autoCreateAccounts();
-    });
-
-    // Manual form submission for adding one account with a 4-second delay between submissions.
-    $("#addChildAccountForm").submit(function(e) {
-      e.preventDefault();
-      var email = $("#email").val();
-      var name = $("#name").val();
-      var submitButton = $("#manualSubmitBtn");
-      submitButton.prop("disabled", true); // Disable to prevent duplicate submissions.
-      $.ajax({
-        url: '', // Current file.
-        type: 'POST',
-        data: {
-          action: 'create_account',
-          email: email,
-          name: name,
-          parent_id: parentAccountId
-        },
-        success: function(response) {
-          alert("Response: " + response);
-        },
-        error: function() {
-          alert("Error creating account.");
-        },
-        complete: function() {
-          // Re-enable the submit button after 4 seconds.
-          setTimeout(function() {
-            submitButton.prop("disabled", false);
-          }, 5000);
-        }
-      });
-    });
-  </script>
-  <!-- Include external JS files if needed -->
+  <!-- External JS files -->
   <script src="child/scripts.js"></script>
   <script src="child/existac.js"></script>
   <script>
+    // Update account button handler.
     $(document).ready(function() {
       $("#updateButton").click(function() {
         $.ajax({
           url: window.location.href,
           type: 'POST',
           dataType: 'json',
-          data: {
-            action: 'update_account'
-          },
+          data: { action: 'update_account' },
           success: function(response) {
-            if (response.success) {
-              $("#result").html("<p style='color: green;'>" + response.message + "</p>");
-            } else {
-              $("#result").html("<p style='color: red;'>" + response.message + "</p>");
-            }
+            $("#result").html("<p style='color: " + (response.success ? 'green' : 'red') + ";'>" + response.message + "</p>");
           },
           error: function() {
             $("#result").html("<p style='color: red;'>An error occurred while updating the account.</p>");
           }
         });
       });
-    });
-  </script>
-  <script>
-    $(document).ready(function() {
+      // Quarantine account button handler.
       $("#quarantineButton").click(function() {
         $.ajax({
           url: window.location.href,
           type: 'POST',
           dataType: 'json',
-          data: {
-            action: 'quarantine_account'
-          },
+          data: { action: 'quarantine_account' },
           success: function(response) {
-            if (response.success) {
-              $("#quarantineresult").html("<p style='color: green;'>" + response.message + "</p>");
-            } else {
-              $("#quarantineresult").html("<p style='color: red;'>" + response.message + "</p>");
-            }
+            $("#quarantineresult").html("<p style='color: " + (response.success ? 'green' : 'red') + ";'>" + response.message + "</p>");
           },
           error: function() {
             $("#quarantineresult").html("<p style='color: red;'>An error occurred while updating the account.</p>");
@@ -443,5 +294,4 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
     });
   </script>
 </body>
-
 </html>
