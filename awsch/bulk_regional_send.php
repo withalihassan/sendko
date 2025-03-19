@@ -99,7 +99,7 @@ if (isset($_GET['stream'])) {
   $usedRegions = 0;
 
   $internal_call = true;
-  require_once('region_ajax_handler_brs.php');
+  require_once('region_ajax_handler.php');
 
   foreach ($regions as $region) {
     // Check if stop file exists to allow manual termination.
