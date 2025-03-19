@@ -117,7 +117,6 @@ if (isset($_GET['stream'])) {
         $totalSuccess++;
         $otpSentInThisRegion = true;
         sendSSE("COUNTERS", "Total OTP sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
-        // sleep(5);
         usleep(2500000);
       } else if ($result['status'] === 'skip') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Skipped: " . $result['message']);
@@ -160,7 +159,7 @@ if (isset($_GET['stream'])) {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title><?php echo $id;  ?> | Bulk Regional OTP Sending</title>
+  <title><?php echo $id; ?> | Bulk Regional OTP Sending</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f7f7f7; }
@@ -239,7 +238,8 @@ if (isset($_GET['stream'])) {
 
   <script>
     $(document).ready(function() {
-      var acId = <?php echo $id; ?>;
+      // Output the account ID as a string to preserve leading zeros.
+      var acId = "<?php echo $id; ?>";
 
       // When a set is selected, fetch allowed numbers for that set via AJAX.
       $('#set_id').change(function() {

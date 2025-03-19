@@ -22,6 +22,27 @@ if (isset($_POST['action']) && $_POST['action'] === 'stop_process') {
     exit;
 }
 
+// Handle Mark as Completed request (AJAX POST)
+if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
+    $stmt = $pdo->prepare("SELECT last_used FROM child_accounts WHERE account_id = ?");
+    $stmt->execute([$id]);
+    $child = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($child) {
+        if (!empty($child['last_used']) && date('Y-m-d', strtotime($child['last_used'])) == date('Y-m-d')) {
+            echo json_encode(['success' => false, 'message' => 'Already completed today.']);
+            exit;
+        } else {
+            $stmt = $pdo->prepare("UPDATE child_accounts SET last_used = ?, ac_score = ac_score + 1 WHERE account_id = ?");
+            $stmt->execute([date('Y-m-d H:i:s'), $id]);
+            echo json_encode(['success' => true, 'message' => 'Marked as completed successfully.']);
+            exit;
+        }
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Account not found.']);
+        exit;
+    }
+}
+
 // Fetch AWS credentials for the provided account ID from child_accounts table
 $stmt = $pdo->prepare("SELECT aws_access_key, aws_secret_key FROM child_accounts WHERE account_id = ?");
 $stmt->execute([$id]);
@@ -50,18 +71,6 @@ if (isset($_GET['stream'])) {
   }
   $set_id = intval($_GET['set_id']);
 
-  // If a region is specified via GET, use it; otherwise process all regions.
-  $selectedRegion = "";
-  if (isset($_GET['region'])) {
-      $selectedRegion = trim($_GET['region']);
-  }
-  
-  // Prepare stop file (remove any pre-existing file)
-  $stopFile = "stop_" . $accountId . ".txt";
-  if (file_exists($stopFile)) {
-      unlink($stopFile);
-  }
-
   header('Content-Type: text/event-stream');
   header('Cache-Control: no-cache');
   while (ob_get_level()) {
@@ -77,50 +86,24 @@ if (isset($_GET['stream'])) {
 
   sendSSE("STATUS", "Starting Bulk Regional OTP Process for Set ID: " . $set_id);
 
-  // Build regions array: use selected region if provided; otherwise, use all.
-  if (!empty($selectedRegion)) {
-      $regions = array($selectedRegion);
-  } else {
-      $regions = array(
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2",
-        "ap-south-1",
-        "ap-northeast-3",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ap-northeast-1",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "eu-north-1",
-        "me-central-1",
-        "sa-east-1",
-        "af-south-1",
-        "ap-southeast-3",
-        "ap-southeast-4",
-        "ca-west-1",
-        "eu-south-1",
-        "eu-south-2",
-        "eu-central-2",
-        "me-south-1",
-        "il-central-1",
-        "ap-south-2"
-      );
-  }
-  
+  $regions = array(
+    "me-central-1",
+    "ap-southeast-3",
+    "ap-southeast-4",
+    "eu-south-2",
+    "eu-central-2",
+    "ap-south-2"
+  );
   $totalRegions = count($regions);
   $totalSuccess = 0;
   $usedRegions = 0;
 
   $internal_call = true;
-  require_once('region_ajax_handler.php');
+  require_once('region_ajax_handler_brs.php');
 
   foreach ($regions as $region) {
     // Check if stop file exists to allow manual termination.
+    $stopFile = "stop_" . $accountId . ".txt";
     if (file_exists($stopFile)) {
         sendSSE("STATUS", "Process stopped by user.");
         unlink($stopFile);
@@ -131,17 +114,17 @@ if (isset($_GET['stream'])) {
     sendSSE("STATUS", "Moving to region: " . $region);
     sendSSE("COUNTERS", "Total OTP sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
 
-    // Fetch phone numbers based solely on the set_id and region.
+    // Fetch phone numbers based solely on the set_id
     $numbersResult = fetch_numbers($region, $pdo, $set_id);
     if (isset($numbersResult['error'])) {
       sendSSE("STATUS", "Error fetching numbers for region " . $region . ": " . $numbersResult['error']);
-      sleep(3);
+      sleep(5);
       continue;
     }
     $allowedNumbers = $numbersResult['data'];
     if (empty($allowedNumbers)) {
       sendSSE("STATUS", "No allowed numbers found in region: " . $region);
-      sleep(3);
+      sleep(5);
       continue;
     }
 
@@ -178,7 +161,6 @@ if (isset($_GET['stream'])) {
         $totalSuccess++;
         $otpSentInThisRegion = true;
         sendSSE("COUNTERS", "Total OTP sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
-        // Pause for 2.5 seconds between successful OTPs.
         usleep(2500000);
       } else if ($result['status'] === 'skip') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Skipped: " . $result['message']);
@@ -200,14 +182,14 @@ if (isset($_GET['stream'])) {
       }
     }
     if ($verifDestError) {
-      sendSSE("STATUS", "Region $region encountered an error. Waiting 3 seconds...");
-      sleep(3);
+      sendSSE("STATUS", "Region $region encountered an error. Waiting 5 seconds...");
+      sleep(5);
     } else if ($otpSentInThisRegion) {
       sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 15 seconds...");
       sleep(15);
     } else {
-      sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 3 seconds...");
-      sleep(3);
+      sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 5 seconds...");
+      sleep(5);
     }
   }
 
@@ -387,11 +369,9 @@ if (isset($_GET['stream'])) {
           </select>
         </div>
       </div>
-      <!-- AWS Credentials (read-only) -->
-      <label for="awsKey">AWS Key:</label>
-      <input type="text" id="awsKey" name="awsKey" value="<?php echo $aws_key; ?>" disabled>
-      <label for="awsSecret">AWS Secret:</label>
-      <input type="text" id="awsSecret" name="awsSecret" value="<?php echo $aws_secret; ?>" disabled>
+      <!-- AWS Credentials inlined -->
+      <label for="awsCreds">AWS Credentials (Key | Secret):</label>
+      <input type="text" id="awsCreds" name="awsCreds" value="<?php echo $aws_key . ' | ' . $aws_secret; ?>" disabled>
       <button type="button" id="start-bulk-regional-otp">Start Bulk OTP Process for Selected Set</button>
     </form>
 
@@ -423,8 +403,9 @@ if (isset($_GET['stream'])) {
 
   <script>
     $(document).ready(function() {
-      var acId = <?php echo $id; ?>;
-      var evtSource; // to store EventSource object
+      // Output the account ID as a string to preserve any leading zeros.
+      var acId = "<?php echo $id; ?>";
+      var evtSource; // to store the EventSource object
 
       // When set or region selection changes, fetch allowed numbers accordingly
       $('#set_id, #region_select').change(function() {
@@ -531,7 +512,7 @@ if (isset($_GET['stream'])) {
         });
       });
 
-      // Mark as Completed button (update account, if needed)
+      // Mark as Completed button
       $("#updateButton").click(function() {
         $.ajax({
           url: window.location.href,

@@ -31,14 +31,15 @@ use Aws\Exception\AwsException;
 $message = "";
 $session_id = $_SESSION['user_id'];
 if (isset($_POST['submit'])) {
-    // Trim and fetch the AWS credentials from the form
+    // Trim and fetch the AWS credentials and consumer assignment from the form
     $aws_key    = trim($_POST['aws_key']);
     $aws_secret = trim($_POST['aws_secret']);
-    $ac_worth = trim($_POST['ac_worth']);
+    $ac_worth   = trim($_POST['ac_worth']);
+    $assign_to  = trim($_POST['assign_to']); // new field for consumer user id
 
-    // Check if fields are not empty
-    if (empty($aws_key) || empty($aws_secret)) {
-        $message = "AWS Key and Secret cannot be empty.";
+    // Check if fields are not empty (including the new assignment field)
+    if (empty($aws_key) || empty($aws_secret) || empty($assign_to)) {
+        $message = "AWS Key, AWS Secret, and Consumer assignment cannot be empty.";
     } else {
         try {
             // Create an STS client with the provided credentials
@@ -67,8 +68,9 @@ if (isset($_POST['submit'])) {
                 $added_date = (new DateTime('now', new DateTimeZone('Asia/Karachi')))->format('Y-m-d H:i:s');
 
                 // Insert the account into the database with default status "active"
-                $stmt = $pdo->prepare("INSERT INTO accounts (by_user, aws_key, aws_secret, account_id, status, ac_state, ac_score, ac_age, cr_offset, added_date,ac_worth) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                if ($stmt->execute([$session_id, $aws_key, $aws_secret, $account_id, 'active', 'orphan', '0', '0', '0', $added_date, $ac_worth])) {
+                // Now using $assign_to (consumer id) instead of $session_id for by_user
+                $stmt = $pdo->prepare("INSERT INTO accounts (by_user, aws_key, aws_secret, account_id, status, ac_state, ac_score, ac_age, cr_offset, added_date, ac_worth) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                if ($stmt->execute([$assign_to, $aws_key, $aws_secret, $account_id, 'active', 'orphan', '0', '0', '0', $added_date, $ac_worth])) {
                     $message = "Account added successfully. AWS Account ID: " . htmlspecialchars($account_id);
                 } else {
                     $message = "Failed to insert account into the database.";
@@ -265,6 +267,20 @@ if (isset($_POST['submit'])) {
                     <option value="normal">Normal</option>
                 </select>
             </div>
+            <!-- New dropdown for assigning account to a consumer -->
+            <div class="form-group">
+                <label for="assign_to">Assign Account To (Consumer):</label>
+                <select class="form-control" id="assign_to" name="assign_to" required>
+                    <option value="">Select a Consumer</option>
+                    <?php
+                    // Fetch users with type 'consumer'
+                    $consumersStmt = $pdo->query("SELECT id, name FROM users WHERE type = 'consumer'");
+                    while ($consumer = $consumersStmt->fetch(PDO::FETCH_ASSOC)) {
+                        echo "<option value='" . htmlspecialchars($consumer['id']) . "'>" . htmlspecialchars($consumer['name']) . "</option>";
+                    }
+                    ?>
+                </select>
+            </div>
             <button type="submit" name="submit" class="btn btn-primary">Add Account</button>
         </form>
 
@@ -383,5 +399,4 @@ if (isset($_POST['submit'])) {
         });
     </script>
 </body>
-
 </html>

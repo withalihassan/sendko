@@ -89,12 +89,12 @@ if (isset($_POST['submit'])) {
                 <tr>
                     <th>ID</th>
                     <th>Account ID</th>
-                    <th>AWS Key</th>
+                    <!-- <th>AWS Key</th> -->
                     <th>Status</th>
                     <th>Account Score</th>
                     <th>Account Age</th>
                     <th>Next Atm</th>
-                    <th>Type</th>
+                    <!-- <th>Type</th> -->
                     <th>Added Date</th>
                     <th>Actions</th>
                     <th>Quick Actions</th>
@@ -103,12 +103,12 @@ if (isset($_POST['submit'])) {
             <tbody>
                 <?php
                 // Table 1 query: Accounts List
-                $stmt = $pdo->query("SELECT * FROM accounts WHERE status='active' AND ac_worth='special' ORDER BY 1 DESC");
+                $stmt = $pdo->query("SELECT * FROM accounts WHERE status='active' AND ac_worth='special' AND  by_user='$session_id' ORDER BY 1 DESC");
                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     echo "<tr>";
                     echo "<td>" . $row['id'] . "</td>";
                     echo "<td>" . htmlspecialchars($row['account_id']) . "</td>";
-                    echo "<td>" . htmlspecialchars($row['aws_key']) . "</td>";
+                    // echo "<td>" . htmlspecialchars($row['aws_key']) . "</td>";
                     if ($row['status'] == 'active') {
                         echo "<td><span class='badge badge-success'>Active</span></td>";
                     } else {
@@ -145,7 +145,7 @@ if (isset($_POST['submit'])) {
                             }
                         }
                     }
-                    echo "<td>" . htmlspecialchars($row['worth_type']) . "</td>";
+                    // echo "<td>" . htmlspecialchars($row['worth_type']) . "</td>";
                     echo "<td>" . (new DateTime($row['added_date']))->format('d M g:i a') . "</td>";
                     // Actions dropdown
                     echo "<td>
@@ -171,9 +171,10 @@ if (isset($_POST['submit'])) {
                     echo "<td>
                             <div class='d-inline-flex'>
                                 <button class='btn btn-primary btn-sm check-status-btn' data-id='" . $row['id'] . "'>Chk Status</button>
-                                <a href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-secondary btn-sm'>Manage AC</button></a>
+                                <a href='clear_region.php?ac_id=" . $row['id'] . "'><button class='btn btn-primary btn-sm'>Clear Parent</button></a>
+                                <a href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-secondary btn-sm'>Manage Childs</button></a>
                                 <a href='nodesender/sender.php?id=" . $row['id'] . "' target='_blank'><button class='btn btn-success btn-sm'>Node-Sen</button></a>
-                                <a href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-danger btn-sm'>BRS</button></a>
+                                <a href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-danger btn-sm'>Start Sending</button></a>
                             </div>
                           </td>";
                     echo "</tr>";
@@ -280,7 +281,7 @@ if (isset($_POST['submit'])) {
                     echo "<td>
                             <div class='d-inline-flex'>
                                 <button class='btn btn-primary btn-sm check-status-btn' data-id='" . $row['id'] . "'>Chk Status</button>
-                                <a href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-secondary btn-sm'>Manage AC</button></a>
+                                <a href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-secondary btn-sm'>Manage Childs</button></a>
                                 <a href='nodesender/sender.php?id=" . $row['id'] . "' target='_blank'><button class='btn btn-success btn-sm'>Node-Sen</button></a>
                                 <a href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-danger btn-sm'>BRS</button></a>
                             </div>
