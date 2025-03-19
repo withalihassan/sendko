@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
   // Bulk Delete All Numbers
   elseif (isset($_POST['delete_all'])) {
     try {
-      $stmt = $pdo->prepare("DELETE FROM allowed_numbers WHERE by_user = ?");
+      $stmt = $pdo->prepare("DELETE FROM allowed_numbers WHERE by_user = ? AND set_id=s'$selected_set_id' ");
       $stmt->execute([$session_id]);
       $deletedCount = $stmt->rowCount();
       $message = "Bulk deleted $deletedCount numbers successfully.";
