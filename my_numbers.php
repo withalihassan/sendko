@@ -305,7 +305,7 @@ $currentDateTime = date("l, F j, Y, g:i A");
                   // Fetch available sets from bulk_sets table
                   $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets ORDER BY set_name ASC");
                   while ($set = $stmtSets->fetch(PDO::FETCH_ASSOC)) {
-                    echo '<option value="' . $set['id'] . '">' . htmlspecialchars($set['set_name']) . '</option>';
+                    echo '<option value="' . $set['id'] . '">' . $set['set_name']. '</option>';
                   }
                   ?>
                 </select>
