@@ -299,18 +299,18 @@ $currentDateTime = date("l, F j, Y, g:i A");
               <!-- Dropdown to select a set -->
               <div class="form-group">
                 <label for="set_id">Select Set:</label>
-                <select name="set_id" id="set_id" class="form-control" style="width: 100%; white-space: normal;">
-                  <option value="">-- Select a Set --</option>
+                <select name="set_id" id="set_id" class="form-control" style="width:auto; white-space: normal;">
+                  <option value="">Select a Set</option>
                   <?php
                   // Fetch available sets from bulk_sets table
                   $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets ORDER BY set_name ASC");
                   while ($set = $stmtSets->fetch(PDO::FETCH_ASSOC)) {
-                    echo '<option value="' . $set['id'] . '">' . $set['set_name'] . '</option>';
+                    echo '<option value="' . htmlspecialchars($set['id']) . '">' . htmlspecialchars($set['set_name']) . '</option>';
                   }
                   ?>
                 </select>
-              </div>
 
+              </div>
               <div class="form-group">
                 <label for="manual_numbers">Enter numbers (one per line):</label>
                 <textarea class="form-control" name="manual_numbers" rows="5" placeholder="+1234567890"></textarea>
