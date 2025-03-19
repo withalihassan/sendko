@@ -67,14 +67,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
   // Bulk Delete All Numbers
   elseif (isset($_POST['delete_all'])) {
     try {
-      $stmt = $pdo->prepare("DELETE FROM allowed_numbers WHERE by_user = ? AND set_id=s'$selected_set_id' ");
-      $stmt->execute([$session_id]);
+      $stmt = $pdo->prepare("DELETE FROM allowed_numbers WHERE by_user = ? AND set_id = ?");
+      $stmt->execute([$session_id, $selected_set_id]);
       $deletedCount = $stmt->rowCount();
       $message = "Bulk deleted $deletedCount numbers successfully.";
     } catch (PDOException $e) {
       $message = "Error in bulk deleting numbers: " . $e->getMessage();
     }
   }
+
   // Send OTP (mark number used) and decrement atm_left by 1
   elseif (isset($_POST['send_otp'])) {
     $id = $_POST['send_otp'];
@@ -150,8 +151,12 @@ try {
     $stmt->execute([$session_id]);
     $totalAtmLeft = $stmt->fetchColumn();
   }
-  if (!$todayOTPs) { $todayOTPs = 0; }
-  if (!$totalAtmLeft) { $totalAtmLeft = 0; }
+  if (!$todayOTPs) {
+    $todayOTPs = 0;
+  }
+  if (!$totalAtmLeft) {
+    $totalAtmLeft = 0;
+  }
 } catch (PDOException $e) {
   $message = "Error fetching stats: " . $e->getMessage();
 }
@@ -184,9 +189,11 @@ $currentDateTime = date("l, F j, Y, g:i A");
     body {
       background-color: #f8f9fa;
     }
+
     .container {
       margin-top: 30px;
     }
+
     /* Stats Boxes */
     .stats-box {
       padding: 20px;
@@ -195,25 +202,32 @@ $currentDateTime = date("l, F j, Y, g:i A");
       text-align: center;
       margin-bottom: 20px;
     }
+
     .stats-box h4 {
       margin-bottom: 0;
     }
+
     .stats-fresh {
       background-color: #28a745;
     }
+
     .stats-used {
       background-color: #dc3545;
     }
+
     .stats-total {
       background-color: #17a2b8;
     }
+
     .stats-today {
       background-color: #ffc107;
       color: #000;
     }
+
     .stats-atmleft {
       background-color: #6f42c1;
     }
+
     /* Collapsible Form Section */
     .collapse-header {
       cursor: pointer;
@@ -223,6 +237,7 @@ $currentDateTime = date("l, F j, Y, g:i A");
       border-radius: 4px;
       margin-bottom: 15px;
     }
+
     .collapse-header:hover {
       background-color: #0056b3;
     }
