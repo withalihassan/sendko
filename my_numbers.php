@@ -231,7 +231,7 @@ $currentDateTime = date("l, F j, Y, g:i A");
 
 <body>
   <div class="container">
-    <h2 class="mb-4">Manage Allowed Numbers</h2>
+    <h2 class="mb-4">Manage Numbers</h2>
     <p><?php echo $currentDateTime; ?></p>
     <?php if ($message): ?>
       <div class="alert alert-info"><?php echo $message; ?></div>
