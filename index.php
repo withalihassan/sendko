@@ -171,7 +171,7 @@ if (isset($_POST['submit'])) {
                     echo "<td>
                             <div class='d-inline-flex'>
                                 <button class='btn btn-primary btn-sm check-status-btn' data-id='" . $row['id'] . "'>Chk Status</button>
-                                <a href='clear_region.php?ac_id=" . $row['id'] . "'><button class='btn btn-primary btn-sm'>Clear Parent</button></a>
+                                <a href='clear_region.php?ac_id=" . $row['id'] . "'><button class='btn btn-primary btn-sm' target='_blank'>Clear Parent</button></a>
                                 <a href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-secondary btn-sm'>Manage Childs</button></a>
                                 <a href='nodesender/sender.php?id=" . $row['id'] . "' target='_blank'><button class='btn btn-success btn-sm'>Node-Sen</button></a>
                                 <a href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-danger btn-sm'>Start Sending</button></a>
