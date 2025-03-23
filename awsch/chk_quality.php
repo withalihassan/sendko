@@ -67,19 +67,23 @@ if (isset($_GET['stream'])) {
     $set_id = intval($_GET['set_id']);
     $selectedRegion = $_GET['region'];
 
+    // Turn off output buffering and enable implicit flush to force events immediately.
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    ob_implicit_flush(true);
+
+    // SSE headers must be sent without any preceding whitespace.
     header('Content-Type: text/event-stream');
     header('Cache-Control: no-cache');
-    while (ob_get_level()) {
-        ob_end_flush();
-    }
-    set_time_limit(0);
-    ignore_user_abort(true);
-
+    
+    // Function to send SSE formatted messages.
     function sendSSE($type, $message) {
         echo "data:" . $type . "|" . str_replace("\n", "\\n", $message) . "\n\n";
-        flush();
+        @flush();
     }
 
+    // Start sending events.
     sendSSE("STATUS", "Starting Bulk Regional OTP Process for Set ID: " . $set_id . " in region: " . $selectedRegion);
     $region = $selectedRegion;
     sendSSE("STATUS", "Processing region: " . $region);
@@ -115,6 +119,7 @@ if (isset($_GET['stream'])) {
         $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
     }
 
+    // Process OTP tasks.
     foreach ($otpTasks as $task) {
         sendSSE("STATUS", "[$region] Sending OTP...");
         $sns = initSNS($aws_key, $aws_secret, $region);
@@ -282,7 +287,8 @@ if (isset($_GET['stream'])) {
 
   <script>
     $(document).ready(function() {
-      var acId = <?php echo $id; ?>;
+      // Ensure the account ID is treated as a string to preserve leading zeros.
+      var acId = "<?php echo $id; ?>";
 
       // When a set is selected, fetch allowed numbers for that set via AJAX.
       $('#set_id').change(function() {
