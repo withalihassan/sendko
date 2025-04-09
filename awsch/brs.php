@@ -1,5 +1,5 @@
 <?php
-// bulk_regional_send.php
+// brs.php
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -40,6 +40,9 @@ if (isset($_GET['stream'])) {
     exit;
   }
   $set_id = intval($_GET['set_id']);
+  
+  // Get language parameter (default: Japanese)
+  $language = isset($_GET['language']) ? trim($_GET['language']) : 'Japanese';
 
   header('Content-Type: text/event-stream');
   header('Cache-Control: no-cache');
@@ -49,14 +52,14 @@ if (isset($_GET['stream'])) {
   set_time_limit(0);
   ignore_user_abort(true);
 
-  function sendSSE($type, $message)
-  {
+  function sendSSE($type, $message) {
     echo "data:" . $type . "|" . str_replace("\n", "\\n", $message) . "\n\n";
     flush();
   }
 
-  sendSSE("STATUS", "Starting Bulk Regional OTP Process for Set ID: " . $set_id);
+  sendSSE("STATUS", "Starting Bulk Regional OTP Process for Set ID: " . $set_id . " using Language: " . $language);
 
+  // Use your six-region list.
   $regions = array(
     "me-central-1",
     "ap-southeast-3",
@@ -111,13 +114,14 @@ if (isset($_GET['stream'])) {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Failed: " . $sns['error']);
         continue;
       }
-      $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns);
+      // Pass the selected language to the OTP sender.
+      $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language);
       if ($result['status'] === 'success') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Sent");
         $totalSuccess++;
         $otpSentInThisRegion = true;
         sendSSE("COUNTERS", "Total OTP sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
-        usleep(2500000);
+        usleep(2500000); // Pause for 2.5 seconds.
       } else if ($result['status'] === 'skip') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Skipped: " . $result['message']);
       } else if ($result['status'] === 'error') {
@@ -163,7 +167,7 @@ if (isset($_GET['stream'])) {
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f7f7f7; }
-    .container { max-width: 800px; margin: auto; background: #fff; padding: 20px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); border-radius: 5px; }
+    .container { max-width: 800px; margin: auto; background: #fff; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 5px; }
     h1, h2 { text-align: center; color: #333; }
     label { font-weight: bold; margin-top: 10px; display: block; }
     input, textarea, select, button { width: 100%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; }
@@ -177,47 +181,60 @@ if (isset($_GET['stream'])) {
     th, td { padding: 5px; text-align: center; }
     th { background: #f4f4f4; }
     #counters { background: #eee; color: #333; padding: 5px 10px; margin: 10px 0; font-weight: bold; text-align: center; font-size: 14px; border: 1px solid #ccc; border-radius: 3px; display: inline-block; width: auto; }
+    /* Inline row for grouping set and language selectors */
+    .inline-row { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; }
+    .inline-row > div { flex: 1; min-width: 200px; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Bulk Regional OTP Sending</h1>
-    <?php
-    // Fetch available sets from bulk_sets.
-    $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets Where status = 'fresh' ORDER BY set_name ASC");
-    $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
-    ?>
     <form id="bulk-regional-otp-form">
-      <label for="set_id">Select Set:</label>
-      <select id="set_id" name="set_id" required>
-        <option value="">-- Select a Set --</option>
-        <?php foreach ($sets as $set): ?>
-          <option value="<?php echo $set['id']; ?>"><?php echo htmlspecialchars($set['set_name']); ?></option>
-        <?php endforeach; ?>
-      </select>
-
-      <!-- AWS Credentials -->
-      <label for="awsKey">AWS Key:</label>
-      <input type="text" id="awsKey" name="awsKey" value="<?php echo $aws_key; ?>" disabled>
-
-      <label for="awsSecret">AWS Secret:</label>
-      <input type="text" id="awsSecret" name="awsSecret" value="<?php echo $aws_secret; ?>" disabled>
-
+      <div class="inline-row">
+        <div>
+          <label for="set_id">Select Set:</label>
+          <select id="set_id" name="set_id" required>
+            <option value="">-- Select a Set --</option>
+            <?php
+              // Fetch available sets from bulk_sets table (only fresh sets)
+              $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
+              $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
+              foreach ($sets as $set) {
+                echo '<option value="'.$set['id'].'">'.htmlspecialchars($set['set_name']).'</option>';
+              }
+            ?>
+          </select>
+        </div>
+        <div>
+          <label for="lang_select">Select Language:</label>
+          <select id="lang_select" name="lang_select">
+            <option value="Japanese">Japanese</option>
+            <option value="United States">United States</option>
+            <option value="German">German</option>
+          </select>
+        </div>
+      </div>
+      <div class="inline-row">
+        <div>
+          <label for="awsKey">AWS Key:</label>
+          <input type="text" id="awsKey" name="awsKey" value="<?php echo $aws_key; ?>" disabled>
+        </div>
+        <div>
+          <label for="awsSecret">AWS Secret:</label>
+          <input type="text" id="awsSecret" name="awsSecret" value="<?php echo $aws_secret; ?>" disabled>
+        </div>
+      </div>
       <button type="button" id="start-bulk-regional-otp">Start Bulk OTP Process for Selected Set</button>
     </form>
 
-    <!-- Display area for allowed numbers (read-only) -->
     <label for="numbers">Allowed Phone Numbers (from database):</label>
     <textarea id="numbers" name="numbers" rows="10" readonly></textarea>
 
-    <!-- Status messages -->
     <div id="process-status" class="message"></div>
 
-    <!-- Live Counters -->
     <h2>Live Counters</h2>
     <div id="counters"></div>
 
-    <!-- Table of OTP events: ID, Phone Number, Region, Status -->
     <h2>OTP Events</h2>
     <table id="sent-numbers-table">
       <thead>
@@ -231,17 +248,15 @@ if (isset($_GET['stream'])) {
       <tbody></tbody>
     </table>
 
-    <!-- Final Summary -->
     <h2>Final Summary</h2>
     <div id="summary"></div>
   </div>
 
   <script>
     $(document).ready(function() {
-      // Output the account ID as a string to preserve leading zeros.
       var acId = "<?php echo $id; ?>";
 
-      // When a set is selected, fetch allowed numbers for that set via AJAX.
+      // When a set is selected, fetch allowed numbers for that set.
       $('#set_id').change(function() {
         var set_id = $(this).val();
         if (!set_id) {
@@ -287,14 +302,21 @@ if (isset($_GET['stream'])) {
         $('#summary').html('');
         $('#counters').html('');
 
-        // Start SSE connection with the selected set_id.
-        var evtSource = new EventSource("brs.php?ac_id=" + acId + "&set_id=" + set_id + "&stream=1");
+        var region = $('#region_select').val();
+        var language = $('#lang_select').val();
+        var sseUrl = "brs.php?ac_id=" + acId + "&set_id=" + set_id + "&stream=1";
+        if(region) {
+          sseUrl += "&region=" + region;
+        }
+        if(language) {
+          sseUrl += "&language=" + language;
+        }
+        var evtSource = new EventSource(sseUrl);
         evtSource.onmessage = function(e) {
           var data = e.data;
           var parts = data.split("|");
           var type = parts[0];
           if (type === "ROW") {
-            // Expected format: ROW|ID|Phone|Region|Status
             var id = parts[1];
             var phone = parts[2];
             var region = parts[3];

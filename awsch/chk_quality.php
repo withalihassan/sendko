@@ -1,5 +1,5 @@
 <?php
-// bulk_regional_send.php
+// chk_quality.php
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -64,6 +64,8 @@ if (isset($_GET['stream'])) {
         echo "No valid region selected.";
         exit;
     }
+    // Added language parameter (default "Japanese")
+    $language = isset($_GET['language']) ? trim($_GET['language']) : 'Japanese';
     $set_id = intval($_GET['set_id']);
     $selectedRegion = $_GET['region'];
 
@@ -84,7 +86,7 @@ if (isset($_GET['stream'])) {
     }
 
     // Start sending events.
-    sendSSE("STATUS", "Starting Bulk Regional OTP Process for Set ID: " . $set_id . " in region: " . $selectedRegion);
+    sendSSE("STATUS", "Starting Bulk Regional OTP Process for Set ID: " . $set_id . " in region: " . $selectedRegion . " using Language: " . $language);
     $region = $selectedRegion;
     sendSSE("STATUS", "Processing region: " . $region);
     sendSSE("COUNTERS", "Processing region: " . $region);
@@ -127,7 +129,8 @@ if (isset($_GET['stream'])) {
             sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Failed: " . $sns['error']);
             continue;
         }
-        $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns);
+        // Pass language to send_otp_single()
+        $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language);
         if ($result['status'] === 'success') {
             sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Sent");
             $otpSentInThisRegion = true;
@@ -191,9 +194,6 @@ if (isset($_GET['stream'])) {
     th, td { padding: 5px; text-align: center; }
     th { background: #f4f4f4; }
     #counters { background: #eee; color: #333; padding: 5px 10px; margin: 10px 0; font-weight: bold; text-align: center; font-size: 14px; border: 1px solid #ccc; border-radius: 3px; display: inline-block; width: auto; }
-    .inline-buttons { text-align: center; margin-bottom: 20px; }
-    .inline-buttons button { width: auto; margin: 0 10px; }
-    /* Inline groups for dropdowns and AWS credentials */
     .inline-group {
       display: flex;
       gap: 10px;
@@ -208,65 +208,55 @@ if (isset($_GET['stream'])) {
 <body>
   <div class="container">
     <h1>Bulk Regional OTP Sending</h1>
-    <div class="inline-buttons">
-      <button id="mark-full">Mark it Full</button>
-      <button id="mark-half">Mark it Half</button>
+    <div class="inline-group">
+      <div>
+        <label for="set_id">Select Set:</label>
+        <select id="set_id" name="set_id" required>
+          <option value="">-- Select a Set --</option>
+          <?php
+              // Fetch available sets from bulk_sets.
+              $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
+              $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
+              foreach ($sets as $set) {
+                  echo '<option value="'.$set['id'].'">'.htmlspecialchars($set['set_name']).'</option>';
+              }
+          ?>
+        </select>
+      </div>
+      <div>
+        <label for="region">Select Region:</label>
+        <select id="region" name="region" required>
+          <option value="us-east-1" selected>us-east-1</option>
+          <option value="us-east-2">us-east-2</option>
+        </select>
+      </div>
+      <div>
+        <label for="lang_select">Select Language:</label>
+        <select id="lang_select" name="lang_select">
+          <option value="Japanese">Japanese</option>
+          <option value="United States">United States</option>
+          <option value="German">German</option>
+        </select>
+      </div>
     </div>
-    <!-- Display response for worth_type update -->
-    <div id="worth-response" class="message"></div>
-    <?php
-    // Fetch available sets from bulk_sets.
-    $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
-    $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
-    ?>
-    <form id="bulk-regional-otp-form">
-      <!-- Inline group for Set and Region -->
-      <div class="inline-group">
-        <div>
-          <label for="set_id">Select Set:</label>
-          <select id="set_id" name="set_id" required>
-            <option value="">-- Select a Set --</option>
-            <?php foreach ($sets as $set): ?>
-              <option value="<?php echo $set['id']; ?>"><?php echo htmlspecialchars($set['set_name']); ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div>
-          <label for="region">Select Region:</label>
-          <select id="region" name="region" required>
-            <option value="us-east-1" selected>us-east-1</option>
-            <option value="us-east-2">us-east-2</option>
-          </select>
-        </div>
+    <div class="inline-group">
+      <div>
+        <label for="awsKey">AWS Key:</label>
+        <input type="text" id="awsKey" name="awsKey" value="<?php echo $aws_key; ?>" disabled>
       </div>
-
-      <!-- Inline group for AWS Credentials -->
-      <div class="inline-group">
-        <div>
-          <label for="awsKey">AWS Key:</label>
-          <input type="text" id="awsKey" name="awsKey" value="<?php echo $aws_key; ?>" disabled>
-        </div>
-        <div>
-          <label for="awsSecret">AWS Secret:</label>
-          <input type="text" id="awsSecret" name="awsSecret" value="<?php echo $aws_secret; ?>" disabled>
-        </div>
+      <div>
+        <label for="awsSecret">AWS Secret:</label>
+        <input type="text" id="awsSecret" name="awsSecret" value="<?php echo $aws_secret; ?>" disabled>
       </div>
-
+    </div>
+    <div class="row">
       <button type="button" id="start-bulk-regional-otp">Start Bulk OTP Process for Selected Set</button>
-    </form>
-
-    <!-- Display area for allowed numbers (read-only) -->
+    </div>
     <label for="numbers">Allowed Phone Numbers (from database):</label>
     <textarea id="numbers" name="numbers" rows="10" readonly></textarea>
-
-    <!-- Status messages -->
     <div id="process-status" class="message"></div>
-
-    <!-- Live Counters -->
     <h2>Live Counters</h2>
     <div id="counters"></div>
-
-    <!-- Table of OTP events: ID, Phone Number, Region, Status -->
     <h2>OTP Events</h2>
     <table id="sent-numbers-table">
       <thead>
@@ -279,18 +269,12 @@ if (isset($_GET['stream'])) {
       </thead>
       <tbody></tbody>
     </table>
-
-    <!-- Final Summary -->
     <h2>Final Summary</h2>
     <div id="summary"></div>
   </div>
-
   <script>
     $(document).ready(function() {
-      // Ensure the account ID is treated as a string to preserve leading zeros.
       var acId = "<?php echo $id; ?>";
-
-      // When a set is selected, fetch allowed numbers for that set via AJAX.
       $('#set_id').change(function() {
         var set_id = $(this).val();
         if (!set_id) {
@@ -303,7 +287,7 @@ if (isset($_GET['stream'])) {
           dataType: 'json',
           data: {
             action: 'fetch_numbers',
-            region: $('#region').val(), // use selected region
+            region: $('#region').val(),
             set_id: set_id
           },
           success: function(response) {
@@ -322,10 +306,10 @@ if (isset($_GET['stream'])) {
           }
         });
       });
-
       $('#start-bulk-regional-otp').click(function() {
         var set_id = $('#set_id').val();
         var region = $('#region').val();
+        var language = $('#lang_select').val();
         if (!set_id) {
           alert("Please select a set.");
           return;
@@ -336,15 +320,12 @@ if (isset($_GET['stream'])) {
         $('#sent-numbers-table tbody').html('');
         $('#summary').html('');
         $('#counters').html('');
-
-        // Start SSE connection with the selected set_id and region.
-        var evtSource = new EventSource("chk_quality.php?ac_id=" + acId + "&set_id=" + set_id + "&region=" + region + "&stream=1");
+        var evtSource = new EventSource("chk_quality.php?ac_id=" + acId + "&set_id=" + set_id + "&region=" + region + "&language=" + language + "&stream=1");
         evtSource.onmessage = function(e) {
           var data = e.data;
           var parts = data.split("|");
           var type = parts[0];
           if (type === "ROW") {
-            // Expected format: ROW|ID|Phone|Region|Status
             var id = parts[1];
             var phone = parts[2];
             var region = parts[3];
@@ -367,8 +348,6 @@ if (isset($_GET['stream'])) {
           evtSource.close();
         };
       });
-
-      // Handle worth_type update buttons.
       $('#mark-full').click(function() {
         $.ajax({
           url: "chk_quality.php?ac_id=" + acId,
@@ -387,7 +366,6 @@ if (isset($_GET['stream'])) {
           }
         });
       });
-
       $('#mark-half').click(function() {
         $.ajax({
           url: "chk_quality.php?ac_id=" + acId,

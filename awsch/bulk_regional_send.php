@@ -71,6 +71,9 @@ if (isset($_GET['stream'])) {
   }
   $set_id = intval($_GET['set_id']);
 
+  // Get the language from GET; default to Japanese if not specified.
+  $language = isset($_GET['language']) ? trim($_GET['language']) : 'Japanese';
+
   header('Content-Type: text/event-stream');
   header('Cache-Control: no-cache');
   while (ob_get_level()) {
@@ -84,14 +87,14 @@ if (isset($_GET['stream'])) {
     flush();
   }
 
-  sendSSE("STATUS", "Starting Bulk Regional OTP Process for Set ID: " . $set_id);
+  sendSSE("STATUS", "Starting Bulk Regional OTP Process for Set ID: " . $set_id . " using Language: " . $language);
 
   // Determine regions to process based on GET parameter 'region'
   if (isset($_GET['region']) && !empty($_GET['region'])) {
       // Process the specified region only.
       $regions = array($_GET['region']);
   } else {
-      // Process all regions (using the full list from the select options)
+      // Process all regions.
       $regions = array(
           "us-east-1",
           "us-east-2",
@@ -184,13 +187,14 @@ if (isset($_GET['stream'])) {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Failed: " . $sns['error']);
         continue;
       }
-      $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns);
+      // Pass the preferred language to the OTP sender.
+      $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language);
       if ($result['status'] === 'success') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Sent");
         $totalSuccess++;
         $otpSentInThisRegion = true;
         sendSSE("COUNTERS", "Total OTP sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
-        usleep(2500000);
+        usleep(2500000); // pause for 2.5 seconds
       } else if ($result['status'] === 'skip') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Skipped: " . $result['message']);
       } else if ($result['status'] === 'error') {
@@ -397,6 +401,14 @@ if (isset($_GET['stream'])) {
             ?>
           </select>
         </div>
+        <div>
+          <label for="lang_select">Select Language:</label>
+          <select id="lang_select" name="lang_select">
+            <option value="Japanese">Japanese</option>
+            <option value="United States">United States</option>
+            <option value="German">German</option>
+          </select>
+        </div>
       </div>
       <!-- AWS Credentials inlined -->
       <label for="awsCreds">AWS Credentials (Key | Secret):</label>
@@ -432,7 +444,7 @@ if (isset($_GET['stream'])) {
 
   <script>
     $(document).ready(function() {
-      // Output the account ID as a string to preserve any leading zeros.
+      // Preserve account ID as a string.
       var acId = "<?php echo $id; ?>";
       var evtSource; // to store the EventSource object
 
@@ -483,11 +495,14 @@ if (isset($_GET['stream'])) {
         $('#summary').html('');
         $('#counters').html('');
 
-        // Build SSE URL with selected set and region
         var region = $('#region_select').val();
+        var language = $('#lang_select').val();
         var sseUrl = "bulk_regional_send.php?ac_id=" + acId + "&set_id=" + set_id + "&stream=1";
         if(region) {
           sseUrl += "&region=" + region;
+        }
+        if(language) {
+          sseUrl += "&language=" + language;
         }
         evtSource = new EventSource(sseUrl);
         evtSource.onmessage = function(e) {

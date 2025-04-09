@@ -72,60 +72,30 @@ if (isset($_POST['submit'])) {
 
 <body>
 
-    <?php
-    // session_start();
-    // include 'db.php'; // Your existing connection file
-
-    // Get current user's ID from the session.
-    $user_id = $_SESSION['user_id'];
-
-    // Prepare and execute the query using PDO.
-    $sql = "SELECT i.public_ip, i.elastic_ip 
-        FROM instances i
-        JOIN accounts a ON a.id = i.account_id
-        WHERE a.by_user = :user_id
-        ORDER BY i.launch_time DESC 
-        LIMIT 12";
-
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute(['user_id' => $user_id]);
-    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    ?>
-    <div class="container-fluid" style="padding: 1% 4% 0 4%;">
-        <h2>
-            Try Alternate IP Defense
-            <span class="badge bg-success bg-opacity-75 ms-2 px-2 py-1 small rounded-pill text-white">Secure</span>
-        </h2>
-        <!-- Inline buttons with small spacing -->
-        <div class="btn-group" role="group" aria-label="IP Buttons">
-            <?php foreach ($results as $row):
-                // Use elastic_ip if available, otherwise fall back to public_ip
-                $ip = !empty($row['elastic_ip']) ? $row['elastic_ip'] : $row['public_ip'];
-                if ($ip): ?>
-                    <a href="http://<?php echo htmlspecialchars($ip); ?>" target="_blank" class="btn btn-primary btn-sm mx-1">
-                        <?php echo htmlspecialchars($ip); ?>
-                    </a>
-            <?php endif;
-            endforeach; ?>
-        </div>
-    </div>
     <div class="container-fluid" style="padding: 1% 4% 4% 4%;">
-        <!-- Table Section 1: Accounts List -->
+        <!-- Global header with Sync button -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <button id="syncBtn" class="btn btn-primary">Sync Remote Records</button>
+                <span id="syncResult"></span>
+            </div>
+        </div>
+        <!-- Table Section 2: Duplicate Accounts List -->
         <div class="table-section mb-5">
-            <h2>Special Accounts List</h2>
-            <!-- Div for check status messages -->
+            <h2>Fetched Accounts List</h2>
             <div class="status-message mb-2"></div>
-            <table id="accountsTable1" class="display table table-bordered">
+            <table id="accountsTable2" class="display table table-bordered">
                 <thead>
                     <tr>
                         <th>ID</th>
                         <th>Account ID</th>
-                        <!-- <th>AWS Key</th> -->
+                        <th>AWS Key</th>
                         <th>Status</th>
+                        <th>State</th>
                         <th>Account Score</th>
                         <th>Account Age</th>
                         <th>Next Atm</th>
-                        <!-- <th>Type</th> -->
+                        <th>Type</th>
                         <th>Added Date</th>
                         <th>Actions</th>
                         <th>Quick Actions</th>
@@ -133,17 +103,24 @@ if (isset($_POST['submit'])) {
                 </thead>
                 <tbody>
                     <?php
-                    // Table 1 query: Accounts List
-                    $stmt = $pdo->query("SELECT * FROM accounts WHERE status='active' AND ac_worth='special' AND  by_user='$session_id' ORDER BY 1 DESC");
+                    // Table 2 uses the same query as Table 1
+                    $stmt = $pdo->query("SELECT * FROM accounts WHERE ac_state = 'claimed' AND status='active' AND ac_worth IS NULL ORDER BY 1 DESC");
                     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                         echo "<tr>";
                         echo "<td>" . $row['id'] . "</td>";
                         echo "<td>" . htmlspecialchars($row['account_id']) . "</td>";
-                        // echo "<td>" . htmlspecialchars($row['aws_key']) . "</td>";
+                        echo "<td>" . htmlspecialchars($row['aws_key']) . "</td>";
                         if ($row['status'] == 'active') {
                             echo "<td><span class='badge badge-success'>Active</span></td>";
                         } else {
                             echo "<td><span class='badge badge-danger'>Suspended</span></td>";
+                        }
+                        if ($row['ac_state'] == 'orphan') {
+                            echo "<td><span class='badge badge-warning'>Orphan</span></td>";
+                        } else if ($row['ac_state'] == 'claimed') {
+                            echo "<td><span class='badge badge-success'>Claimed</span></td>";
+                        } else {
+                            echo "<td><span class='badge badge-danger'>Rejected</span></td>";
                         }
                         echo "<td>" . htmlspecialchars($row['ac_score']) . "</td>";
                         if ($row['status'] == 'active') {
@@ -176,9 +153,8 @@ if (isset($_POST['submit'])) {
                                 }
                             }
                         }
-                        // echo "<td>" . htmlspecialchars($row['worth_type']) . "</td>";
+                        echo "<td>" . htmlspecialchars($row['worth_type']) . "</td>";
                         echo "<td>" . (new DateTime($row['added_date']))->format('d M g:i a') . "</td>";
-                        // Actions dropdown
                         echo "<td>
                             <div class='dropdown'>
                                 <button class='btn btn-info btn-sm dropdown-toggle' type='button' id='actionDropdown{$row['id']}' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>
@@ -198,15 +174,120 @@ if (isset($_POST['submit'])) {
                                 </div>
                             </div>
                           </td>";
-                        // Quick Actions inline buttons
                         echo "<td>
                             <div class='d-inline-flex'>
                                 <button class='btn btn-primary btn-sm check-status-btn' data-id='" . $row['id'] . "'>Chk Status</button>
-                                <a href='clear_region.php?ac_id=" . $row['id'] . "' target='_blank'><button class='btn btn-primary btn-sm' >Clear Parent</button></a>
                                 <a href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-secondary btn-sm'>Manage Childs</button></a>
                                 <a href='nodesender/sender.php?id=" . $row['id'] . "' target='_blank'><button class='btn btn-success btn-sm'>Node-Sen</button></a>
-                                <a href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-danger btn-sm'>Start Sending</button></a>
-                                <a href='manage_account.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-success btn-sm'>Manage Account</button></a>
+                                <a href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-danger btn-sm'>BRS</button></a>
+                            </div>
+                          </td>";
+                        echo "</tr>";
+                    }
+                    ?>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Table Section 3: Manually Suspended List -->
+        <div class="table-section mb-5">
+            <h2>Manually Suspended List</h2>
+            <div class="status-message mb-2"></div>
+            <table id="manualSuspendedTable" class="display table table-bordered">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Account ID</th>
+                        <th>AWS Key</th>
+                        <th>Status</th>
+                        <th>State</th>
+                        <th>Account Score</th>
+                        <th>Account Age</th>
+                        <th>Next Atm</th>
+                        <th>Type</th>
+                        <th>Added Date</th>
+                        <th>Actions</th>
+                        <th>Quick Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    // Table 3 query: Manually Suspended List
+                    $stmt = $pdo->query("SELECT * FROM accounts WHERE ac_state = 'claimed' AND suspend_mode='manual' AND ac_worth IS NULL AND wasted IS NULL ORDER BY 1 DESC");
+                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                        echo "<tr>";
+                        echo "<td>" . $row['id'] . "</td>";
+                        echo "<td>" . htmlspecialchars($row['account_id']) . "</td>";
+                        echo "<td>" . htmlspecialchars($row['aws_key']) . "</td>";
+                        if ($row['status'] == 'active') {
+                            echo "<td><span class='badge badge-success'>Active</span></td>";
+                        } else {
+                            echo "<td><span class='badge badge-danger'>Suspended</span></td>";
+                        }
+                        if ($row['ac_state'] == 'orphan') {
+                            echo "<td><span class='badge badge-warning'>Orphan</span></td>";
+                        } else if ($row['ac_state'] == 'claimed') {
+                            echo "<td><span class='badge badge-success'>Claimed</span></td>";
+                        } else {
+                            echo "<td><span class='badge badge-danger'>Rejected</span></td>";
+                        }
+                        echo "<td>" . htmlspecialchars($row['ac_score']) . "</td>";
+                        if ($row['status'] == 'active') {
+                            $td_Added_date = new DateTime($row['added_date']);
+                            $td_current_date = new DateTime();
+                            $diff = $td_Added_date->diff($td_current_date);
+                            echo "<td>" . $diff->format('%a days') . "</td>";
+                        } else {
+                            $td_Added_date = new DateTime($row['added_date']);
+                            $td_current_date = new DateTime($row['suspended_date']);
+                            $diff = $td_Added_date->diff($td_current_date);
+                            echo "<td>" . $diff->format('%a days') . "</td>";
+                        }
+                        if (empty($row['last_used'])) {
+                            echo "<td><span class='badge badge-warning'>No date provided</span></td>";
+                        } else {
+                            $initial = DateTime::createFromFormat('Y-m-d H:i:s', $row['last_used'], new DateTimeZone('Asia/Karachi'));
+                            if (!$initial) {
+                                echo "<td><span class='badge badge-danger'>Invalid date format</span></td>";
+                            } else {
+                                $expiry = clone $initial;
+                                $expiry->modify('+1 day');
+                                $now = new DateTime();
+                                $diff = $now->diff($expiry);
+                                if ($diff->invert) {
+                                    echo "<td><span class='badge badge-success'>Ready to go</span></td>";
+                                } else {
+                                    $hours = ($diff->days * 24) + $diff->h;
+                                    echo "<td><span class='badge badge-secondary'>{$hours}H {$diff->i}m left</span></td>";
+                                }
+                            }
+                        }
+                        echo "<td>" . htmlspecialchars($row['worth_type']) . "</td>";
+                        echo "<td>" . (new DateTime($row['added_date']))->format('d M g:i a') . "</td>";
+                        echo "<td>
+                            <div class='dropdown d-inline'>
+                                <button class='btn btn-info btn-sm dropdown-toggle' type='button' id='actionDropdown{$row['id']}' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>
+                                    Actions
+                                </button>
+                                <div class='dropdown-menu' aria-labelledby='actionDropdown{$row['id']}'>
+                                    <a class='dropdown-item' href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'>Manage Account</a>
+                                    <a class='dropdown-item' href='bulk_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'>Bulk Send</a>
+                                    <a class='dropdown-item' href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'>Bulk Regional Send</a>
+                                    <a class='dropdown-item' href='brs.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'>BRS</a>
+                                    <a class='dropdown-item' href='aws_account.php?id=" . $row['id'] . "' target='_blank'>EnableReg</a>
+                                    <a class='dropdown-item' href='nodesender/sender.php?id=" . $row['id'] . "' target='_blank'>NodeSender</a>
+                                    <a class='dropdown-item' href='clear_region.php?ac_id=" . $row['id'] . "' target='_blank'>Clear</a>
+                                    <a class='dropdown-item mark-full-btn' href='#' data-id='" . $row['id'] . "'>Mark-Full</a>
+                                    <a class='dropdown-item mark-half-btn' href='#' data-id='" . $row['id'] . "'>Mark-Half</a>
+                                </div>
+                            </div>
+                          </td>";
+                        echo "<td>
+                            <div class='d-inline-flex'>
+                                <button class='btn btn-primary btn-sm check-status-btn' data-id='" . $row['id'] . "'>Chk Status</button>
+                                <a href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-secondary btn-sm'>Manage AC</button></a>
+                                <a href='nodesender/sender.php?id=" . $row['id'] . "' target='_blank'><button class='btn btn-success btn-sm'>Node-Sen</button></a>
+                                <a href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-danger btn-sm'>BRS</button></a>
                             </div>
                           </td>";
                         echo "</tr>";
@@ -363,5 +444,4 @@ if (isset($_POST['submit'])) {
         });
     </script>
 </body>
-
 </html>

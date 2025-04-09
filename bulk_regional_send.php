@@ -23,7 +23,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'stop_process') {
 // Update account request (Mark as Completed)
 if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
   if ($id > 0) {
-      // Update the account with current Pakistan time
       date_default_timezone_set('Asia/Karachi');
       $currentTimestamp = date('Y-m-d H:i:s');
       $stmt = $pdo->prepare("UPDATE accounts SET ac_score = ac_score + 1, last_used = :last_used WHERE id = :id");
@@ -65,7 +64,10 @@ if (isset($_GET['stream'])) {
   if (isset($_GET['region'])) {
       $selectedRegion = trim($_GET['region']);
   }
-  
+
+  // Get preferred language from GET, default is 'Japanese'
+  $language = isset($_GET['language']) ? trim($_GET['language']) : 'Japanese';
+
   // Remove any pre-existing stop file.
   $stopFile = "stop_" . $id . ".txt";
   if (file_exists($stopFile)) {
@@ -85,9 +87,8 @@ if (isset($_GET['stream'])) {
     flush();
   }
 
-  sendSSE("STATUS", "Starting Bulk Regional OTP Process for Set ID: " . $set_id);
+  sendSSE("STATUS", "Starting Bulk Regional OTP Process for Set ID: " . $set_id . " with language: " . $language);
 
-  // Use the selected region if provided; otherwise, process all regions.
   if (!empty($selectedRegion)) {
       $regions = array($selectedRegion);
   } else {
@@ -130,7 +131,6 @@ if (isset($_GET['stream'])) {
   require_once('region_ajax_handler.php');
 
   foreach ($regions as $region) {
-    // Check for stop flag.
     if (file_exists($stopFile)) {
         sendSSE("STATUS", "Process stopped by user.");
         unlink($stopFile);
@@ -168,7 +168,6 @@ if (isset($_GET['stream'])) {
     $verifDestError = false;
 
     foreach ($otpTasks as $task) {
-      // Check stop flag in inner loop.
       if (file_exists($stopFile)) {
           sendSSE("STATUS", "Process stopped by user.");
           unlink($stopFile);
@@ -181,7 +180,8 @@ if (isset($_GET['stream'])) {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Failed: " . $sns['error']);
         continue;
       }
-      $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $user_id, $pdo, $sns);
+      // Pass the preferred language (as selected on the form) into the OTP sender.
+      $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $user_id, $pdo, $sns, $language);
       if ($result['status'] === 'success') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Sent");
         $totalSuccess++;
@@ -232,7 +232,6 @@ if (isset($_GET['stream'])) {
   <title><?php echo $id; ?> | Bulk Regional OTP Sending</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
-    /* Global Styles */
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
@@ -307,7 +306,6 @@ if (isset($_GET['stream'])) {
       border-radius: 3px;
       display: inline-block;
     }
-    /* Inline row for form controls */
     .inline-row {
       display: flex;
       flex-wrap: wrap;
@@ -318,7 +316,6 @@ if (isset($_GET['stream'])) {
       flex: 1;
       min-width: 200px;
     }
-    /* Button row for actions */
     .button-row {
       display: flex;
       flex-wrap: wrap;
@@ -394,6 +391,14 @@ if (isset($_GET['stream'])) {
             ?>
           </select>
         </div>
+        <div>
+          <label for="lang_select">Select Language:</label>
+          <select id="lang_select" name="lang_select">
+            <option value="Japanese">Japanese</option>
+            <option value="United States">United States</option>
+            <option value="German">German</option>
+          </select>
+        </div>
       </div>
       <!-- AWS Credentials (read-only) -->
       <label for="awsKey">AWS Key:</label>
@@ -433,12 +438,11 @@ if (isset($_GET['stream'])) {
     $(document).ready(function() {
       var userId = <?php echo $user_id; ?>;
       var acId = <?php echo $id; ?>;
-      var evtSource; // to store EventSource object
-
+      var evtSource;
+      
       // When set or region selection changes, fetch allowed numbers accordingly
       $('#set_id, #region_select').change(function() {
         var set_id = $('#set_id').val();
-        // Use the region selected; if empty, send a default value (e.g. "dummy")
         var region = $('#region_select').val() || "dummy";
         if (!set_id) {
           $('#numbers').val('');
@@ -483,12 +487,14 @@ if (isset($_GET['stream'])) {
         $('#sent-numbers-table tbody').html('');
         $('#summary').html('');
         $('#counters').html('');
-
-        // Build SSE URL with selected set and region.
         var region = $('#region_select').val();
+        var language = $('#lang_select').val();
         var sseUrl = "bulk_regional_send.php?ac_id=" + acId + "&user_id=" + userId + "&set_id=" + set_id + "&stream=1";
         if(region) {
           sseUrl += "&region=" + region;
+        }
+        if(language) {
+          sseUrl += "&language=" + language;
         }
         evtSource = new EventSource(sseUrl);
         evtSource.onmessage = function(e) {

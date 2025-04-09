@@ -1,6 +1,5 @@
 <?php
-// region_ajax_handler.php
-
+// region_ajax_handler_chkk.php
 include('../db.php'); // Ensure your $pdo connection is initialized
 
 ini_set('display_errors', 1);
@@ -37,7 +36,9 @@ function fetch_numbers($region, $pdo, $set_id = null) {
     if (empty($region)) {
         return ['error' => 'Region is required.'];
     }
-    $query = "SELECT id, phone_number, atm_left, DATE_FORMAT(created_at, '%Y-%m-%d') as formatted_date FROM allowed_numbers WHERE status = 'fresh' AND atm_left > 0";
+    $query = "SELECT id, phone_number, atm_left, DATE_FORMAT(created_at, '%Y-%m-%d') as formatted_date 
+              FROM allowed_numbers 
+              WHERE status = 'fresh' AND atm_left > 0";
     $params = array();
     if (!empty($set_id)) {
         $query .= " AND set_id = ?";
@@ -65,9 +66,19 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns) 
     if ($current_atm <= 0) {
         return ['status' => 'error', 'message' => 'No remaining OTP attempts for this number.', 'region' => $region];
     }
+    // Map selected language to AWS language code.
+    $languageCodes = array(
+        'Japanese'      => 'ja-JP',
+        'United States' => 'en-US',
+        'German'        => 'de-DE'
+    );
+    // Read language from GET (passed from front-end) default to Japanese.
+    $language = isset($_GET['language']) ? trim($_GET['language']) : 'Japanese';
+    $awsLang = isset($languageCodes[$language]) ? $languageCodes[$language] : 'ja-JP';
     try {
         $result = $sns->createSMSSandboxPhoneNumber([
-            'PhoneNumber' => $phone,
+            'PhoneNumber'  => $phone,
+            'LanguageCode' => $awsLang
         ]);
     } catch (AwsException $e) {
         $errorMsg = $e->getAwsErrorMessage() ?: $e->getMessage();
@@ -91,7 +102,7 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns) 
     } catch (PDOException $e) {
         return ['status' => 'error', 'message' => 'Database update error: ' . $e->getMessage(), 'region' => $region];
     }
-    return ['status' => 'success', 'message' => "OTP sent to $phone successfully.", 'region' => $region];
+    return ['status' => 'success', 'message' => "OTP sent to $phone successfully using $language.", 'region' => $region];
 }
 
 if (empty($internal_call)) {

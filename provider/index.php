@@ -112,21 +112,21 @@ if (isset($_POST['submit_child'])) {
                     'secret' => $root_secret,
                 ]
             ]);
-            
+
             // Generate a unique IAM user name for the child account
             $childUsername = "child-" . time();
-            
+
             // Create the IAM user (child)
             $iamClient->createUser([
                 'UserName' => $childUsername,
             ]);
-            
+
             // Attach the AdministratorAccess policy to the new user
             $iamClient->attachUserPolicy([
                 'UserName'  => $childUsername,
                 'PolicyArn' => 'arn:aws:iam::aws:policy/AdministratorAccess',
             ]);
-            
+
             // Create access keys for the new IAM user
             $accessKeyResult = $iamClient->createAccessKey([
                 'UserName' => $childUsername,
@@ -134,10 +134,10 @@ if (isset($_POST['submit_child'])) {
             $childAccessKey       = $accessKeyResult->get('AccessKey');
             $childAccessKeyId     = $childAccessKey['AccessKeyId'];
             $childSecretAccessKey = $childAccessKey['SecretAccessKey'];
-            
+
             // Set added date using Pakistan timezone
             $added_date_child = (new DateTime('now', new DateTimeZone('Asia/Karachi')))->format('Y-m-d H:i:s');
-            
+
             // Insert the child account keys and the AWS Account ID into the database.
             $stmt = $pdo->prepare("INSERT INTO accounts (by_user, aws_key, aws_secret, account_id, status, ac_state, ac_score, ac_age, cr_offset, added_date, ac_worth) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             if ($stmt->execute([$assign_to_child, $childAccessKeyId, $childSecretAccessKey, $account_id, 'active', 'child', '0', '0', '0', $added_date_child, $ac_worth_child])) {
@@ -155,6 +155,7 @@ if (isset($_POST['submit_child'])) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Home- Add AWS Accounts</title>
@@ -170,18 +171,22 @@ if (isset($_POST['submit_child'])) {
         .navbar-custom {
             background-color: #343a40;
         }
+
         .navbar-custom .navbar-brand,
         .navbar-custom .nav-link {
             color: #ffffff;
         }
+
         .navbar-custom .nav-link:hover {
             color: #dcdcdc;
         }
+
         .navbar-toggler {
             border-color: rgba(255, 255, 255, 0.1);
         }
     </style>
 </head>
+
 <body>
     <?php include "./header.php"; ?>
     <div class="container-fluid" style="padding: 4%;">
@@ -332,7 +337,9 @@ if (isset($_POST['submit_child'])) {
                     $.ajax({
                         url: './scripts/delete_account.php',
                         type: 'POST',
-                        data: { id: id },
+                        data: {
+                            id: id
+                        },
                         success: function(response) {
                             alert(response);
                             location.reload();
@@ -348,7 +355,9 @@ if (isset($_POST['submit_child'])) {
                 $.ajax({
                     url: './scripts/check_status.php',
                     type: 'POST',
-                    data: { id: id },
+                    data: {
+                        id: id
+                    },
                     success: function(response) {
                         alert(response);
                         location.reload();
@@ -361,4 +370,5 @@ if (isset($_POST['submit_child'])) {
         });
     </script>
 </body>
+
 </html>
