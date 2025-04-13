@@ -11,7 +11,6 @@ if (!isset($_GET['ac_id'])) {
   echo "Account ID required.";
   exit;
 }
-
 $id = htmlspecialchars($_GET['ac_id']);
 
 // Handle Stop Process request (AJAX POST)
@@ -71,8 +70,8 @@ if (isset($_GET['stream'])) {
   }
   $set_id = intval($_GET['set_id']);
 
-  // Get the language from GET; default to Japanese if not specified.
-  $language = isset($_GET['language']) ? trim($_GET['language']) : 'Japanese';
+  // Get the language from GET; default to United States if not specified.
+  $language = isset($_GET['language']) ? trim($_GET['language']) : 'United States';
 
   header('Content-Type: text/event-stream');
   header('Cache-Control: no-cache');
@@ -125,7 +124,7 @@ if (isset($_GET['stream'])) {
           "ap-south-2"
       );
   }
-  
+
   $totalRegions = count($regions);
   $totalSuccess = 0;
   $usedRegions = 0;
@@ -141,7 +140,7 @@ if (isset($_GET['stream'])) {
         unlink($stopFile);
         exit;
     }
-    
+
     $usedRegions++;
     sendSSE("STATUS", "Moving to region: " . $region);
     sendSSE("COUNTERS", "Total OTP sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
@@ -160,14 +159,26 @@ if (isset($_GET['stream'])) {
       continue;
     }
 
-    // Build OTP tasks.
+    // Build OTP tasks:
+    // If there are at least 10 allowed numbers, then process first 9 normally and try the 10th number 3 times.
+    // Otherwise, process each allowed number normally.
     $otpTasks = array();
-    $first = $allowedNumbers[0];
-    for ($i = 0; $i < 4; $i++) {
-      $otpTasks[] = array('id' => $first['id'], 'phone' => $first['phone_number']);
-    }
-    for ($i = 1; $i < min(count($allowedNumbers), 10); $i++) {
-      $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
+    $numbersCount = count($allowedNumbers);
+    if ($numbersCount >= 10) {
+        // Process first 9 numbers normally.
+        for ($i = 0; $i < 9; $i++) {
+          $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
+        }
+        // For the 10th number, try sending OTP 3 times.
+        $tenth = $allowedNumbers[9];
+        for ($i = 0; $i < 3; $i++) {
+          $otpTasks[] = array('id' => $tenth['id'], 'phone' => $tenth['phone_number']);
+        }
+    } else {
+        // Fewer than 10 numbers: process each one normally.
+        foreach ($allowedNumbers as $number) {
+            $otpTasks[] = array('id' => $number['id'], 'phone' => $number['phone_number']);
+        }
     }
 
     $otpSentInThisRegion = false;
@@ -180,7 +191,7 @@ if (isset($_GET['stream'])) {
           unlink($stopFile);
           exit;
       }
-      
+
       sendSSE("STATUS", "[$region] Sending OTP...");
       $sns = initSNS($aws_key, $aws_secret, $region);
       if (is_array($sns) && isset($sns['error'])) {
@@ -366,46 +377,47 @@ if (isset($_GET['stream'])) {
           <select id="region_select" name="region_select">
             <option value="">All Regions</option>
             <?php 
-              $regionsList = array(
-                "us-east-1",
-                "us-east-2",
-                "us-west-1",
-                "us-west-2",
-                "ap-south-1",
-                "ap-northeast-3",
-                "ap-southeast-1",
-                "ap-southeast-2",
-                "ap-northeast-1",
-                "ca-central-1",
-                "eu-central-1",
-                "eu-west-1",
-                "eu-west-2",
-                "eu-west-3",
-                "eu-north-1",
-                "me-central-1",
-                "sa-east-1",
-                "af-south-1",
-                "ap-southeast-3",
-                "ap-southeast-4",
-                "ca-west-1",
-                "eu-south-1",
-                "eu-south-2",
-                "eu-central-2",
-                "me-south-1",
-                "il-central-1",
-                "ap-south-2"
-              );
-              foreach ($regionsList as $reg) {
-                echo '<option value="'.$reg.'">'.$reg.'</option>';
-              }
+               $regionsList = array(
+                 "us-east-1",
+                 "us-east-2",
+                 "us-west-1",
+                 "us-west-2",
+                 "ap-south-1",
+                 "ap-northeast-3",
+                 "ap-southeast-1",
+                 "ap-southeast-2",
+                 "ap-northeast-1",
+                 "ca-central-1",
+                 "eu-central-1",
+                 "eu-west-1",
+                 "eu-west-2",
+                 "eu-west-3",
+                 "eu-north-1",
+                 "me-central-1",
+                 "sa-east-1",
+                 "af-south-1",
+                 "ap-southeast-3",
+                 "ap-southeast-4",
+                 "ca-west-1",
+                 "eu-south-1",
+                 "eu-south-2",
+                 "eu-central-2",
+                 "me-south-1",
+                 "il-central-1",
+                 "ap-south-2"
+               );
+               foreach ($regionsList as $reg) {
+                 echo '<option value="'.$reg.'">'.$reg.'</option>';
+               }
             ?>
           </select>
         </div>
         <div>
           <label for="lang_select">Select Language:</label>
           <select id="lang_select" name="lang_select">
-            <option value="Japanese">Japanese</option>
+            <!-- "United States" is now the first/default option -->
             <option value="United States">United States</option>
+            <option value="Japanese">Japanese</option>
             <option value="German">German</option>
           </select>
         </div>
@@ -415,7 +427,7 @@ if (isset($_GET['stream'])) {
       <input type="text" id="awsCreds" name="awsCreds" value="<?php echo $aws_key . ' | ' . $aws_secret; ?>" disabled>
       <button type="button" id="start-bulk-regional-otp">Start Bulk OTP Process for Selected Set</button>
     </form>
-
+    
     <!-- Display area for allowed numbers -->
     <label for="numbers">Allowed Phone Numbers (from database):</label>
     <textarea id="numbers" name="numbers" rows="10" readonly></textarea>
@@ -441,13 +453,13 @@ if (isset($_GET['stream'])) {
     <h2>Final Summary</h2>
     <div id="summary"></div>
   </div>
-
+  
   <script>
     $(document).ready(function() {
       // Preserve account ID as a string.
       var acId = "<?php echo $id; ?>";
       var evtSource; // to store the EventSource object
-
+      
       // When set or region selection changes, fetch allowed numbers accordingly
       $('#set_id, #region_select').change(function() {
         var set_id = $('#set_id').val();
@@ -481,7 +493,7 @@ if (isset($_GET['stream'])) {
           }
         });
       });
-
+      
       $('#start-bulk-regional-otp').click(function() {
         var set_id = $('#set_id').val();
         if (!set_id) {
@@ -494,7 +506,7 @@ if (isset($_GET['stream'])) {
         $('#sent-numbers-table tbody').html('');
         $('#summary').html('');
         $('#counters').html('');
-
+        
         var region = $('#region_select').val();
         var language = $('#lang_select').val();
         var sseUrl = "bulk_regional_send.php?ac_id=" + acId + "&set_id=" + set_id + "&stream=1";
@@ -532,7 +544,7 @@ if (isset($_GET['stream'])) {
           evtSource.close();
         };
       });
-
+      
       // Stop Process button
       $("#stopButton").click(function() {
         if(evtSource) {
@@ -555,7 +567,7 @@ if (isset($_GET['stream'])) {
           }
         });
       });
-
+      
       // Mark as Completed button
       $("#updateButton").click(function() {
         $.ajax({
