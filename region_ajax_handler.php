@@ -70,14 +70,15 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $user_id, $p
     
     // Map the selected language to an AWS language code.
     $languageCodes = array(
-        'Japanese'       => 'ja-JP',
-        'United States'  => 'en-US',
-        'German'         => 'de-DE'
+       'Spanish Latin America' => 'es-419',
+       'United States' => 'en-US',
+       'Japanese'      => 'ja-JP',
+       'German'        => 'de-DE'
     );
-    $awsLang = isset($languageCodes[$language]) ? $languageCodes[$language] : 'ja-JP';
-    
+    $awsLang = isset($languageCodes[$language]) ? $languageCodes[$language] : 'es-419';
+
     try {
-        // Include the LanguageCode parameter as per AWS documentation.
+        // Include the LanguageCode parameter in the API call per AWS documentation.
         $result = $sns->createSMSSandboxPhoneNumber([
             'PhoneNumber'  => $phone,
             'LanguageCode' => $awsLang
@@ -104,7 +105,7 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $user_id, $p
     } catch (PDOException $e) {
         return ['status' => 'error', 'message' => 'Database update error: ' . $e->getMessage(), 'region' => $region];
     }
-    return ['status' => 'success', 'message' => "OTP sent to $phone in $language successfully.", 'region' => $region];
+    return ['status' => 'success', 'message' => "OTP sent to $phone successfully.", 'region' => $region];
 }
 
 if (empty($internal_call)) {
@@ -137,7 +138,8 @@ if (empty($internal_call)) {
         $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
         $phone = isset($_POST['phone']) ? trim($_POST['phone']) : '';
         $region = isset($_POST['region']) ? trim($_POST['region']) : $awsRegion;
-        $language = isset($_POST['language']) ? trim($_POST['language']) : 'Japanese';
+        // Read language from POST; default to Spanish Latin America.
+        $language = isset($_POST['language']) ? trim($_POST['language']) : 'Spanish Latin America';
         $result = send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $user_id, $pdo, $sns, $language);
         echo json_encode($result);
         exit;

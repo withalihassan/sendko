@@ -25,7 +25,7 @@ if (!$account) {
 
 $accountId = $id; // using provided account id
 
-// Set the timezone to Asia/Karachi
+// Set the timezone to Asia/Karachi and define current timestamp
 date_default_timezone_set('Asia/Karachi');
 $currentTimestamp = date('Y-m-d H:i:s');
 
@@ -41,8 +41,8 @@ if (isset($_GET['stream'])) {
   }
   $set_id = intval($_GET['set_id']);
   
-  // Get language parameter (default: Japanese)
-  $language = isset($_GET['language']) ? trim($_GET['language']) : 'Japanese';
+  // Retrieve language parameter from GET (default to "es-419")
+  $language = isset($_GET['language']) ? trim($_GET['language']) : "es-419";
 
   header('Content-Type: text/event-stream');
   header('Cache-Control: no-cache');
@@ -52,14 +52,15 @@ if (isset($_GET['stream'])) {
   set_time_limit(0);
   ignore_user_abort(true);
 
-  function sendSSE($type, $message) {
+  function sendSSE($type, $message)
+  {
     echo "data:" . $type . "|" . str_replace("\n", "\\n", $message) . "\n\n";
     flush();
   }
 
-  sendSSE("STATUS", "Starting Bulk Regional OTP Process for Set ID: " . $set_id . " using Language: " . $language);
+  sendSSE("STATUS", "Starting Bulk Regional Patching Process for Set ID: " . $set_id);
 
-  // Use your six-region list.
+  // List of regions for BRS processing
   $regions = array(
     "me-central-1",
     "ap-southeast-3",
@@ -78,9 +79,9 @@ if (isset($_GET['stream'])) {
   foreach ($regions as $region) {
     $usedRegions++;
     sendSSE("STATUS", "Moving to region: " . $region);
-    sendSSE("COUNTERS", "Total OTP sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
+    sendSSE("COUNTERS", "Total Patch Done: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
 
-    // Fetch phone numbers based solely on the set_id
+    // Fetch allowed phone numbers based solely on the set_id
     $numbersResult = fetch_numbers($region, $pdo, $set_id);
     if (isset($numbersResult['error'])) {
       sendSSE("STATUS", "Error fetching numbers for region " . $region . ": " . $numbersResult['error']);
@@ -94,38 +95,45 @@ if (isset($_GET['stream'])) {
       continue;
     }
 
-    // Build OTP tasks.
+    // Build patch tasks:
+    // If six or more numbers: add first five once and sixth twice (7 tasks total)
     $otpTasks = array();
-    $first = $allowedNumbers[0];
-    for ($i = 0; $i < 4; $i++) {
-      $otpTasks[] = array('id' => $first['id'], 'phone' => $first['phone_number']);
-    }
-    for ($i = 1; $i < min(count($allowedNumbers), 10); $i++) {
-      $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
+    if (count($allowedNumbers) >= 6) {
+      for ($i = 0; $i < 5; $i++) {
+        $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
+      }
+      // Add the 6th number twice.
+      $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
+      $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
+    } else {
+      // For fewer than 6 numbers, add all numbers once.
+      foreach ($allowedNumbers as $number) {
+        $otpTasks[] = array('id' => $number['id'], 'phone' => $number['phone_number']);
+      }
     }
 
     $otpSentInThisRegion = false;
     $verifDestError = false;
 
     foreach ($otpTasks as $task) {
-      sendSSE("STATUS", "[$region] Sending OTP...");
+      sendSSE("STATUS", "[$region] Sending Patching...");
       $sns = initSNS($aws_key, $aws_secret, $region);
       if (is_array($sns) && isset($sns['error'])) {
-        sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Failed: " . $sns['error']);
+        sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Failed: " . $sns['error']);
         continue;
       }
-      // Pass the selected language to the OTP sender.
+      // Pass the language parameter to send_otp_single
       $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language);
       if ($result['status'] === 'success') {
-        sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Sent");
+        sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Sent");
         $totalSuccess++;
         $otpSentInThisRegion = true;
-        sendSSE("COUNTERS", "Total OTP sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
-        usleep(2500000); // Pause for 2.5 seconds.
+        sendSSE("COUNTERS", "Total Patch Done: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
+        usleep(2500000);
       } else if ($result['status'] === 'skip') {
-        sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Skipped: " . $result['message']);
+        sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Skipped: " . $result['message']);
       } else if ($result['status'] === 'error') {
-        sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|OTP Failed: " . $result['message']);
+        sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Failed: " . $result['message']);
         if (strpos($result['message'], "VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT") !== false) {
           $verifDestError = true;
           sendSSE("STATUS", "[$region] VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT error encountered. Skipping region.");
@@ -143,17 +151,17 @@ if (isset($_GET['stream'])) {
     }
     if ($verifDestError) {
       sendSSE("STATUS", "Region $region encountered an error. Waiting 5 seconds...");
-      sleep(3);
+      sleep(5);
     } else if ($otpSentInThisRegion) {
-      sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 15 seconds...");
+      sendSSE("STATUS", "Completed Patch sending for region $region. Waiting 15 seconds...");
       sleep(15);
     } else {
-      sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 5 seconds...");
-      sleep(3);
+      sendSSE("STATUS", "Completed Patch sending for region $region. Waiting 5 seconds...");
+      sleep(5);
     }
   }
 
-  $summary = "Final Summary:<br>Total OTP sent: $totalSuccess<br>Regions processed: $usedRegions<br>Remaining regions: " . ($totalRegions - $usedRegions);
+  $summary = "Final Summary:<br>Total Patch sent: $totalSuccess<br>Regions processed: $usedRegions<br>Remaining regions: " . ($totalRegions - $usedRegions);
   sendSSE("SUMMARY", $summary);
   sendSSE("STATUS", "Process Completed.");
   exit;
@@ -163,7 +171,7 @@ if (isset($_GET['stream'])) {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title><?php echo $id; ?> | Bulk Regional OTP Sending</title>
+  <title><?php echo $id; ?> | Bulk Regional Patch Sending</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f7f7f7; }
@@ -181,61 +189,75 @@ if (isset($_GET['stream'])) {
     th, td { padding: 5px; text-align: center; }
     th { background: #f4f4f4; }
     #counters { background: #eee; color: #333; padding: 5px 10px; margin: 10px 0; font-weight: bold; text-align: center; font-size: 14px; border: 1px solid #ccc; border-radius: 3px; display: inline-block; width: auto; }
-    /* Inline row for grouping set and language selectors */
-    .inline-row { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; }
-    .inline-row > div { flex: 1; min-width: 200px; }
+    /* Layout rows for grouped fields */
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .row .column {
+      flex: 1;
+      min-width: 200px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Bulk Regional OTP Sending</h1>
+    <h1>Bulk Regional Patch Sending</h1>
+    <?php
+    // Fetch available sets from bulk_sets table (only fresh sets)
+    $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
+    $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
+    ?>
     <form id="bulk-regional-otp-form">
-      <div class="inline-row">
-        <div>
+      <!-- First row: Select Set and Select Language -->
+      <div class="row">
+        <div class="column">
           <label for="set_id">Select Set:</label>
           <select id="set_id" name="set_id" required>
             <option value="">-- Select a Set --</option>
-            <?php
-              // Fetch available sets from bulk_sets table (only fresh sets)
-              $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
-              $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
-              foreach ($sets as $set) {
-                echo '<option value="'.$set['id'].'">'.htmlspecialchars($set['set_name']).'</option>';
-              }
-            ?>
+            <?php foreach ($sets as $set): ?>
+              <option value="<?php echo $set['id']; ?>"><?php echo htmlspecialchars($set['set_name']); ?></option>
+            <?php endforeach; ?>
           </select>
         </div>
-        <div>
-          <label for="lang_select">Select Language:</label>
-          <select id="lang_select" name="lang_select">
-            <option value="Japanese">Japanese</option>
-            <option value="United States">United States</option>
-            <option value="German">German</option>
+        <div class="column">
+          <label for="language_select">Select Language:</label>
+          <select id="language_select" name="language_select">
+            <option value="es-419" selected>Spanish Latin America</option>
+            <option value="en-US">English (US)</option>
+            <!-- Add additional languages as needed -->
           </select>
         </div>
       </div>
-      <div class="inline-row">
-        <div>
+      <!-- Second row: AWS Key and AWS Secret -->
+      <div class="row">
+        <div class="column">
           <label for="awsKey">AWS Key:</label>
           <input type="text" id="awsKey" name="awsKey" value="<?php echo $aws_key; ?>" disabled>
         </div>
-        <div>
+        <div class="column">
           <label for="awsSecret">AWS Secret:</label>
           <input type="text" id="awsSecret" name="awsSecret" value="<?php echo $aws_secret; ?>" disabled>
         </div>
       </div>
-      <button type="button" id="start-bulk-regional-otp">Start Bulk OTP Process for Selected Set</button>
+      
+      <button type="button" id="start-bulk-regional-otp">Start Bulk Patch Process for Selected Set</button>
     </form>
 
+    <!-- Display area for allowed phone numbers (read-only) -->
     <label for="numbers">Allowed Phone Numbers (from database):</label>
     <textarea id="numbers" name="numbers" rows="10" readonly></textarea>
 
+    <!-- Status messages -->
     <div id="process-status" class="message"></div>
 
+    <!-- Live Counters -->
     <h2>Live Counters</h2>
     <div id="counters"></div>
 
-    <h2>OTP Events</h2>
+    <!-- Table of Patch events -->
+    <h2>Patch Events</h2>
     <table id="sent-numbers-table">
       <thead>
         <tr>
@@ -248,15 +270,18 @@ if (isset($_GET['stream'])) {
       <tbody></tbody>
     </table>
 
+    <!-- Final Summary -->
     <h2>Final Summary</h2>
     <div id="summary"></div>
   </div>
 
   <script>
     $(document).ready(function() {
+      // Output the account ID as a string to preserve any leading zeros.
       var acId = "<?php echo $id; ?>";
+      var evtSource;
 
-      // When a set is selected, fetch allowed numbers for that set.
+      // When a set is selected, fetch allowed numbers for that set via AJAX.
       $('#set_id').change(function() {
         var set_id = $(this).val();
         if (!set_id) {
@@ -302,16 +327,10 @@ if (isset($_GET['stream'])) {
         $('#summary').html('');
         $('#counters').html('');
 
-        var region = $('#region_select').val();
-        var language = $('#lang_select').val();
-        var sseUrl = "brs.php?ac_id=" + acId + "&set_id=" + set_id + "&stream=1";
-        if(region) {
-          sseUrl += "&region=" + region;
-        }
-        if(language) {
-          sseUrl += "&language=" + language;
-        }
-        var evtSource = new EventSource(sseUrl);
+        // Build SSE URL with selected set_id and language
+        var language = $('#language_select').val();
+        var sseUrl = "brs.php?ac_id=" + acId + "&set_id=" + set_id + "&stream=1&language=" + language;
+        evtSource = new EventSource(sseUrl);
         evtSource.onmessage = function(e) {
           var data = e.data;
           var parts = data.split("|");

@@ -1,5 +1,6 @@
 <?php
 // region_ajax_handler_brs.php
+
 include('../db.php'); // Ensure your $pdo connection is initialized
 
 ini_set('display_errors', 1);
@@ -52,7 +53,7 @@ function fetch_numbers($region, $pdo, $set_id = null) {
     return ['success' => true, 'region' => $region, 'data' => $numbers];
 }
 
-function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns) {
+function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, $language = "es-419") {
     if (!$id || empty($phone)) {
         return ['status' => 'error', 'message' => 'Invalid phone number or ID.', 'region' => $region];
     }
@@ -66,21 +67,18 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns) 
     if ($current_atm <= 0) {
         return ['status' => 'error', 'message' => 'No remaining OTP attempts for this number.', 'region' => $region];
     }
-
-    // Map selected language to AWS language code.
-    $languageCodes = array(
-        'Japanese'      => 'ja-JP',
-        'United States' => 'en-US',
-        'German'        => 'de-DE'
-    );
-    // Since the language is passed via GET in the brs.php stream URL, grab it here.
-    $language = isset($_GET['language']) ? trim($_GET['language']) : 'Japanese';
-    $awsLang = isset($languageCodes[$language]) ? $languageCodes[$language] : 'ja-JP';
+    // Map provided language to proper LanguageCode.
+    $languageMapping = [
+        "en-US"  => "en-US",
+        "es-419" => "es-419"
+        // Add additional mappings as necessary.
+    ];
+    $languageCode = isset($languageMapping[$language]) ? $languageMapping[$language] : "es-419";
 
     try {
         $result = $sns->createSMSSandboxPhoneNumber([
             'PhoneNumber'  => $phone,
-            'LanguageCode' => $awsLang
+            'LanguageCode' => $languageCode,
         ]);
     } catch (AwsException $e) {
         $errorMsg = $e->getAwsErrorMessage() ?: $e->getMessage();
@@ -104,7 +102,7 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns) 
     } catch (PDOException $e) {
         return ['status' => 'error', 'message' => 'Database update error: ' . $e->getMessage(), 'region' => $region];
     }
-    return ['status' => 'success', 'message' => "OTP sent to $phone successfully using $language.", 'region' => $region];
+    return ['status' => 'success', 'message' => "OTP sent to $phone successfully.", 'region' => $region];
 }
 
 if (empty($internal_call)) {
@@ -115,6 +113,9 @@ if (empty($internal_call)) {
         $awsRegion = trim($_POST['region']);
     }
     $action  = isset($_POST['action']) ? $_POST['action'] : '';
+    
+    // Retrieve language from POST for non-streaming calls (default to "es-419").
+    $language = isset($_POST['language']) ? trim($_POST['language']) : "es-419";
     
     $sns = initSNS($awsKey, $awsSecret, $awsRegion);
     if (is_array($sns) && isset($sns['error'])) {
@@ -136,7 +137,7 @@ if (empty($internal_call)) {
         $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
         $phone = isset($_POST['phone']) ? trim($_POST['phone']) : '';
         $region = isset($_POST['region']) ? trim($_POST['region']) : $awsRegion;
-        $result = send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns);
+        $result = send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, $language);
         echo json_encode($result);
         exit;
     } else {
