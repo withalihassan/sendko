@@ -12,6 +12,7 @@ if (!isset($_GET['ac_id'])) {
 }
 
 $id = htmlspecialchars($_GET['ac_id']);
+$parent_id = htmlspecialchars($_GET['parrent_id']);
 
 // Fetch AWS credentials for the provided account ID from child_accounts table
 $stmt = $pdo->prepare("SELECT aws_access_key, aws_secret_key FROM child_accounts WHERE account_id = ?");
@@ -40,7 +41,7 @@ if (isset($_GET['stream'])) {
     exit;
   }
   $set_id = intval($_GET['set_id']);
-  
+
   // Retrieve language parameter from GET (default to "es-419")
   $language = isset($_GET['language']) ? trim($_GET['language']) : "es-419";
 
@@ -169,112 +170,230 @@ if (isset($_GET['stream'])) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title><?php echo $id; ?> | Bulk Regional Patch Sending</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background: #f7f7f7; }
-    .container { max-width: 800px; margin: auto; background: #fff; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 5px; }
-    h1, h2 { text-align: center; color: #333; }
-    label { font-weight: bold; margin-top: 10px; display: block; }
-    input, textarea, select, button { width: 100%; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; }
-    button { background: #007bff; color: #fff; border: none; cursor: pointer; font-size: 16px; }
-    button:disabled { background: #6c757d; cursor: not-allowed; }
-    .message { padding: 10px; border-radius: 5px; margin: 10px 0; display: none; }
-    .success { background: #d4edda; color: #155724; }
-    .error { background: #f8d7da; color: #721c24; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    table, th, td { border: 1px solid #ccc; }
-    th, td { padding: 5px; text-align: center; }
-    th { background: #f4f4f4; }
-    #counters { background: #eee; color: #333; padding: 5px 10px; margin: 10px 0; font-weight: bold; text-align: center; font-size: 14px; border: 1px solid #ccc; border-radius: 3px; display: inline-block; width: auto; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f7f7f7;
+    }
+
+    .container {
+      max-width: auto;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      border-radius: 5px;
+    }
+
+    h1,
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+
+    label {
+      font-weight: bold;
+      margin-top: 10px;
+      display: block;
+    }
+
+    input,
+    textarea,
+    select,
+    button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+
+    button {
+      background: #007bff;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    button:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+    }
+
+    .message {
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      display: none;
+    }
+
+    .success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    table,
+    th,
+    td {
+      border: 1px solid #ccc;
+    }
+
+    th,
+    td {
+      padding: 5px;
+      text-align: center;
+    }
+
+    th {
+      background: #f4f4f4;
+    }
+
+    #counters {
+      background: #eee;
+      color: #333;
+      padding: 5px 10px;
+      margin: 10px 0;
+      font-weight: bold;
+      text-align: center;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      display: inline-block;
+      width: auto;
+    }
+
     /* Layout rows for grouped fields */
     .row {
       display: flex;
       flex-wrap: wrap;
       gap: 20px;
     }
+
     .row .column {
       flex: 1;
       min-width: 200px;
     }
   </style>
 </head>
+
 <body>
-  <div class="container">
-    <h1>Bulk Regional Patch Sending</h1>
-    <?php
-    // Fetch available sets from bulk_sets table (only fresh sets)
-    $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
-    $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
-    ?>
-    <form id="bulk-regional-otp-form">
-      <!-- First row: Select Set and Select Language -->
-      <div class="row">
-        <div class="column">
-          <label for="set_id">Select Set:</label>
-          <select id="set_id" name="set_id" required>
-            <option value="">-- Select a Set --</option>
-            <?php foreach ($sets as $set): ?>
-              <option value="<?php echo $set['id']; ?>"><?php echo htmlspecialchars($set['set_name']); ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="column">
-          <label for="language_select">Select Language:</label>
-          <select id="language_select" name="language_select">
-            <option value="es-419" selected>Spanish Latin America</option>
-            <option value="en-US">English (US)</option>
-            <!-- Add additional languages as needed -->
-          </select>
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-md-4">
+        <div class="container">
+          <h1>Region Enable Box</h1>
+          <button id="enableRegionsButton" class="btn btn-primary mb-3">
+            Enable All Opt‑In Regions
+          </button>
+
+          <table id="regions-status-table" class="table table-bordered">
+            <thead>
+              <tr>
+                <th>Region</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+
         </div>
       </div>
-      <!-- Second row: AWS Key and AWS Secret -->
-      <div class="row">
-        <div class="column">
-          <label for="awsKey">AWS Key:</label>
-          <input type="text" id="awsKey" name="awsKey" value="<?php echo $aws_key; ?>" disabled>
-        </div>
-        <div class="column">
-          <label for="awsSecret">AWS Secret:</label>
-          <input type="text" id="awsSecret" name="awsSecret" value="<?php echo $aws_secret; ?>" disabled>
+      <div class="col-md-7">
+        <div class="container">
+          <h1>Bulk Regional Patch Sending</h1>
+          <?php
+          // Fetch available sets from bulk_sets table (only fresh sets)
+          $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
+          $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
+          ?>
+          <form id="bulk-regional-otp-form">
+            <!-- First row: Select Set and Select Language -->
+            <div class="row">
+              <div class="column">
+                <label for="set_id">Select Set:</label>
+                <select id="set_id" name="set_id" required>
+                  <option value="">-- Select a Set --</option>
+                  <?php foreach ($sets as $set): ?>
+                    <option value="<?php echo $set['id']; ?>"><?php echo htmlspecialchars($set['set_name']); ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <div class="column">
+                <label for="language_select">Select Language:</label>
+                <select id="language_select" name="language_select">
+                  <option value="es-419" selected>Spanish Latin America</option>
+                  <option value="en-US">English (US)</option>
+                  <!-- Add additional languages as needed -->
+                </select>
+              </div>
+            </div>
+            <!-- Second row: AWS Key and AWS Secret -->
+            <div class="row">
+              <div class="column">
+                <label for="awsKey">AWS Key:</label>
+                <input type="text" id="awsKey" name="awsKey" value="<?php echo $aws_key; ?>" disabled>
+              </div>
+              <div class="column">
+                <label for="awsSecret">AWS Secret:</label>
+                <input type="text" id="awsSecret" name="awsSecret" value="<?php echo $aws_secret; ?>" disabled>
+              </div>
+            </div>
+
+            <button type="button" id="start-bulk-regional-otp">Start Bulk Patch Process for Selected Set</button>
+          </form>
+
+          <!-- Display area for allowed phone numbers (read-only) -->
+          <label for="numbers">Allowed Phone Numbers (from database):</label>
+          <textarea id="numbers" name="numbers" rows="10" readonly></textarea>
+
+          <!-- Status messages -->
+          <div id="process-status" class="message"></div>
+
+          <!-- Live Counters -->
+          <h2>Live Counters</h2>
+          <div id="counters"></div>
+
+          <!-- Table of Patch events -->
+          <h2>Patch Events</h2>
+          <table id="sent-numbers-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Phone Number</th>
+                <th>Region</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+
+          <!-- Final Summary -->
+          <h2>Final Summary</h2>
+          <div id="summary"></div>
         </div>
       </div>
-      
-      <button type="button" id="start-bulk-regional-otp">Start Bulk Patch Process for Selected Set</button>
-    </form>
-
-    <!-- Display area for allowed phone numbers (read-only) -->
-    <label for="numbers">Allowed Phone Numbers (from database):</label>
-    <textarea id="numbers" name="numbers" rows="10" readonly></textarea>
-
-    <!-- Status messages -->
-    <div id="process-status" class="message"></div>
-
-    <!-- Live Counters -->
-    <h2>Live Counters</h2>
-    <div id="counters"></div>
-
-    <!-- Table of Patch events -->
-    <h2>Patch Events</h2>
-    <table id="sent-numbers-table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Phone Number</th>
-          <th>Region</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-
-    <!-- Final Summary -->
-    <h2>Final Summary</h2>
-    <div id="summary"></div>
+    </div>
   </div>
-
   <script>
     $(document).ready(function() {
       // Output the account ID as a string to preserve any leading zeros.
@@ -360,5 +479,135 @@ if (isset($_GET['stream'])) {
       });
     });
   </script>
+
+  <script>
+    $(function() {
+      const acId = <?php echo $id; ?>;
+      const userId = <?php echo $parent_id; ?>;
+      const regions = [
+        "me-central-1",
+        "ap-southeast-3", "ap-southeast-4",
+        "eu-south-2", "eu-central-2",
+        "ap-south-2"
+      ];
+      const maxConcurrent = 5;
+      const delayMs = 2000; // 2 seconds
+      const pollIntervals = {};
+      let queue = [];
+      let activeCount = 0;
+
+      $('#enableRegionsButton').on('click', () => {
+        const $tbody = $('#regions-status-table tbody').empty();
+        queue = regions.slice(); // clone
+        activeCount = 0;
+
+        // Kick off the loop
+        scheduleNext($tbody);
+      });
+
+      /**
+       * Tries to start _one_ region; then always re‑schedules itself after delayMs.
+       * Stops only when both the queue is empty AND there are no active polls.
+       */
+      function scheduleNext($tbody) {
+        // If we have capacity and work to do, start one
+        if (activeCount < maxConcurrent && queue.length > 0) {
+          const region = queue.shift();
+          checkAndSubmit(region, $tbody);
+        }
+
+        // Continue looping until completely done
+        if (queue.length > 0 || activeCount > 0) {
+          setTimeout(() => scheduleNext($tbody), delayMs);
+        }
+      }
+
+      function checkAndSubmit(region, $tbody) {
+        let $row = $tbody.find(`tr[data-region="${region}"]`);
+        if (!$row.length) {
+          $tbody.append(`
+        <tr data-region="${region}">
+          <td>${region}</td>
+          <td class="status">Checking…</td>
+        </tr>
+      `);
+          $row = $tbody.find(`tr[data-region="${region}"]`);
+        }
+        const $status = $row.find('.status');
+
+        // 1️⃣ Check if already enabled
+        $.post(
+            `region_enable_handler.php?ac_id=${acId}&user_id=${userId}`, {
+              action: 'check_region_status',
+              region
+            },
+            'json'
+          )
+          .done(data => {
+            if (data.success && data.status === 'ENABLED') {
+              $status.text('Already Enabled');
+              // No slot consumed, next will fire in scheduleNext()
+            } else {
+              // 2️⃣ Submit enable request
+              $status.text('Submitted, Waiting…');
+              $.post(
+                  `region_enable_handler.php?ac_id=${acId}&user_id=${userId}`, {
+                    action: 'enable_region',
+                    region
+                  },
+                  'json'
+                )
+                .done(() => {
+                  // Consume a slot for polling
+                  activeCount++;
+                  startPolling(region, $status, $tbody);
+                })
+                .fail(() => {
+                  $status.text('Enable Error');
+                  // slot never used; we'll get next in the scheduleNext loop
+                });
+            }
+          })
+          .fail(() => {
+            $status.text('Check Error');
+            // on error we simply let scheduleNext() fire next time
+          });
+      }
+
+      /**
+       * Polls every 40 s until status == ENABLED, then frees up a slot.
+       */
+      function startPolling(region, $status, $tbody) {
+        if (pollIntervals[region]) {
+          clearInterval(pollIntervals[region]);
+        }
+        pollIntervals[region] = setInterval(() => {
+          $.post(
+              `region_enable_handler.php?ac_id=${acId}&user_id=${userId}`, {
+                action: 'check_region_status',
+                region
+              },
+              'json'
+            )
+            .done(data => {
+              if (data.success && data.status === 'ENABLED') {
+                clearInterval(pollIntervals[region]);
+                $status.text('Enabled Successfully');
+                activeCount--;
+                // Next slot opens; next scheduleNext() (if pending) will pick it up
+              } else {
+                $status.text(`Still Enabling…(${data.status})`);
+              }
+            })
+            .fail(() => {
+              $status.text('Poll Error');
+            });
+        }, 40000);
+      }
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js" integrity="sha384-k6d4wzSIapyDyv1kpU366/PK5hCdSbCRGRCMv+eplOQJWyd1fbcAu9OCUj5zNLiq" crossorigin="anonymous"></script>
+
 </body>
+
 </html>
