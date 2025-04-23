@@ -223,7 +223,7 @@ if (isset($_POST['submit'])) {
             <h2>Normal Accounts List</h2>
             <!-- Div for check status messages -->
             <div class="status-message mb-2"></div>
-            <table id="accountsTable1" class="display table table-bordered">
+            <table id="accountsTable2" class="display table table-bordered">
                 <thead>
                     <tr>
                         <th>ID</th>
