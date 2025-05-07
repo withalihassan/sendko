@@ -1,6 +1,8 @@
 <?php
 // response.php
-
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 require '../../db.php';
 require '../../aws/aws-autoloader.php';
 
@@ -58,7 +60,7 @@ $response = [
 ];
 
 // Make PDO throw exceptions on error
-$conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 foreach ($regionsToLaunch as $launchRegion) {
     try {
@@ -110,7 +112,7 @@ foreach ($regionsToLaunch as $launchRegion) {
         $instanceId = $instResult['Instances'][0]['InstanceId'];
 
         // 4. Insert into your database (this is blocking until complete)
-        $stmt = $conn->prepare("
+        $stmt = $pdo->prepare("
             INSERT INTO launched_instances 
                 (account_id, instance_id, region, instance_type, launch_type, launched_at) 
             VALUES (?, ?, ?, ?, ?, NOW())

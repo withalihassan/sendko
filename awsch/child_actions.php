@@ -304,6 +304,7 @@ try {
             }, function(response) {
                 $("#response").html(response);
             });
+            console.log(region);
         }
 
         function fetchInstances(childId) {
