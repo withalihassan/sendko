@@ -1,58 +1,71 @@
 <?php
-require '../db_connect.php';
-require '../aws/aws-autoloader.php';
+// launch.php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+require '../../db.php';
+require '../../aws/aws-autoloader.php';
 
-// Get input values
+use Aws\Ec2\Ec2Client;
+use Aws\Sts\StsClient;
+use Aws\Exception\AwsException;
+
+// === 1. Capture and validate input ===
 $aws_access_key = $_POST['aws_access_key'] ?? '';
 $aws_secret_key = $_POST['aws_secret_key'] ?? '';
 $instance_type  = $_POST['instance_type'] ?? '';
 $market_type    = $_POST['market_type'] ?? '';
 $region         = $_POST['region'] ?? '';
 
-if (empty($aws_access_key) || empty($aws_secret_key) || empty($instance_type) || empty($market_type)) {
-    die("Missing required fields.");
+if (empty($aws_access_key) || empty($aws_secret_key) || empty($instance_type) || empty($market_type) || empty($region)) {
+    http_response_code(400);
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'Missing one or more required fields.'
+    ]);
+    exit;
 }
 
-// AMI mappings
+// === 2. AMI mapping per region ===
 $amiMap = [
-    'us-east-1' => 'ami-0e2c8caa4b6378d8c',
-    'us-east-2' => 'ami-036841078a4b68e14',
-    'us-west-1' => 'ami-0657605d763ac72a8',
-    'us-west-2' => 'ami-05d38da78ce859165',
-
-    'ap-south-1' => 'ami-00bb6a80f01f03502',
+    'us-east-1'      => 'ami-084568db4383264d4',
+    'us-east-2'      => 'ami-036841078a4b68e14',
+    'us-west-1'      => 'ami-0657605d763ac72a8',
+    'us-west-2'      => 'ami-05d38da78ce859165',
+    'ap-south-1'     => 'ami-00bb6a80f01f03502',
     'ap-northeast-3' => 'ami-053e5b2b49d1b2a82',
     'ap-northeast-2' => 'ami-024ea438ab0376a47',
     'ap-southeast-1' => 'ami-0672fd5b9210aa093',
     'ap-southeast-2' => 'ami-09e143e99e8fa74f9',
     'ap-northeast-1' => 'ami-0a290015b99140cd1',
-
-    'ca-central-1' => 'ami-055943271915205db',
-
-    'eu-central-1' => 'ami-07eef52105e8a2059',
-    'eu-west-1' => 'ami-03fd334507439f4d1',
-    'eu-west-2' => 'ami-091f18e98bc129c4e',
-    'eu-west-3' => 'ami-06e02ae7bdac6b938',
-    'eu-north-1' => 'ami-09a9858973b288bdd',
-
-    'sa-east-1' => 'ami-04d88e4b4e0a5db46'
+    'ca-central-1'   => 'ami-055943271915205db',
+    'eu-central-1'   => 'ami-07eef52105e8a2059',
+    'eu-west-1'      => 'ami-03fd334507439f4d1',
+    'eu-west-2'      => 'ami-091f18e98bc129c4e',
+    'eu-west-3'      => 'ami-06e02ae7bdac6b938',
+    'eu-north-1'     => 'ami-09a9858973b288bdd',
+    'sa-east-1'      => 'ami-04d88e4b4e0a5db46'
 ];
 
-$shFileUrl = 'https://s3.eu-north-1.amazonaws.com/insoftstudio.com/auto-start-process.sh';
+// Determine which regions to launch in
+$regionsToLaunch = ($region === 'all')
+    ? array_keys($amiMap)
+    : [$region];
 
-$regionsToLaunch = ($region === "all") ? array_keys($amiMap) : [$region];
+// Prepare response accumulator
+$response = [
+    'success'    => 0,
+    'failed'     => 0,
+    'details'    => []  // per-region messages
+];
 
-use Aws\Ec2\Ec2Client;
-use Aws\Sts\StsClient;
-use Aws\Exception\AwsException;
-
-$successCount = 0;
-$failedCount = 0;
+// Make PDO throw exceptions on error
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 foreach ($regionsToLaunch as $launchRegion) {
     try {
-        // Get the account ID
-        $stsClient = new StsClient([
+        // 3a. Get AWS Account ID via STS
+        $sts = new StsClient([
             'region'      => $launchRegion,
             'version'     => 'latest',
             'credentials' => [
@@ -60,11 +73,11 @@ foreach ($regionsToLaunch as $launchRegion) {
                 'secret' => $aws_secret_key,
             ],
         ]);
-        
-        $accountInfo = $stsClient->getCallerIdentity([]);
-        $accountId = $accountInfo['Account'];
+        $caller = $sts->getCallerIdentity();
+        $accountId = $caller['Account'];
 
-        $ec2Client = new Ec2Client([
+        // 3b. Launch the EC2 instance
+        $ec2 = new Ec2Client([
             'region'      => $launchRegion,
             'version'     => 'latest',
             'credentials' => [
@@ -73,47 +86,74 @@ foreach ($regionsToLaunch as $launchRegion) {
             ],
         ]);
 
-        $amiId = $amiMap[$launchRegion] ?? null;
-        if (!$amiId) {
-            echo "AMI not found for region $launchRegion.<br>";
-            continue;
+        if (!isset($amiMap[$launchRegion])) {
+            throw new Exception("No AMI mapping found for region “{$launchRegion}”.");
         }
+        $amiId = $amiMap[$launchRegion];
 
-        // Prepare launch parameters
-        $launchOptions = [
-            'ImageId'        => $amiId,
-            'InstanceType'   => $instance_type,
-            'MinCount'       => 1,
-            'MaxCount'       => 1,
-            'UserData'       => base64_encode("#!/bin/bash\nwget -O /tmp/script.sh $shFileUrl && bash /tmp/script.sh"),
+        $launchOpts = [
+            'ImageId'      => $amiId,
+            'InstanceType' => $instance_type,
+            'MinCount'     => 1,
+            'MaxCount'     => 1,
         ];
 
-        if ($market_type == 'spot') {
-            $launchOptions['InstanceMarketOptions'] = [
-                'MarketType' => 'spot',
+        if ($market_type === 'spot') {
+            $launchOpts['InstanceMarketOptions'] = [
+                'MarketType'  => 'spot',
                 'SpotOptions' => [
-                    'SpotInstanceType' => 'one-time',
+                    'SpotInstanceType'             => 'one-time',
                     'InstanceInterruptionBehavior' => 'terminate'
                 ]
             ];
         }
 
-        $result = $ec2Client->runInstances($launchOptions);
+        $instResult = $ec2->runInstances($launchOpts);
+        $instanceId = $instResult['Instances'][0]['InstanceId'];
 
-        $instanceId = $result['Instances'][0]['InstanceId'];
-        $successCount++;
+        // 4. Insert into your database (this is blocking until complete)
+        $stmt = $pdo->prepare("
+            INSERT INTO launched_instances 
+                (account_id, instance_id, region, instance_type, launch_type, launched_at) 
+            VALUES (?, ?, ?, ?, ?, NOW())
+        ");
+        $stmt->execute([
+            $accountId,
+            $instanceId,
+            $launchRegion,
+            $instance_type,
+            $market_type
+        ]);
 
-        // Save instance details to the database
-        $stmt = $conn->prepare("INSERT INTO launched_instances (account_id, instance_id, region, instance_type, launch_type) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$accountId, $instanceId, $launchRegion, $instance_type, $market_type]);
+        // 5a. Record success
+        $response['success']++;
+        $response['details'][] = [
+            'region'   => $launchRegion,
+            'status'   => 'success',
+            'instance' => $instanceId,
+            'message'  => "Launched and recorded Instance <b>{$instanceId}</b> in <b>{$launchRegion}</b>."
+        ];
 
-        echo "Instance <b>$instanceId</b> launched successfully in region <b>$launchRegion</b>.<br>";
+    } catch (AwsException $awsEx) {
+        // AWS SDK errors
+        $response['failed']++;
+        $response['details'][] = [
+            'region'  => $launchRegion,
+            'status'  => 'error',
+            'message' => "AWS error in {$launchRegion}: " . $awsEx->getAwsErrorMessage()
+        ];
 
-    } catch (AwsException $e) {
-        $failedCount++;
-        echo "Error launching instance in $launchRegion: " . $e->getAwsErrorMessage() . "<br>";
+    } catch (Exception $ex) {
+        // DB errors or general exceptions
+        $response['failed']++;
+        $response['details'][] = [
+            'region'  => $launchRegion,
+            'status'  => 'error',
+            'message' => "Error in {$launchRegion}: " . $ex->getMessage()
+        ];
     }
 }
 
-echo "<br>Success: $successCount, Failed: $failedCount";
-?>
+// 6. Send back JSON to your front‐end response box
+header('Content-Type: application/json');
+echo json_encode($response, JSON_PRETTY_PRINT);

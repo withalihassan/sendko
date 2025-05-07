@@ -1,6 +1,6 @@
 <?php
-require '../db_connect.php';
-require '../aws/aws-autoloader.php';  // Include AWS SDK
+require '../../db.php';
+require '../../aws/aws-autoloader.php';  // Include AWS SDK
 
 // Get input from POST request
 $region = $_POST['region'] ?? '';
