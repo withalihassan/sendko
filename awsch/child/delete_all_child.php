@@ -1,5 +1,5 @@
 <?php
-require '../db_connect.php';
+require '../../db.php';
 $accountId = $_GET['parent_id'];
 
 // Prepare and execute the DELETE query based on parent_account_id
