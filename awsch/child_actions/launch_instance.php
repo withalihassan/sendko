@@ -1,6 +1,6 @@
 <?php
-require '../db_connect.php';
-require '../aws/aws-autoloader.php';
+require '../../db.php';
+require '../../aws/aws-autoloader.php';
 
 // Get input values
 $aws_access_key = $_POST['aws_access_key'] ?? '';
@@ -10,12 +10,15 @@ $market_type    = $_POST['market_type'] ?? '';
 $region         = $_POST['region'] ?? '';
 
 if (empty($aws_access_key) || empty($aws_secret_key) || empty($instance_type) || empty($market_type)) {
+    // if (empty($aws_access_key) || empty($aws_secret_key) || empty($instance_type) || empty($market_type)) {
     die("Missing required fields.");
+} else{
+    die("working");
 }
 
 // AMI mappings
 $amiMap = [
-    'us-east-1' => 'ami-0e2c8caa4b6378d8c',
+    'us-east-1' => 'ami-084568db4383264d4',
     'us-east-2' => 'ami-036841078a4b68e14',
     'us-west-1' => 'ami-0657605d763ac72a8',
     'us-west-2' => 'ami-05d38da78ce859165',
@@ -38,7 +41,7 @@ $amiMap = [
     'sa-east-1' => 'ami-04d88e4b4e0a5db46'
 ];
 
-$shFileUrl = 'https://s3.eu-north-1.amazonaws.com/insoftstudio.com/auto-start-process.sh';
+// $shFileUrl = 'https://s3.eu-north-1.amazonaws.com/insoftstudio.com/auto-start-process.sh';
 
 $regionsToLaunch = ($region === "all") ? array_keys($amiMap) : [$region];
 
@@ -85,7 +88,6 @@ foreach ($regionsToLaunch as $launchRegion) {
             'InstanceType'   => $instance_type,
             'MinCount'       => 1,
             'MaxCount'       => 1,
-            'UserData'       => base64_encode("#!/bin/bash\nwget -O /tmp/script.sh $shFileUrl && bash /tmp/script.sh"),
         ];
 
         if ($market_type == 'spot') {

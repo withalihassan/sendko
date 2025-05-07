@@ -2,7 +2,7 @@
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-require '../db_connect.php'; // Database connection
+require '../../db.php'; // Database connection
 $child_id = $_GET['child_id'];
 // echo "Received child ID: " . htmlspecialchars($child_id) . "<br>";
 // Prepare SQL query with PDO to join `launched_instances` with `child_accounts`
@@ -23,7 +23,7 @@ $sql = "
     INNER JOIN 
         child_accounts ca ON li.account_id = ca.account_id WHERE li.account_id='$child_id' AND ca.account_id='$child_id'
 ";
-$stmt = $conn->prepare($sql); // Prepare the query
+$stmt = $pdo->prepare($sql); // Prepare the query
 $stmt->execute(); // Execute the query
 
 // Start output
