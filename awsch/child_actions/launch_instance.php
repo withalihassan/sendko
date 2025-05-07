@@ -12,9 +12,7 @@ $region         = $_POST['region'] ?? '';
 if (empty($aws_access_key) || empty($aws_secret_key) || empty($instance_type) || empty($market_type)) {
     // if (empty($aws_access_key) || empty($aws_secret_key) || empty($instance_type) || empty($market_type)) {
     die("Missing required fields.");
-} else{
-    die("working");
-}
+} 
 
 // AMI mappings
 $amiMap = [
