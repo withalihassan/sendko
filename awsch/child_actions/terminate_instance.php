@@ -1,6 +1,6 @@
 <?php
-require '../db_connect.php'; // Database connection
-require '../aws/aws-autoloader.php';  // Include AWS SDK
+require '../../db.php'; // Database connection
+require '../../aws/aws-autoloader.php';  // Include AWS SDK
 
 use Aws\Ec2\Ec2Client;
 
