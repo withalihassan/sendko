@@ -264,39 +264,6 @@ try {
 
     </div>
     <script>
-        // Reuse awsAccessKey, awsSecretKey, and childAccountId defined in your page
-        function scanInstances() {
-            const region = $("#regionSelect").val();
-            const awsAccessKey = $("#aws_access_key").val();
-            const awsSecretKey = $("#aws_secret_key").val();
-
-            // Show a scanning message
-            $("#response").html("<div class='text-info'>Scanning for EC2 instances in " + region + "…</div>");
-
-            $.post("child_actions/scan_instances.php", {
-                aws_access_key: awsAccessKey,
-                aws_secret_key: awsSecretKey,
-                region: region
-            }, function(json) {
-                let data = (typeof json === 'string') ? JSON.parse(json) : json;
-                if (data.error) {
-                    $("#response").html("<div class='alert alert-danger'>" + data.error + "</div>");
-                } else if (data.instances && data.instances.length > 0) {
-                    let html = '<div class="alert alert-success">Found & recorded ' + data.instances.length + ' instance(s):<ul>';
-                    data.instances.forEach(inst => {
-                        html += '<li>' + inst.InstanceId + ' (' + inst.State + ')</li>';
-                    });
-                    html += '</ul></div>';
-                    $("#response").html(html);
-                    // Refresh your instances table
-                    fetchInstances(childAccountId);
-                } else {
-                    $("#response").html("<div class='alert alert-warning'>No instances found in region " + region + ".</div>");
-                }
-            }, 'json');
-        }
-    </script>
-    <script>
         // AWS credentials + account ID
         const awsAccessKey = "<?php echo $aws_access_key; ?>";
         const awsSecretKey = "<?php echo $aws_secret_key; ?>";
@@ -449,6 +416,60 @@ try {
         }
     </script>
 
+<script>
+  // Reuse awsAccessKey, awsSecretKey, and childAccountId defined in your page
+  function scanInstances() {
+    const region = $("#regionSelect").val();
+    const awsAccessKey = $("#aws_access_key").val();
+    const awsSecretKey = $("#aws_secret_key").val();
+
+    // Show a scanning message
+    $("#response").html(
+      `<div class='text-info'>Scanning for EC2 instances in ${region}&hellip;</div>`
+    );
+
+    $.post("child_actions/scan_instances.php", {
+      aws_access_key: awsAccessKey,
+      aws_secret_key: awsSecretKey,
+      region: region
+    }, function(json) {
+      let data;
+      try {
+        data = (typeof json === 'string') ? JSON.parse(json) : json;
+      } catch (e) {
+        return $("#response").html(
+          `<div class='alert alert-danger'>Invalid JSON response:<br>${e.message}</div>`
+        );
+      }
+
+      if (data.error) {
+        // Display the full error message
+        $("#response").html(
+          `<div class='alert alert-danger'>Error: ${data.error}</div>`
+        );
+      } else if (data.instances && data.instances.length > 0) {
+        let html = `<div class="alert alert-success">Found & recorded ${data.instances.length} instance(s):<ul>`;
+        data.instances.forEach(inst => {
+          html += `<li>${inst.InstanceId} (${inst.State})</li>`;
+        });
+        html += `</ul></div>`;
+        $("#response").html(html);
+        // Refresh your instances table
+        fetchInstances(childAccountId);
+      } else {
+        $("#response").html(
+          `<div class='alert alert-warning'>No instances found in region ${region}.</div>`
+        );
+      }
+    }, 'json').fail(function(xhr) {
+      // Show server-side exception text
+      let errText = xhr.responseText || xhr.statusText;
+      $("#response").html(
+        `<div class='alert alert-danger'>Server error while scanning:<br>${errText}</div>`
+      );
+    });
+  }
+</script>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
