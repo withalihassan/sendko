@@ -51,7 +51,7 @@ try {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>AWS EC2 & IAM Admin</title>
+    <title>AWSsss EC2 & IAM Admin</title>
 
     <!-- Bootstrap CSS -->
     <link
@@ -183,7 +183,7 @@ try {
                 <button class="btn btn-info mt-2" onclick="launchInSelectedRegion()">Launch in Selected Region</button>
             </div>
             <div class="col-md-2 d-grid">
-                <button class="btn btn-success" onclick="launchInAllRegions()">Launch in All Regions</button>
+                <button class="btn btn-success" onclick="launchInAllRegions()" disabled >Launch in All Regions</button>
             </div>
             <div class="col-md-2 d-grid">
                 <!-- NEW: Scan & Record Instances Button -->
