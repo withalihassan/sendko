@@ -377,7 +377,7 @@ if (isset($_POST['submit'])) {
                             <div class='d-inline-flex'>
                                 <button class='btn btn-primary btn-sm check-status-btn' data-id='" . $row['id'] . "'>Chk Status</button>
                                 <a href='clear_region.php?ac_id=" . $row['id'] . "' target='_blank'><button class='btn btn-danger btn-sm' >Clear</button></a>
-                                <a href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-secondary btn-sm'>Manage Childs</button></a>
+                                <a target='_blank' href='./awsch/child_actions.php?ac_id=" . urlencode($row_child['account_id']) . "&parent_id=" . urlencode($row['account_id']) . "' class='btn btn-success'>Open</a>
                                 <a href='nodesender/sender.php?id=" . $row['id'] . "' target='_blank'><button class='btn btn-success btn-sm'>Get New IP</button></a>
                                 <a href='manage_account.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-success btn-sm'>Manage Account</button></a>
                             </div>
