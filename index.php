@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 // session.php, header.php, db.php and aws-autoloader.php should be in your include paths
 include "./session.php";
 include "./header.php";
@@ -325,6 +328,71 @@ if (isset($_POST['submit'])) {
             </table>
         </div>
     </div>
+    <div class="container-fluid" style="padding: 1% 4% 4% 4%;">
+        <!-- Table Section 1: Accounts List -->
+        <div class="table-section mb-5">
+            <h2>IAM Accounts List</h2>
+            <!-- Div for check status messages -->
+            <div class="status-message mb-2"></div>
+            <table id="accountsTable3" class="display table table-bordered">
+                <thead>
+                    <tr>
+                        <th>PID</th>
+                        <th>Parent ID</th>
+                        <th>Child ID</th>
+                        <th>Key</th>
+                        <th>Secret Key</th>
+                        <th>Added Date</th>
+                        <th>Status</th>
+                        <th>Quick Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    // Table 1 query: Accounts List
+                    $stmt = $pdo->query("SELECT * FROM accounts WHERE status='active' AND  by_user='$session_id' ORDER BY 1 DESC");
+                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                        $parent_id =  $row['account_id'];
+                        $by_user_id =  $row['by_user'];
+                        $stmt_child = $pdo->query("SELECT * FROM child_accounts WHERE parent_id='$parent_id' ORDER BY 1 DESC");
+                        while ($row_child = $stmt_child->fetch(PDO::FETCH_ASSOC)) {
+                            $child_ac_id =  $row_child['account_id'];
+                            $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE child_account_id='$child_ac_id' ORDER BY 1 DESC");
+                            while ($row_iam_users = $stmt_iam->fetch(PDO::FETCH_ASSOC)) {
+                                echo "<tr>";
+                                echo "<td>" . $row['id'] . "</td>";
+                                echo "<td>" . htmlspecialchars($row['account_id']) . "</td>";
+                                echo "<td>" . htmlspecialchars($row_child['account_id']) . "</td>";
+                                echo "<td>" . htmlspecialchars($row_iam_users['access_key_id']) . "</td>";
+                                echo "<td>" . htmlspecialchars($row_iam_users['secret_access_key']) . "</td>";
+                                echo "<td>" . (new DateTime($row_iam_users['created_at']))->format('d M g:i a') . "</td>";
+
+                                if ($row_iam_users['status'] == 'delivered') {
+                                    echo "<td><span class='badge badge-success'>delivered</span></td>";
+                                } else {
+                                    echo "<td><span class='badge badge-warning'>Pending</span></td>";
+                                }
+                                // Quick Actions inline buttons
+                                echo "<td>
+                            <div class='d-inline-flex'>
+                                <button class='btn btn-primary btn-sm check-status-btn' data-id='" . $row['id'] . "'>Chk Status</button>
+                                <a href='clear_region.php?ac_id=" . $row['id'] . "' target='_blank'><button class='btn btn-danger btn-sm' >Clear</button></a>
+                                <a href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-secondary btn-sm'>Manage Childs</button></a>
+                                <a href='nodesender/sender.php?id=" . $row['id'] . "' target='_blank'><button class='btn btn-success btn-sm'>Get New IP</button></a>
+                                <a href='manage_account.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-success btn-sm'>Manage Account</button></a>
+                            </div>
+                          </td>";
+                                echo "</tr>";
+                            }
+                        }
+                    }
+
+                    // <a href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-danger btn-sm'>Start sending</button></a>
+                    ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
     <!-- jQuery, DataTables, Popper.js and Bootstrap JS -->
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.js"></script>
@@ -334,6 +402,7 @@ if (isset($_POST['submit'])) {
         $(document).ready(function() {
             $('#accountsTable1').DataTable();
             $('#accountsTable2').DataTable();
+            $('#accountsTable3').DataTable();
             $('#manualSuspendedTable').DataTable();
         });
 
