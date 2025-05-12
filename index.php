@@ -357,7 +357,7 @@ if (isset($_POST['submit'])) {
                         $stmt_child = $pdo->query("SELECT * FROM child_accounts WHERE parent_id='$parent_id' ORDER BY 1 DESC");
                         while ($row_child = $stmt_child->fetch(PDO::FETCH_ASSOC)) {
                             $child_ac_id =  $row_child['account_id'];
-                            $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE child_account_id='$child_ac_id' ORDER BY 1 DESC");
+                            $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE child_account_id='$child_ac_id' ORDER BY created_at DESC LIMIT 1");
                             while ($row_iam_users = $stmt_iam->fetch(PDO::FETCH_ASSOC)) {
                                 echo "<tr>";
                                 echo "<td>" . $row_iam_users['id'] . "</td>";
