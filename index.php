@@ -369,10 +369,10 @@ if (isset($_POST['submit'])) {
 
                                 if ($row_iam_users['status'] == 'Delivered') {
                                     echo "<td><span class='badge badge-success'>Delivered</span></td>";
-                                } else if($row_iam_users['status'] == 'Pending') {
-                                    echo "<td><span class='badge badge-warning'>Pending</span></td>";
+                                } else if($row_iam_users['status'] == 'Canceled') {
+                                    echo "<td><span class='badge badge-warning'>Canceled</span></td>";
                                 }  else{
-                                    echo "<td><span class='badge badge-danger'>Canceled</span></td>";
+                                    echo "<td><span class='badge badge-danger'>Pending</span></td>";
                                 }
                                 // Quick Actions inline buttons
                                 echo "<td>
