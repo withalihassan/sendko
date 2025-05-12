@@ -370,9 +370,11 @@ if (isset($_POST['submit'])) {
                                 if ($row_iam_users['status'] == 'Delivered') {
                                     echo "<td><span class='badge badge-success'>Delivered</span></td>";
                                 } else if($row_iam_users['status'] == 'Canceled') {
+                                    echo "<td><span class='badge badge-danger'>Canceled</span></td>";
+                                } else if($row_iam_users['status'] == 'Pending'){
                                     echo "<td><span class='badge badge-warning'>Canceled</span></td>";
-                                }  else{
-                                    echo "<td><span class='badge badge-danger'>Pending</span></td>";
+                                } else{
+                                    echo "<td><span class='badge badge-primary'>" . $row_iam_users['status'] . "</span></td>";
                                 }
                                 // Quick Actions inline buttons
                                 echo "<td>
@@ -386,6 +388,7 @@ if (isset($_POST['submit'])) {
                                                 <a href='#' class='dropdown-item update-status-btn-iam' data-id='{$row_iam_users['id']}' data-status='Delivered'>Delivered</a>
                                                 <a href='#' class='dropdown-item update-status-btn-iam' data-id='{$row_iam_users['id']}' data-status='Pending'>Pending</a>
                                                 <a href='#' class='dropdown-item update-status-btn-iam' data-id='{$row_iam_users['id']}' data-status='Canceled'>Canceled</a>
+                                                <a href='#' class='dropdown-item update-status-btn-iam' data-id='{$row_iam_users['id']}' data-status='Recheck'>Recheck</a>
                                             </div>
                                             </div>
                                             <a href='./iam_clear.php?ac_id={$row_iam_users['id']}' target='_blank'>

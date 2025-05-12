@@ -123,7 +123,7 @@ try {
                     onclick="checkQuota()">Check Quota of EC2</button>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <input type="hidden" id="aws_access_key" value="<?php echo $aws_access_key; ?>">
                 <input type="hidden" id="aws_secret_key" value="<?php echo $aws_secret_key; ?>">
                 <button
@@ -131,11 +131,18 @@ try {
                     onclick="checkAccountStatus()">Account Status</button>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <button
                     class="btn btn-warning btn-custom"
                     onclick="addAdminUser()">Add Admin User</button>
             </div>
+            <div class="col-md-2">
+                <button class="btn btn-warning btn-custom" onclick="checkMembership()">
+                    Check Membership
+                </button>
+            </div>
+
+
         </div>
         <hr>
         <div class="row mb-3">
@@ -183,7 +190,7 @@ try {
                 <button class="btn btn-info mt-2" onclick="launchInSelectedRegion()">Launch in Selected Region</button>
             </div>
             <div class="col-md-2 d-grid">
-                <button class="btn btn-success" onclick="launchInAllRegions()" disabled >Launch in All Regions</button>
+                <button class="btn btn-success" onclick="launchInAllRegions()" disabled>Launch in All Regions</button>
             </div>
             <div class="col-md-2 d-grid">
                 <!-- NEW: Scan & Record Instances Button -->
@@ -403,6 +410,30 @@ try {
             });
         }
 
+        function checkMembership() {
+            const region = $("#region").val() || "us-east-1"; // you can pick any org-aware region
+            const accessKey = $("#aws_access_key").val();
+            const secretKey = $("#aws_secret_key").val();
+
+            // show a spinner/message
+            $("#response").html(`<div class="text-info">Checking organization membership…</div>`);
+
+            $.post("child_actions/check_membership.php", {
+                aws_access_key: accessKey,
+                aws_secret_key: secretKey,
+                region: region
+            }, function(resp) {
+                // just dump the HTML/PHP response into the box
+                $("#response").html(resp);
+            }).fail(function(xhr) {
+                $("#response").html(
+                    `<div class="alert alert-danger">
+         Error contacting server:<br>${xhr.responseText || xhr.statusText}
+       </div>`
+                );
+            });
+        }
+
         function copyField(fieldId) {
             const val = document.getElementById(fieldId).value;
             navigator.clipboard.writeText(val)
@@ -416,60 +447,60 @@ try {
         }
     </script>
 
-<script>
-  // Reuse awsAccessKey, awsSecretKey, and childAccountId defined in your page
-  function scanInstances() {
-    const region = $("#regionSelect").val();
-    const awsAccessKey = $("#aws_access_key").val();
-    const awsSecretKey = $("#aws_secret_key").val();
+    <script>
+        // Reuse awsAccessKey, awsSecretKey, and childAccountId defined in your page
+        function scanInstances() {
+            const region = $("#regionSelect").val();
+            const awsAccessKey = $("#aws_access_key").val();
+            const awsSecretKey = $("#aws_secret_key").val();
 
-    // Show a scanning message
-    $("#response").html(
-      `<div class='text-info'>Scanning for EC2 instances in ${region}&hellip;</div>`
-    );
+            // Show a scanning message
+            $("#response").html(
+                `<div class='text-info'>Scanning for EC2 instances in ${region}&hellip;</div>`
+            );
 
-    $.post("child_actions/scan_instances.php", {
-      aws_access_key: awsAccessKey,
-      aws_secret_key: awsSecretKey,
-      region: region
-    }, function(json) {
-      let data;
-      try {
-        data = (typeof json === 'string') ? JSON.parse(json) : json;
-      } catch (e) {
-        return $("#response").html(
-          `<div class='alert alert-danger'>Invalid JSON response:<br>${e.message}</div>`
-        );
-      }
+            $.post("child_actions/scan_instances.php", {
+                aws_access_key: awsAccessKey,
+                aws_secret_key: awsSecretKey,
+                region: region
+            }, function(json) {
+                let data;
+                try {
+                    data = (typeof json === 'string') ? JSON.parse(json) : json;
+                } catch (e) {
+                    return $("#response").html(
+                        `<div class='alert alert-danger'>Invalid JSON response:<br>${e.message}</div>`
+                    );
+                }
 
-      if (data.error) {
-        // Display the full error message
-        $("#response").html(
-          `<div class='alert alert-danger'>Error: ${data.error}</div>`
-        );
-      } else if (data.instances && data.instances.length > 0) {
-        let html = `<div class="alert alert-success">Found & recorded ${data.instances.length} instance(s):<ul>`;
-        data.instances.forEach(inst => {
-          html += `<li>${inst.InstanceId} (${inst.State})</li>`;
-        });
-        html += `</ul></div>`;
-        $("#response").html(html);
-        // Refresh your instances table
-        fetchInstances(childAccountId);
-      } else {
-        $("#response").html(
-          `<div class='alert alert-warning'>No instances found in region ${region}.</div>`
-        );
-      }
-    }, 'json').fail(function(xhr) {
-      // Show server-side exception text
-      let errText = xhr.responseText || xhr.statusText;
-      $("#response").html(
-        `<div class='alert alert-danger'>Server error while scanning:<br>${errText}</div>`
-      );
-    });
-  }
-</script>
+                if (data.error) {
+                    // Display the full error message
+                    $("#response").html(
+                        `<div class='alert alert-danger'>Error: ${data.error}</div>`
+                    );
+                } else if (data.instances && data.instances.length > 0) {
+                    let html = `<div class="alert alert-success">Found & recorded ${data.instances.length} instance(s):<ul>`;
+                    data.instances.forEach(inst => {
+                        html += `<li>${inst.InstanceId} (${inst.State})</li>`;
+                    });
+                    html += `</ul></div>`;
+                    $("#response").html(html);
+                    // Refresh your instances table
+                    fetchInstances(childAccountId);
+                } else {
+                    $("#response").html(
+                        `<div class='alert alert-warning'>No instances found in region ${region}.</div>`
+                    );
+                }
+            }, 'json').fail(function(xhr) {
+                // Show server-side exception text
+                let errText = xhr.responseText || xhr.statusText;
+                $("#response").html(
+                    `<div class='alert alert-danger'>Server error while scanning:<br>${errText}</div>`
+                );
+            });
+        }
+    </script>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
