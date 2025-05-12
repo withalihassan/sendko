@@ -333,7 +333,7 @@ if (isset($_POST['submit'])) {
         <div class="table-section mb-5">
             <h2>IAM Accounts List</h2>
             <!-- Div for check status messages -->
-            <div class="status-message mb-2"></div>
+            <div class="status-message-iam mb-2"></div>
             <table id="accountsTable3" class="display table table-bordered">
                 <thead>
                     <tr>
@@ -360,26 +360,47 @@ if (isset($_POST['submit'])) {
                             $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE child_account_id='$child_ac_id' ORDER BY 1 DESC");
                             while ($row_iam_users = $stmt_iam->fetch(PDO::FETCH_ASSOC)) {
                                 echo "<tr>";
-                                echo "<td>" . $row['id'] . "</td>";
+                                echo "<td>" . $row_iam_users['id'] . "</td>";
                                 echo "<td>" . htmlspecialchars($row['account_id']) . "</td>";
                                 echo "<td>" . htmlspecialchars($row_child['account_id']) . "</td>";
                                 echo "<td>" . htmlspecialchars($row_iam_users['access_key_id']) . "</td>";
                                 echo "<td>" . htmlspecialchars($row_iam_users['secret_access_key']) . "</td>";
                                 echo "<td>" . (new DateTime($row_iam_users['created_at']))->format('d M g:i a') . "</td>";
 
-                                if ($row_iam_users['status'] == 'delivered') {
-                                    echo "<td><span class='badge badge-success'>delivered</span></td>";
-                                } else {
+                                if ($row_iam_users['status'] == 'Delivered') {
+                                    echo "<td><span class='badge badge-success'>Delivered</span></td>";
+                                } else if($row_iam_users['status'] == 'Pending') {
                                     echo "<td><span class='badge badge-warning'>Pending</span></td>";
+                                }  else{
+                                    echo "<td><span class='badge badge-danger'>Canceled</span></td>";
                                 }
                                 // Quick Actions inline buttons
                                 echo "<td>
-                            <div class='d-inline-flex'>
-                                <button class='btn btn-primary btn-sm check-status-btn' data-id='" . $row['id'] . "'>Chk Status</button>
-                                <a href='clear_region.php?ac_id=" . $row['id'] . "' target='_blank'><button class='btn btn-danger btn-sm' >Clear</button></a>
-                                <a target='_blank' href='./awsch/child_actions.php?ac_id=" . urlencode($row_child['account_id']) . "&parent_id=" . urlencode($row['account_id']) . "' class='btn btn-success'>Open</a>
-                            </div>
-                          </td>";
+                                        <div class='d-inline-flex align-items-center'>
+                                        <!-- inline status buttons -->
+                                            <div class='btn-group'>
+                                            <button type='button' class='btn btn-info btn-sm dropdown-toggle' data-toggle='dropdown'>
+                                                Status
+                                            </button>
+                                            <div class='dropdown-menu'>
+                                                <a href='#' class='dropdown-item update-status-btn-iam' data-id='{$row_iam_users['id']}' data-status='Delivered'>Delivered</a>
+                                                <a href='#' class='dropdown-item update-status-btn-iam' data-id='{$row_iam_users['id']}' data-status='Pending'>Pending</a>
+                                                <a href='#' class='dropdown-item update-status-btn-iam' data-id='{$row_iam_users['id']}' data-status='Canceled'>Canceled</a>
+                                            </div>
+                                            </div>
+                                            <a href='./iam_clear.php?ac_id={$row_iam_users['id']}' target='_blank'>
+                                            <button class='btn btn-danger btn-sm mr-1'>Clear</button>
+                                            </a>
+                                            <a href='./awsch/child_actions.php?ac_id=" . urlencode($row_child['account_id']) .
+                                    "&parent_id=" . urlencode($row['account_id']) .
+                                    "' target='_blank'>
+                                            <button class='btn btn-success btn-sm mr-1'>Open</button>
+                                            </a>
+
+                                            
+                                        </div>
+                                        </td>";
+
                                 echo "</tr>";
                             }
                         }
@@ -396,6 +417,52 @@ if (isset($_POST['submit'])) {
     <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <script>
+        $(function() {
+            $('body').on('click', '.update-status-btn-iam', function(e) {
+                e.preventDefault();
+                var $btn = $(this),
+                    id = $btn.data('id'),
+                    status = $btn.data('status');
+
+                $.ajax({
+                        url: 'iam_users_status_ajax.php', // point to your handler
+                        method: 'POST',
+                        // temporarily comment out dataType so you can see raw response:
+                        // dataType: 'json',
+                        data: {
+                            update_status: 1,
+                            id: id,
+                            status: status
+                        }
+                    })
+                    .done(function(res, textStatus, xhr) {
+                        console.log('RAW response:', xhr.responseText);
+                        try {
+                            res = JSON.parse(xhr.responseText);
+                        } catch (e) {
+                            $('.status-message-iam').addClass('alert alert-danger').text('Invalid JSON returned');
+                            return;
+                        }
+                        var $msg = $('.status-message-iam').removeClass('alert-success alert-danger');
+                        if (res.success) {
+                            $msg.addClass('alert alert-success').text(res.msg);
+                            $('.current-status-' + id).text(status);
+                        } else {
+                            $msg.addClass('alert alert-danger').text(res.msg);
+                        }
+                    })
+                    .fail(function(xhr) {
+                        console.error('AJAX error:', xhr.status, xhr.responseText);
+                        $('.status-message-iam')
+                            .addClass('alert alert-danger')
+                            .text('AJAX request failed (see console for details)');
+                    });
+            });
+        });
+    </script>
+
+
     <script>
         $(document).ready(function() {
             $('#accountsTable1').DataTable();
