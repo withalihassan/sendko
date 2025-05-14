@@ -34,7 +34,7 @@ if (isset($_POST['update_status'])) {
         if ($stmt->rowCount() > 0) {
             echo json_encode([
                 'success' => true,
-                'msg'     => "Status set to $status"
+                'msg'     => "Status set to $status of Account ID $id"
             ]);
         } else {
             // no row updated—either ID not found or status identical

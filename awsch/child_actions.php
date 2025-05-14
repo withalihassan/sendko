@@ -32,7 +32,7 @@ try {
         die("<div class='alert alert-danger'>No account found.</div>");
     }
 
-    $aws_access_key = htmlspecialchars($row['aws_access_key']);
+    echo  $aws_access_key = htmlspecialchars($row['aws_access_key']);
     $aws_secret_key = htmlspecialchars($row['aws_secret_key']);
 
     // Decide response badge
