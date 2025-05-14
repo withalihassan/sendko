@@ -372,7 +372,7 @@ if (isset($_POST['submit'])) {
                                 } else if($row_iam_users['status'] == 'Canceled') {
                                     echo "<td><span class='badge badge-danger'>Canceled</span></td>";
                                 } else if($row_iam_users['status'] == 'Pending'){
-                                    echo "<td><span class='badge badge-warning'>Canceled</span></td>";
+                                    echo "<td><span class='badge badge-warning'>Pending</span></td>";
                                 } else{
                                     echo "<td><span class='badge badge-primary'>" . $row_iam_users['status'] . "</span></td>";
                                 }
