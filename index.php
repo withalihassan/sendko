@@ -344,6 +344,7 @@ if (isset($_POST['submit'])) {
                         <th>Secret Key</th>
                         <th>Added Date</th>
                         <th>Status</th>
+                        <th>Clean</th>
                         <th>Quick Actions</th>
                     </tr>
                 </thead>
@@ -375,7 +376,10 @@ if (isset($_POST['submit'])) {
                                     echo "<td><span class='badge badge-warning'>Pending</span></td>";
                                 } else{
                                     echo "<td><span class='badge badge-primary'>" . $row_iam_users['status'] . "</span></td>";
-                                }
+                                }                              
+                                  echo "<td>" . htmlspecialchars($row_iam_users['cleanup_status']) . "</td>";
+
+
                                 // Quick Actions inline buttons
                                 echo "<td>
                                         <div class='d-inline-flex align-items-center'>

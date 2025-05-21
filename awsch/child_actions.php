@@ -264,12 +264,64 @@ try {
                         </div>
                     </div>
                 <?php endforeach; ?>
+
+                <?php
+                // New combined field
+                $combinedId = 'combinedKeys';
+                $combinedVal = htmlspecialchars($iamRow['access_key_id'] . ' | ' . $iamRow['secret_access_key']);
+                ?>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Access Key & Secret (one‑shot)</label>
+                    <div class="input-group">
+                        <input type="text"
+                            id="<?= $combinedId ?>"
+                            class="form-control"
+                            readonly
+                            value="<?= $combinedVal ?>">
+                        <button class="btn btn-outline-secondary"
+                            type="button"
+                            onclick="copyField('<?= $combinedId ?>')">
+                            📋
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <button id="deliverBtn" class="btn btn-primary">Deliver</button>
+                </div>
+
             </div>
         <?php
         endif;
         ?>
 
     </div>
+    <script>
+        document.getElementById('deliverBtn').onclick = async () => {
+            const [id, secret] = document
+                .getElementById('combinedKeys')
+                .value.split('|')
+                .map(s => s.trim());
+            const res = await fetch('update.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    access_key_id: id,
+                    secret_access_key: secret
+                })
+            });
+            const {
+                success
+            } = await res.json();
+            document.getElementById('response').textContent =
+                success ?
+                'Account delivered successfully' :
+                'No matching record found';
+        };
+    </script>
+
+
     <script>
         // AWS credentials + account ID
         const awsAccessKey = "<?php echo $aws_access_key; ?>";
