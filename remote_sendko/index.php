@@ -1,7 +1,7 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// ini_set('display_errors', 1);
+// ini_set('display_startup_errors', 1);
+// error_reporting(E_ALL);
 // session.php, header.php, db.php and aws-autoloader.php should be in your include paths
 include "./session.php";
 include "./header.php";
@@ -377,9 +377,7 @@ if (isset($_POST['submit'])) {
                                 } else{
                                     echo "<td><span class='badge badge-primary'>" . $row_iam_users['status'] . "</span></td>";
                                 }                              
-                                  echo "<td>" . htmlspecialchars($row_iam_users['cleanup_status']) . "</td>";
-
-
+                                  echo "<td>" .$row_iam_users['cleanup_status']. "</td>";
                                 // Quick Actions inline buttons
                                 echo "<td>
                                         <div class='d-inline-flex align-items-center'>
