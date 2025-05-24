@@ -1,0 +1,7 @@
+CREATE DATABASE sp_sender;
+CREATE USER 'sender'@'localhost' IDENTIFIED BY 'Tech@#009';
+GRANT ALL PRIVILEGES ON sp_sender.* TO 'sender'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+
+mysql -u sender -p Tech@#009 < /home/ubuntu/your-database.sql
