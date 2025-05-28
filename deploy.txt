@@ -1,1 +1,1 @@
-mysqldump -u sender -p sender > sender.sql
+mysqldump -u sender -p sender < sender.sql

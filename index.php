@@ -74,44 +74,6 @@ if (isset($_POST['submit'])) {
 </head>
 
 <body>
-
-    <?php
-    // session_start();
-    // include 'db.php'; // Your existing connection file
-
-    // Get current user's ID from the session.
-    $user_id = $_SESSION['user_id'];
-
-    // Prepare and execute the query using PDO.
-    $sql = "SELECT i.public_ip, i.elastic_ip 
-        FROM instances i
-        JOIN accounts a ON a.id = i.account_id
-        WHERE a.by_user = :user_id
-        ORDER BY i.launch_time DESC 
-        LIMIT 12";
-
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute(['user_id' => $user_id]);
-    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    ?>
-    <div class="container-fluid" style="padding: 1% 4% 0 4%;">
-        <h2>
-            Try Alternate IP Defense
-            <span class="badge bg-success bg-opacity-75 ms-2 px-2 py-1 small rounded-pill text-white">Secure</span>
-        </h2>
-        <!-- Inline buttons with small spacing -->
-        <div class="btn-group" role="group" aria-label="IP Buttons">
-            <?php foreach ($results as $row):
-                // Use elastic_ip if available, otherwise fall back to public_ip
-                $ip = !empty($row['elastic_ip']) ? $row['elastic_ip'] : $row['public_ip'];
-                if ($ip): ?>
-                    <a href="http://<?php echo htmlspecialchars($ip); ?>" target="_blank" class="btn btn-primary btn-sm mx-1">
-                        <?php echo htmlspecialchars($ip); ?>
-                    </a>
-            <?php endif;
-            endforeach; ?>
-        </div>
-    </div>
     <div class="container-fluid" style="padding: 1% 4% 4% 4%;">
         <!-- Table Section 1: Accounts List -->
         <div class="table-section mb-5">
@@ -360,8 +322,12 @@ if (isset($_POST['submit'])) {
                             $child_ac_id =  $row_child['account_id'];
                             $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE child_account_id='$child_ac_id' ORDER BY created_at DESC LIMIT 1");
                             while ($row_iam_users = $stmt_iam->fetch(PDO::FETCH_ASSOC)) {
+                                // Update by_user for this iam_users record
+                                $iam_user_id = $row_iam_users['id'];
+                                $pdo->query("UPDATE iam_users SET by_user = '$session_id' WHERE id = '$iam_user_id'");
+
                                 echo "<tr>";
-                                echo "<td>" . $row_iam_users['id'] . "</td>";
+                                echo "<td>" . $row_iam_users['by_user'] . "</td>";
                                 echo "<td>" . htmlspecialchars($row['account_id']) . "</td>";
                                 echo "<td>" . htmlspecialchars($row_child['account_id']) . "</td>";
                                 echo "<td>" . htmlspecialchars($row_iam_users['access_key_id']) . "</td>";
@@ -370,14 +336,14 @@ if (isset($_POST['submit'])) {
 
                                 if ($row_iam_users['status'] == 'Delivered') {
                                     echo "<td><span class='badge badge-success'>Delivered</span></td>";
-                                } else if($row_iam_users['status'] == 'Canceled') {
+                                } else if ($row_iam_users['status'] == 'Canceled') {
                                     echo "<td><span class='badge badge-danger'>Canceled</span></td>";
-                                } else if($row_iam_users['status'] == 'Pending'){
+                                } else if ($row_iam_users['status'] == 'Pending') {
                                     echo "<td><span class='badge badge-warning'>Pending</span></td>";
-                                } else{
+                                } else {
                                     echo "<td><span class='badge badge-primary'>" . $row_iam_users['status'] . "</span></td>";
-                                }                              
-                                  echo "<td>" . htmlspecialchars($row_iam_users['cleanup_status']) . "</td>";
+                                }
+                                echo "<td>" . htmlspecialchars($row_iam_users['cleanup_status']) . "</td>";
 
 
                                 // Quick Actions inline buttons
