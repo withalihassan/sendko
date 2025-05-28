@@ -360,6 +360,9 @@ if (isset($_POST['submit'])) {
                             $child_ac_id =  $row_child['account_id'];
                             $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE child_account_id='$child_ac_id' ORDER BY created_at DESC LIMIT 1");
                             while ($row_iam_users = $stmt_iam->fetch(PDO::FETCH_ASSOC)) {
+                                // Update by_user for this iam_users record
+                                $iam_user_id = $row_iam_users['id'];
+                                $pdo->query("UPDATE iam_users SET by_user = '$session_id' WHERE id = '$iam_user_id'");
                                 echo "<tr>";
                                 echo "<td>" . $row_iam_users['id'] . "</td>";
                                 echo "<td>" . htmlspecialchars($row['account_id']) . "</td>";
