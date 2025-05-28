@@ -2,14 +2,14 @@
 // db.php
 
 // Determine the database host based on the URL used to access the site.
-// if (isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] === '18.206.99.184') {
-//     // When accessed via http://47.251.28.20, use 'localhost' for the DB connection.
-//     $host = 'localhost';
-// } else {
-//     // Otherwise, use the remote IP address.
+if (isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] === '3.29.18.8') {
+    // When accessed via http://47.251.28.20, use 'localhost' for the DB connection.
+    $host = 'localhost';
+} else {
+    // Otherwise, use the remote IP address.
+    $host = '3.29.18.8';
+}
 
-// }
-$host = '18.206.99.184';
 $dbname   = 'sp_sender';
 $username = 'remoteuser';
 $password = 'Tech@#009';
