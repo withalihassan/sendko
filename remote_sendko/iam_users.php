@@ -95,15 +95,7 @@ if (isset($_POST['submit'])) {
                 </thead>
                 <tbody>
                     <?php
-                    // // Table 1 query: Accounts List
-                    // $stmt = $pdo->query("SELECT * FROM accounts WHERE status='active' AND  by_user='$session_id' ORDER BY 1 DESC");
-                    // while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                    //     $parent_id =  $row['account_id'];
-                    //     $by_user_id =  $row['by_user'];
-                    //     $stmt_child = $pdo->query("SELECT * FROM child_accounts WHERE parent_id='$parent_id' ORDER BY 1 DESC");
-                    //     while ($row_child = $stmt_child->fetch(PDO::FETCH_ASSOC)) {
-                    //         $child_ac_id =  $row_child['account_id'];
-                    $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE child_account_id='$child_ac_id' ORDER BY created_at DESC LIMIT 1");
+                    $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE by_user='$session_id' ORDER BY created_at DESC LIMIT 1");
                     while ($row_iam_users = $stmt_iam->fetch(PDO::FETCH_ASSOC)) {
                         // Update by_user for this iam_users record
                         // $iam_user_id = $row_iam_users['id'];
