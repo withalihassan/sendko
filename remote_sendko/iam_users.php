@@ -95,13 +95,12 @@ if (isset($_POST['submit'])) {
                 </thead>
                 <tbody>
                     <?php
-                    $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE by_user='$session_id' ORDER BY created_at DESC LIMIT 1");
+                    $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE by_user='$session_id' ORDER BY created_at DESC");
                     while ($row_iam_users = $stmt_iam->fetch(PDO::FETCH_ASSOC)) {
                         // Update by_user for this iam_users record
                         // $iam_user_id = $row_iam_users['id'];
                         // $pdo->query("UPDATE iam_users SET by_user = '$session_id' WHERE id = '$iam_user_id'");
                         $parent_id = $pdo->query("SELECT parent_id FROM child_accounts WHERE account_id = '{$row_iam_users['child_account_id']}' LIMIT 1")->fetchColumn();
-                        
                         echo "<tr>";
                         echo "<td>" . $row_iam_users['by_user'] . "</td>";
                         echo "<td>" . htmlspecialchars($row_iam_users['child_account_id']) . "</td>";
