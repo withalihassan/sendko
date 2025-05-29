@@ -84,7 +84,6 @@ if (isset($_POST['submit'])) {
                 <thead>
                     <tr>
                         <th>UID</th>
-                        <th>Parent ID</th>
                         <th>Child ID</th>
                         <th>Key</th>
                         <th>Secret Key</th>
@@ -97,23 +96,14 @@ if (isset($_POST['submit'])) {
                 <tbody>
                     <?php
                     // Table 1 query: Accounts List
-                    $stmt = $pdo->query("SELECT * FROM accounts WHERE status='active' AND  by_user='$session_id' ORDER BY 1 DESC");
-                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                        $parent_id =  $row['account_id'];
-                        $by_user_id =  $row['by_user'];
-                        $stmt_child = $pdo->query("SELECT * FROM child_accounts WHERE parent_id='$parent_id' ORDER BY 1 DESC");
-                        while ($row_child = $stmt_child->fetch(PDO::FETCH_ASSOC)) {
-                            $child_ac_id =  $row_child['account_id'];
-                            $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE child_account_id='$child_ac_id' ORDER BY created_at DESC LIMIT 1");
+                            $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE by_user=$session_id");
                             while ($row_iam_users = $stmt_iam->fetch(PDO::FETCH_ASSOC)) {
                                 // Update by_user for this iam_users record
-                                $iam_user_id = $row_iam_users['id'];
-                                $pdo->query("UPDATE iam_users SET by_user = '$session_id' WHERE id = '$iam_user_id'");
-
+                                // $iam_user_id = $row_iam_users['id'];
+                                // $pdo->query("UPDATE iam_users SET by_user = '$session_id' WHERE id = '$iam_user_id'");
                                 echo "<tr>";
                                 echo "<td>" . $row_iam_users['by_user'] . "</td>";
-                                echo "<td>" . htmlspecialchars($row['account_id']) . "</td>";
-                                echo "<td>" . htmlspecialchars($row_child['account_id']) . "</td>";
+                                echo "<td>" . htmlspecialchars($row_iam_users['child_account_id']) . "</td>";
                                 echo "<td>" . htmlspecialchars($row_iam_users['access_key_id']) . "</td>";
                                 echo "<td>" . htmlspecialchars($row_iam_users['secret_access_key']) . "</td>";
                                 echo "<td>" . (new DateTime($row_iam_users['created_at']))->format('d M g:i a') . "</td>";
@@ -128,7 +118,6 @@ if (isset($_POST['submit'])) {
                                     echo "<td><span class='badge badge-primary'>" . $row_iam_users['status'] . "</span></td>";
                                 }
                                 echo "<td>" . htmlspecialchars($row_iam_users['cleanup_status']) . "</td>";
-
 
                                 // Quick Actions inline buttons
                                 echo "<td>
@@ -160,8 +149,6 @@ if (isset($_POST['submit'])) {
 
                                 echo "</tr>";
                             }
-                        }
-                    }
 
                     // <a href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-danger btn-sm'>Start sending</button></a>
                     ?>
