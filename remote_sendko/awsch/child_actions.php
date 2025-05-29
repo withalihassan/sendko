@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 // Get child_id and parent_id safely
 $child_id  = $_GET['ac_id']      ?? '';
 $parent_id = $_GET['parent_id'] ?? '';
-$user_id = $_GET['user_id'] ?? '';
+$session_user_id = $_GET['user_id'] ?? '';
 
 if (empty($child_id) || empty($parent_id)) {
     die("Invalid request. Missing parameters.");
@@ -328,9 +328,9 @@ try {
         const awsAccessKey = "<?php echo $aws_access_key; ?>";
         const awsSecretKey = "<?php echo $aws_secret_key; ?>";
         const childAccountId = "<?php echo $child_id; ?>";
-        const user_id = "<?php echo $user_id; ?>";
+        const user_id = "<?php echo $session_user_id; ?>";
         console.log("User ID:", user_id);
-        
+
         function checkQuota() {
             const region = $("#region").val();
             $.post("child_actions/check_quota.php", {
