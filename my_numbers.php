@@ -6,49 +6,10 @@ require 'db.php';
 session_start();
 $session_id = $_SESSION['user_id'];
 $message = '';
-// Retrieve the record ID from GET for display and form
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-if ($id <= 0) {
-  die('No valid ID provided.');
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  // Retrieve atm_left from POST
-  $atm_left = isset($_POST['atm_left']) ? (int)$_POST['atm_left'] : null;
-  $status = 'fresh'; // Fixed per requirement
-
-  if ($atm_left === null) {
-    $message = 'Please provide a valid ATM Left value.';
-  } else {
-    // Prepare and execute the update
-    $stmt = $pdo->prepare(
-      "UPDATE `allowed_numbers`
-             SET `status`   = :status,
-                 `atm_left` = :atm_left
-             WHERE `set_id` = :id"
-    );
-    try {
-      $stmt->execute([
-        ':status'   => $status,
-        ':atm_left' => $atm_left,
-        ':id'       => $id,
-      ]);
-      $rows = $stmt->rowCount();
-      if ($rows > 0) {
-        $message = "Record (ID: $id) updated successfully! ATM Left set to $atm_left.";
-      } else {
-        $message = "No changes made. Either the record doesn't exist or ATM Left was already $atm_left.";
-      }
-    } catch (PDOException $e) {
-      $message = 'Error updating record: ' . htmlspecialchars($e->getMessage());
+    if ($id <= 0) {
+      die('No valid ID provided.');
     }
-  }
-
-  // Redirect to avoid form resubmission and ensure GET parameter persists
-  header("Location: " . $_SERVER['PHP_SELF'] . "?id=$id&msg=" . urlencode($message));
-  exit;
-}
-
 // Capture message from GET after redirect
 if (isset($_GET['msg'])) {
   $message = $_GET['msg'];
@@ -146,6 +107,44 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
       }
     } catch (PDOException $e) {
       $message = "Error sending OTP: " . $e->getMessage();
+    }
+  }
+  // Update Numbers Atm left
+  elseif (isset($_POST['atm_left'])) {
+    // Retrieve the record ID from GET for display and form
+    $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+    if ($id <= 0) {
+      die('No valid ID provided.');
+    }
+    // Retrieve atm_left from POST
+    $atm_left = isset($_POST['atm_left']) ? (int)$_POST['atm_left'] : null;
+    $status = 'fresh'; // Fixed per requirement
+
+    if ($atm_left === null) {
+      $message = 'Please provide a valid ATM Left value.';
+    } else {
+      // Prepare and execute the update
+      $stmt = $pdo->prepare(
+        "UPDATE `allowed_numbers`
+             SET `status`   = :status,
+                 `atm_left` = :atm_left
+             WHERE `set_id` = :id"
+      );
+      try {
+        $stmt->execute([
+          ':status'   => $status,
+          ':atm_left' => $atm_left,
+          ':id'       => $id,
+        ]);
+        $rows = $stmt->rowCount();
+        if ($rows > 0) {
+          $message = "Record (ID: $id) updated successfully! ATM Left set to $atm_left.";
+        } else {
+          $message = "No changes made. Either the record doesn't exist or ATM Left was already $atm_left.";
+        }
+      } catch (PDOException $e) {
+        $message = 'Error updating record: ' . htmlspecialchars($e->getMessage());
+      }
     }
   }
 }
@@ -332,11 +331,7 @@ $currentDateTime = date("l, F j, Y, g:i A");
       </div>
     </div>
     <div class="container mt-4">
-      <?php if ($message): ?>
-        <div class="alert alert-info" role="alert">
-          <?php echo htmlspecialchars($message); ?>
-        </div>
-      <?php endif; ?>
+
 
       <form class="form-inline" method="post" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF'] . '?id=' . $id); ?>">
         <input type="hidden" name="id" value="<?php echo $id; ?>">
