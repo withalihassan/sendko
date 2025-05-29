@@ -33,9 +33,15 @@ $aws_secret = $account['aws_secret'];
 
 // For this example, we support us-west-2 only (Ubuntu AMI)
 $ami_id = '';
-if ($region === 'us-west-2') {
-    $ami_id = 'ami-00c257e12d6828491';
-} else {
+if ($region === 'us-east-2') { //Ohio
+    $ami_id = 'ami-04f167a56786e4b09';
+}else if ($region === 'us-west-1') {    //California
+    $ami_id = 'ami-04f7a54071e74f488';
+}else if ($region === 'ap-south-1') { //Mumbai
+    $ami_id = 'ami-0e35ddab05955cf57';
+}
+// else if ($region === 'us-west-2') {  $ami_id = 'ami-00c257e12d6828491'; }  Black-listed
+else {
     echo json_encode(['success' => false, 'message' => "Region not supported."]);
     exit;
 }

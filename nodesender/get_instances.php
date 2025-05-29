@@ -16,8 +16,8 @@ $account_id = intval($_GET['account_id']);
 $stmt = $pdo->prepare("SELECT * FROM instances WHERE account_id = ?");
 $stmt->execute([$account_id]);
 $instances = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
 if ($instances) {
+
   echo '<table class="table table-bordered table-striped">';
   echo '<thead><tr>
             <th>Instance ID</th>
@@ -27,8 +27,6 @@ if ($instances) {
             <th>Launch Time</th>
             <th>Host</th>
             <th>Elastic Host</th>
-            <th>Public IP</th>
-            <th>Elastic IP</th>
             <th>Actions</th>
           </tr></thead><tbody>';
   foreach ($instances as $instance) {
@@ -38,18 +36,48 @@ if ($instances) {
     echo '<td>' . htmlspecialchars($instance['instance_type']) . '</td>';
     echo '<td>' . htmlspecialchars($instance['state']) . '</td>';
     echo '<td>' . htmlspecialchars($instance['launch_time']) . '</td>';
-    echo '<td><a href="http://' . $instance['public_ip'] . '" target="_blank">' . $instance['public_ip'] . '</a><br>
+?>
+
+    <?php
+    $current_ip         = $instance['public_ip'];
+    $current_elastic_ip = $instance['elastic_ip'];
+
+    // 1) Flatten both columns into one union’ed table, then count per‐IP:
+    $sql = <<<SQL
+        SELECT
+          SUM(CASE WHEN ip = :ip  THEN 1 ELSE 0 END) AS ip_count,
+          SUM(CASE WHEN ip = :eip THEN 1 ELSE 0 END) AS eip_count
+        FROM (
+          SELECT public_ip AS ip FROM instances
+          UNION ALL
+          SELECT elastic_ip AS ip FROM instances
+        ) AS all_ips
+        SQL;
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+      ':ip'  => $current_ip,
+      ':eip' => $current_elastic_ip,
+    ]);
+
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // 2) Check if **either** of those counts is ≥ 2:
+    if (($row['ip_count']  >= 2) ||
+      ($row['eip_count'] >= 2)
+    ) {
+       $status = "<span class='badge badge-danger'>Used</span>";
+    } else {
+      $status = "<span class='badge badge-success'>Fresh</span>";
+    }
+    
+    echo '<td><a href="http://' . $instance['public_ip'] . '/" target="_blank">' . $instance['public_ip'] ." ".$status. '</a><br>
           </td>';
 
-    echo '<td><a href="http://' . $instance['elastic_ip'] . '" target="_blank">' . $instance['elastic_ip'] . '</a><br>
+    echo '<td><a href="http://' . $instance['elastic_ip'] . '/" target="_blank">' . $instance['elastic_ip'] ." ".$status.  '</a><br>
           </td>';
-    echo '<td>S > <a href="http://' . $instance['public_ip'] . '/bulk_send.php?ac_id=' . $account_id . '&user_id=' . $session_id . '" target="_blank">' . $instance['public_ip'] . '</a><br>
-          R > <a href="http://' . $instance['public_ip'] . '/bulk_regional_send.php?ac_id=' . $account_id . '&user_id=' . $session_id . '" target="_blank">' . $instance['public_ip'] . '</a>
-      </td>';
-    echo '<td>S > <a href="http://' . $instance['elastic_ip'] . '/bulk_send.php?ac_id=' . $account_id . '&user_id=' . $session_id . '" target="_blank">' . $instance['elastic_ip'] . '</a><br>
-              R > <a href="http://' . $instance['elastic_ip'] . '/bulk_regional_send.php?ac_id=' . $account_id . '&user_id=' . $session_id . '" target="_blank">' . $instance['elastic_ip'] . '</a>
-            </td>';
-    // echo '<td>' . $instance['elastic_ip'] . '</td>';
+    ?>
+    <?php
     echo '<td>';
     // Terminate button
     echo '<form class="ajaxActionForm d-inline" method="post">
