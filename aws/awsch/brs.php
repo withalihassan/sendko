@@ -482,7 +482,7 @@ if (isset($_GET['stream'])) {
 
   <script>
     $(function() {
-      const acId = <?php echo $id; ?>;
+      const acId = "<?php echo htmlspecialchars($id, ENT_QUOTES); ?>";
       const userId = <?php echo $parent_id; ?>;
       const regions = [
         "me-central-1",
