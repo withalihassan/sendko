@@ -328,7 +328,7 @@ try {
         const awsAccessKey = "<?php echo $aws_access_key; ?>";
         const awsSecretKey = "<?php echo $aws_secret_key; ?>";
         const childAccountId = "<?php echo $child_id; ?>";
-        const user_id = "<?php echo $session_user_id; ?>";
+        const user_id = "<?php echo $_GET['user_id']; ?>";
         console.log("User ID:", user_id);
 
         function checkQuota() {
