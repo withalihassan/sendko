@@ -10,6 +10,7 @@ header('Content-Type: application/json');
 $accessKey = $_POST['aws_access_key'] ?? '';
 $secretKey = $_POST['aws_secret_key'] ?? '';
 $childId   = $_POST['ac_id']         ?? '';
+$user_id   = $_POST['user_id']         ?? '';
 
 if (!$accessKey || !$secretKey || !$childId) {
     echo json_encode(['error'=>'Missing credentials or account ID.']);
@@ -65,12 +66,12 @@ try {
     // 8) persist everything
     $stmt = $pdo->prepare("
       INSERT INTO `iam_users`
-        (`child_account_id`,`username`,`password`,
+        (`by_user`,`child_account_id`,`username`,`password`,
          `access_key_id`,`secret_access_key`,`login_url`)
-      VALUES (?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     ");
     $stmt->execute([
-      $childId, $username, $password,
+      $user_id, $childId, $username, $password,
       $accessKeyId, $secretAccessKey, $loginUrl
     ]);
 
