@@ -6,7 +6,6 @@ error_reporting(E_ALL);
 // Get child_id and parent_id safely
 $child_id  = $_GET['ac_id']      ?? '';
 $parent_id = $_GET['parent_id'] ?? '';
-$user_id = $_GET['user_id'] ?? '';
 
 if (empty($child_id) || empty($parent_id)) {
     die("Invalid request. Missing parameters.");
@@ -374,8 +373,7 @@ try {
 
         function fetchInstances(childId) {
             $.get("child_actions/fetch_instances.php", {
-                child_id: childId,
-                user_id: user_id
+                child_id: childId
             }, function(data) {
                 $("#instanceTable tbody").html(data);
             }).fail(function() {
@@ -384,7 +382,6 @@ try {
         }
         $(document).ready(function() {
             var childId = <?php echo isset($child_id) ? json_encode($child_id) : 'null'; ?>;
-            var user_id = <?php echo isset($_GET["user_id"]) ? json_encode($child_id) : 'null'; ?>;
 
             if (childId !== null) {
                 fetchInstances(childId);
@@ -425,8 +422,7 @@ try {
             $.post("child_actions/add_admin_user.php", {
                 aws_access_key: awsAccessKey,
                 aws_secret_key: awsSecretKey,
-                ac_id: childAccountId,
-                parent_ac_id: parentAcId
+                ac_id: childAccountId
             }, json => {
                 let data;
                 try {
