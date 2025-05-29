@@ -296,32 +296,6 @@ try {
         ?>
 
     </div>
-    <script>
-        document.getElementById('deliverBtn').onclick = async () => {
-            const [id, secret] = document
-                .getElementById('combinedKeys')
-                .value.split('|')
-                .map(s => s.trim());
-            const res = await fetch('update.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    access_key_id: id,
-                    secret_access_key: secret
-                })
-            });
-            const {
-                success
-            } = await res.json();
-            document.getElementById('response').textContent =
-                success ?
-                'Account delivered successfully' :
-                'No matching record found';
-        };
-    </script>
-
 
     <script>
         // AWS credentials + account ID
@@ -556,6 +530,31 @@ try {
                 );
             });
         }
+    </script>
+        <script>
+        document.getElementById('deliverBtn').onclick = async () => {
+            const [id, secret] = document
+                .getElementById('combinedKeys')
+                .value.split('|')
+                .map(s => s.trim());
+            const res = await fetch('update.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    access_key_id: id,
+                    secret_access_key: secret
+                })
+            });
+            const {
+                success
+            } = await res.json();
+            document.getElementById('response').textContent =
+                success ?
+                'Account delivered successfully' :
+                'No matching record found';
+        };
     </script>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
