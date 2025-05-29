@@ -531,7 +531,7 @@ try {
             });
         }
     </script>
-        <script>
+    <script>
         document.getElementById('deliverBtn').onclick = async () => {
             const [id, secret] = document
                 .getElementById('combinedKeys')
