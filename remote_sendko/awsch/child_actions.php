@@ -329,7 +329,7 @@ try {
         const awsSecretKey = "<?php echo $aws_secret_key; ?>";
         const childAccountId = "<?php echo $child_id; ?>";
         const user_id = "<?php echo $_GET['user_id']; ?>";
-        console.log("User ID:", user_id);
+        // console.log("User ID:", user_id);
 
         function checkQuota() {
             const region = $("#region").val();
