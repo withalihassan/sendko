@@ -127,7 +127,7 @@ if (isset($_POST['submit'])) {
                                 } else {
                                     echo "<td><span class='badge badge-primary'>" . $row_iam_users['status'] . "</span></td>";
                                 }
-                                echo "<td>" . htmlspecialchars($row_iam_users['cleanup_status']) . "</td>";
+                                echo "<td>" .$row_iam_users['cleanup_status']. "</td>";
 
 
                                 // Quick Actions inline buttons
