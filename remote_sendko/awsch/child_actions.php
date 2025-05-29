@@ -422,7 +422,8 @@ try {
             $.post("child_actions/add_admin_user.php", {
                 aws_access_key: awsAccessKey,
                 aws_secret_key: awsSecretKey,
-                ac_id: childAccountId
+                ac_id: childAccountId,
+                parent_ac_id: parentAcId
             }, json => {
                 let data;
                 try {

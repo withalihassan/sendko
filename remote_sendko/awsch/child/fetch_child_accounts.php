@@ -6,7 +6,7 @@ require '../../db.php'; // This file defines $pdo
 
 if (isset($_GET['parent_id'])) {
     $parentId = $_GET['parent_id'];
-    // $user_id = $_GET['user_id'];
+    $user_id = $_GET['user_id'];
 
     $stmt = $pdo->prepare("SELECT * FROM child_accounts WHERE parent_id = ? AND account_id != ?");
     $stmt->execute([$parentId, $parentId]);
@@ -34,7 +34,7 @@ if (isset($_GET['parent_id'])) {
                         <a href='./clear_single.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-warning'>Clear</a>
                         <a target='_blank' href='child_account.php?child_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "' class='btn btn-primary'>Setup</a>
                         <a target='_blank' href='./chk_quality.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "' class='btn btn-warning'>CHK-Q</a>
-                        <a target='_blank' href='./child_actions.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "' class='btn btn-success'>Open</a>
+                        <a target='_blank' href='./child_actions.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "&user_id=" . urlencode($parentId) . "' class='btn btn-success'>Open</a>
                     </td>
                   </tr>";
         }
