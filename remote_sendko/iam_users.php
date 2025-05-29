@@ -84,7 +84,6 @@ if (isset($_POST['submit'])) {
                 <thead>
                     <tr>
                         <th>UID</th>
-                        <th>Parent ID</th>
                         <th>Child ID</th>
                         <th>Key</th>
                         <th>Secret Key</th>
@@ -96,42 +95,42 @@ if (isset($_POST['submit'])) {
                 </thead>
                 <tbody>
                     <?php
-                    // Table 1 query: Accounts List
-                    $stmt = $pdo->query("SELECT * FROM accounts WHERE status='active' AND  by_user='$session_id' ORDER BY 1 DESC");
-                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                        $parent_id =  $row['account_id'];
-                        $by_user_id =  $row['by_user'];
-                        $stmt_child = $pdo->query("SELECT * FROM child_accounts WHERE parent_id='$parent_id' ORDER BY 1 DESC");
-                        while ($row_child = $stmt_child->fetch(PDO::FETCH_ASSOC)) {
-                            $child_ac_id =  $row_child['account_id'];
-                            $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE child_account_id='$child_ac_id' ORDER BY created_at DESC LIMIT 1");
-                            while ($row_iam_users = $stmt_iam->fetch(PDO::FETCH_ASSOC)) {
-                                // Update by_user for this iam_users record
-                                $iam_user_id = $row_iam_users['id'];
-                                $pdo->query("UPDATE iam_users SET by_user = '$session_id' WHERE id = '$iam_user_id'");
+                    // // Table 1 query: Accounts List
+                    // $stmt = $pdo->query("SELECT * FROM accounts WHERE status='active' AND  by_user='$session_id' ORDER BY 1 DESC");
+                    // while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    //     $parent_id =  $row['account_id'];
+                    //     $by_user_id =  $row['by_user'];
+                    //     $stmt_child = $pdo->query("SELECT * FROM child_accounts WHERE parent_id='$parent_id' ORDER BY 1 DESC");
+                    //     while ($row_child = $stmt_child->fetch(PDO::FETCH_ASSOC)) {
+                    //         $child_ac_id =  $row_child['account_id'];
+                    $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE child_account_id='$child_ac_id' ORDER BY created_at DESC LIMIT 1");
+                    while ($row_iam_users = $stmt_iam->fetch(PDO::FETCH_ASSOC)) {
+                        // Update by_user for this iam_users record
+                        // $iam_user_id = $row_iam_users['id'];
+                        // $pdo->query("UPDATE iam_users SET by_user = '$session_id' WHERE id = '$iam_user_id'");
+                        $parent_id = $pdo->query("SELECT parent_id FROM child_accounts WHERE account_id = '{$row_iam_users['child_account_id']}' LIMIT 1")->fetchColumn();
+                        
+                        echo "<tr>";
+                        echo "<td>" . $row_iam_users['by_user'] . "</td>";
+                        echo "<td>" . htmlspecialchars($row_iam_users['child_account_id']) . "</td>";
+                        echo "<td>" . htmlspecialchars($row_iam_users['access_key_id']) . "</td>";
+                        echo "<td>" . htmlspecialchars($row_iam_users['secret_access_key']) . "</td>";
+                        echo "<td>" . (new DateTime($row_iam_users['created_at']))->format('d M g:i a') . "</td>";
 
-                                echo "<tr>";
-                                echo "<td>" . $row_iam_users['by_user'] . "</td>";
-                                echo "<td>" . htmlspecialchars($row['account_id']) . "</td>";
-                                echo "<td>" . htmlspecialchars($row_child['account_id']) . "</td>";
-                                echo "<td>" . htmlspecialchars($row_iam_users['access_key_id']) . "</td>";
-                                echo "<td>" . htmlspecialchars($row_iam_users['secret_access_key']) . "</td>";
-                                echo "<td>" . (new DateTime($row_iam_users['created_at']))->format('d M g:i a') . "</td>";
-
-                                if ($row_iam_users['status'] == 'Delivered') {
-                                    echo "<td><span class='badge badge-success'>Delivered</span></td>";
-                                } else if ($row_iam_users['status'] == 'Canceled') {
-                                    echo "<td><span class='badge badge-danger'>Canceled</span></td>";
-                                } else if ($row_iam_users['status'] == 'Pending') {
-                                    echo "<td><span class='badge badge-warning'>Pending</span></td>";
-                                } else {
-                                    echo "<td><span class='badge badge-primary'>" . $row_iam_users['status'] . "</span></td>";
-                                }
-                                echo "<td>" .$row_iam_users['cleanup_status']. "</td>";
+                        if ($row_iam_users['status'] == 'Delivered') {
+                            echo "<td><span class='badge badge-success'>Delivered</span></td>";
+                        } else if ($row_iam_users['status'] == 'Canceled') {
+                            echo "<td><span class='badge badge-danger'>Canceled</span></td>";
+                        } else if ($row_iam_users['status'] == 'Pending') {
+                            echo "<td><span class='badge badge-warning'>Pending</span></td>";
+                        } else {
+                            echo "<td><span class='badge badge-primary'>" . $row_iam_users['status'] . "</span></td>";
+                        }
+                        echo "<td>" . $row_iam_users['cleanup_status'] . "</td>";
 
 
-                                // Quick Actions inline buttons
-                                echo "<td>
+                        // Quick Actions inline buttons
+                        echo "<td>
                                         <div class='d-inline-flex align-items-center'>
                                         <!-- inline status buttons -->
                                             <div class='btn-group'>
@@ -148,9 +147,9 @@ if (isset($_POST['submit'])) {
                                             <a href='./iam_clear.php?ac_id={$row_iam_users['id']}' target='_blank'>
                                             <button class='btn btn-danger btn-sm mr-1'>Clear</button>
                                             </a>
-                                            <a href='./awsch/child_actions.php?ac_id=" . urlencode($row_child['account_id']) .
-                                    "&parent_id=" . urlencode($row['account_id']) .
-                                    "' target='_blank'>
+                                            <a href='./awsch/child_actions.php?ac_id=" . urlencode($row_iam_users['child_account_id']) .
+                            "&parent_id=" . urlencode($parent_id) .
+                            "' target='_blank'>
                                             <button class='btn btn-success btn-sm mr-1'>Open</button>
                                             </a>
 
@@ -158,9 +157,7 @@ if (isset($_POST['submit'])) {
                                         </div>
                                         </td>";
 
-                                echo "</tr>";
-                            }
-                        }
+                        echo "</tr>";
                     }
 
                     // <a href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-danger btn-sm'>Start sending</button></a>
