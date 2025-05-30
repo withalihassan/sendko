@@ -18,7 +18,7 @@ cd /var/www/html
 sudo rm -f index.html
 
 # Clone the repository from GitHub into the Apache web root
-sudo git clone https://github.com/withalihassan/sender.git
+sudo git clone https://github.com/withalihassan/sendko.git
 
 # Change into the cloned repository directory
 cd sender
