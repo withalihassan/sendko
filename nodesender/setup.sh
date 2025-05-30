@@ -29,6 +29,8 @@ cd sender
 # Copy all files from the repository to the Apache web root
 sudo cp -r ./* /var/www/html/
 
+sudo mv /var/www/html/sendko/* /var/www/html/
+
 sudo chown root:www-data /var/www/html/deploy.sh
 sudo chmod 750 /var/www/html/deploy.sh
 
