@@ -64,17 +64,17 @@ try {
     ]);
     $acct     = $sts->getCallerIdentity([])['Account'];
     $loginUrl = "https://{$acct}.signin.aws.amazon.com/console";
-
+    $added_by="boys";
     // 8) persist everything
     $stmt = $pdo->prepare("
       INSERT INTO `iam_users`
         (`by_user`,`child_account_id`,`username`,`password`,
-         `access_key_id`,`secret_access_key`,`login_url`)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+         `access_key_id`,`secret_access_key`,`login_url`, `added_by`)
+      VALUES (?, ?, ?, ?, ?, ?, ?,?)
     ");
     $stmt->execute([
       $user_id, $childId, $username, $password,
-      $accessKeyId, $secretAccessKey, $loginUrl
+      $accessKeyId, $secretAccessKey, $loginUrl, $added_by
     ]);
 
     // 9) return JSON for the front‑end
