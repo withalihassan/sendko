@@ -33,9 +33,9 @@ try {
     $masterEmail = $result['Organization']['MasterAccountEmail'] ?? '';
 
     if ($masterEmail) {
-        echo "<div class='alert alert-success'>
-                This account **is** part of an AWS Organization.<br>
-                Master account email: <strong>{$masterEmail}</strong>
+        echo "<div class='alert alert-danger'>
+                This account is not ready.<br>
+                Script Error Re-run the Script.
               </div>";
     } else {
         // unlikely, but just in case
@@ -48,8 +48,8 @@ try {
     // if there is no organization or you’re not in one, AWS throws AWSOrganizationsNotInUseException
     if ($code === 'AWSOrganizationsNotInUseException' || 
         strpos($e->getMessage(), 'not in organization') !== false) {
-        echo "<div class='alert alert-info'>
-                This AWS account is standalone (not in an Organization).
+        echo "<div class='alert alert-success'>
+                This account is Ready.
               </div>";
     } else {
         // any other error

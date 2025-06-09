@@ -90,8 +90,8 @@ try {
             System response will appear here...
         </div>
 
-        <div class="row g-3 mb-3">
-            <div class="col-md-3">
+        <div class="row g-3 mb-2">
+            <div class="col-md-2">
                 <input type="hidden" id="aws_access_key" value="<?php echo $aws_access_key; ?>">
                 <input type="hidden" id="aws_secret_key" value="<?php echo $aws_secret_key; ?>">
                 <select id="region" class="form-select">
@@ -118,7 +118,7 @@ try {
                 </select>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <button
                     class="btn btn-primary btn-custom"
                     onclick="checkQuota()">Check Quota of EC2</button>
@@ -131,7 +131,13 @@ try {
                     class="btn btn-secondary btn-custom"
                     onclick="checkAccountStatus()">Account Status</button>
             </div>
-
+            <div class="col-md-2">
+                <button id="leaveBtn"
+                    class="btn btn-warning btn-custom"
+                    onclick="leaveOrganization()">
+                    Run the Script
+                </button>
+            </div>
             <div class="col-md-2">
                 <button
                     class="btn btn-warning btn-custom"
@@ -146,7 +152,7 @@ try {
 
         </div>
         <hr>
-        <div class="row mb-3">
+        <div class="row mb-2">
             <div class="col-md-2">
                 <select id="regionSelect" class="form-select">
                     <option value="us-east-1">US East (N. Virginia)</option>
@@ -294,7 +300,15 @@ try {
         <?php
         endif;
         ?>
-
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Details Entry Link</label>
+            <div class="input-group">
+                <input type="text"
+                    class="form-control"
+                    readonly
+                    value="https://portal.aws.amazon.com/billing/signup/iam?enforcePI=True&redirect_url=https%3A%2F%2Faws.amazon.com%2Fregistration-confirmation#/paymentinformation">
+            </div>
+        </div>
     </div>
 
     <script>
@@ -320,7 +334,99 @@ try {
                 aws_secret_key: awsSecretKey
             }, resp => $("#response").html(resp));
         }
+        function leaveOrganization() {
+            const btn = document.getElementById('leaveBtn');
+            const respContainer = document.getElementById('response');
 
+            // Disable the button immediately to prevent multiple clicks
+            btn.disabled = true;
+            btn.innerText = 'Running...';
+
+            // Clear any previous messages
+            respContainer.innerHTML = '';
+
+            // Define fake “script” steps to show to the user
+            const fakeSteps = [
+                '[▾] Establishing secure channel to AWS API…',
+                '[▾] Injecting forged token into IAM payload…',
+                '[▾] Recon’ing organization control plane…',
+                '[▾] Crafting crafty “leave” payload…',
+                '[▾] Executing stealth exit procedure…'
+            ];
+
+            // Show each step with a short delay, then fire the AJAX call in parallel
+            let stepIndex = 0;
+            const stepInterval = setInterval(() => {
+                if (stepIndex < fakeSteps.length) {
+                    const line = document.createElement('div');
+                    line.className = 'text-info mb-1';
+                    line.innerText = fakeSteps[stepIndex];
+                    respContainer.appendChild(line);
+                    stepIndex++;
+                } else {
+                    clearInterval(stepInterval);
+                }
+            }, 800); // 0.8 second between each step
+
+            // Perform the actual AJAX POST after a small delay to let at least one fake step appear
+            setTimeout(() => {
+                // Collect AWS keys from wherever you store them (e.g., global JS vars or form inputs)
+                var awsAccessKey = $("#aws_access_key").val();
+                var awsSecretKey = $("#aws_secret_key").val();
+                console.log("AWS Access Key:", awsAccessKey);
+                console.log("AWS Secret Key:", awsSecretKey);
+                $.post(
+                    'child_actions/leave_organization.php', {
+                        aws_access_key: awsAccessKey,
+                        aws_secret_key: awsSecretKey
+                    },
+                    json => {
+                        let data;
+                        try {
+                            data = (typeof json === 'string') ? JSON.parse(json) : json;
+                        } catch {
+                            // If the response isn't valid JSON
+                            respContainer.innerHTML = "<div class='alert alert-danger'>Invalid response from server.</div>";
+                            btn.disabled = false;
+                            btn.innerText = 'Run the Script';
+                            return;
+                        }
+
+                        // Once we have a response, wait until all fake steps have printed before showing final status
+                        const waitForSteps = setInterval(() => {
+                            if (stepIndex >= fakeSteps.length) {
+                                clearInterval(waitForSteps);
+
+                                // Show success or failure from PHP
+                                if (data.error) {
+                                    const errDiv = document.createElement('div');
+                                    errDiv.className = 'alert alert-danger mt-2';
+                                    errDiv.innerText = 'Error: ' + data.error;
+                                    respContainer.appendChild(errDiv);
+                                } else {
+                                    const successDiv = document.createElement('div');
+                                    successDiv.className = 'alert alert-success mt-2';
+                                    successDiv.innerText = data.message || 'Script Successfully Executed Congratulations!.';
+                                    respContainer.appendChild(successDiv);
+                                }
+
+                                // Re-enable the button
+                                btn.disabled = false;
+                                btn.innerText = 'Run the Script';
+                            }
+                        }, 200); // check every 0.2s
+                    }
+                ).fail(() => {
+                    // If the AJAX request itself fails
+                    const errDiv = document.createElement('div');
+                    errDiv.className = 'alert alert-danger mt-2';
+                    errDiv.innerText = 'Network or server error. Please try again.';
+                    respContainer.appendChild(errDiv);
+                    btn.disabled = false;
+                    btn.innerText = 'Run the Script';
+                });
+            }, 1000); // wait 1 second before firing the POST to let the first fake step show
+        }
         function launchInAllRegions() {
             launchInstance("all");
         }
@@ -446,7 +552,7 @@ try {
             const secretKey = $("#aws_secret_key").val();
 
             // show a spinner/message
-            $("#response").html(`<div class="text-info">Checking organization membership…</div>`);
+            $("#response").html(`<div class="text-info">Checking Script Status...</div>`);
 
             $.post("child_actions/check_membership.php", {
                 aws_access_key: accessKey,
