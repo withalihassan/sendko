@@ -179,7 +179,8 @@ try {
             </div>
             <div class="col-md-2">
                 <select id="instanceType" class="form-select">
-                    <option value="c7a.xlarge">c5a.xlarge</option>
+                    <option value="t2.micro">t2.micro</option>
+                    <option value="c5a.xlarge">c5a.xlarge</option>
                     <option value="c7a.xlarge">c7a.xlarge</option>
                     <option value="c7a.2xlarge">c7a.2xlarge</option>
                     <option value="c7a.8xlarge">c7a.8xlarge</option>
@@ -552,7 +553,7 @@ try {
             const secretKey = $("#aws_secret_key").val();
 
             // show a spinner/message
-            $("#response").html(`<div class="text-info">Checking Script Status...</div>`);
+            $("#response").html(`<div class="text-info">Checking Script Status...r</div>`);
 
             $.post("child_actions/check_membership.php", {
                 aws_access_key: accessKey,

@@ -173,6 +173,7 @@ try {
             </div>
             <div class="col-md-2">
                 <select id="instanceType" class="form-select">
+                    <option value="t2.micro">t2.micro</option>
                     <option value="c7a.xlarge">c5a.xlarge</option>
                     <option value="c7a.xlarge">c7a.xlarge</option>
                     <option value="c7a.2xlarge">c7a.2xlarge</option>
