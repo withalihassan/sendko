@@ -7,12 +7,12 @@ if (isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] === '13.220.207.140') 
     $host = 'localhost';
 } else {
     // Otherwise, use the remote IP address.
-    $host = '13.220.207.140';
+    $host = 'database-1.ct22ws4u0c7g.me-central-1.rds.amazonaws.com';
 }
 
 $dbname   = 'sender';
-$username = 'sender';
-$password = 'Tech@#009';
+$username = 'admin';
+$password = 'sLoGMCVfEo4TpMGOEm18';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);

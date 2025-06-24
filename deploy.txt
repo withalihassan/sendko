@@ -1,1 +1,19 @@
-mysqldump -u sender -p sender < sender.sql
+
+EndPoint: database-1.ct22ws4u0c7g.me-central-1.rds.amazonaws.com
+
+Username: admin
+Password: sLoGMCVfEo4TpMGOEm18
+
+Commands 
+Connnect to Database 
+mysql -u admin -psLoGMCVfEo4TpMGOEm18 -h database-1.ct22ws4u0c7g.me-central-1.rds.amazonaws.com
+
+Creating both databases;
+CREATE DATABASE sender;
+
+Run the import 
+mysql -u admin -psLoGMCVfEo4TpMGOEm18 -h database-1.ct22ws4u0c7g.me-central-1.rds.amazonaws.com sp_sender < /tmp/sender.sql 
+
+
+Emergency  Export 
+mysql -u admin -psLoGMCVfEo4TpMGOEm18 -h database-1.ct22ws4u0c7g.me-central-1.rds.amazonaws.com sp_sender > /tmp/chksender.sql 
