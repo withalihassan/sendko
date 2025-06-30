@@ -19,6 +19,20 @@ if (isset($_GET['parent_id'])) {
             $statusBadge = ($account['status'] === 'ACTIVE')
                 ? "<span class='badge bg-success'>Active</span>"
                 : "<span class='badge bg-danger'>Suspended</span>";
+            //Age calculation strted 
+            if ($account['status'] == 'ACTIVE') {
+                if($account['added_date']  != NULL){
+                $td_Added_date = new DateTime($account['added_date']);
+                $td_current_date = new DateTime();
+                $diff = $td_Added_date->diff($td_current_date);
+                $child_ac_Age = "<span>" . $diff->format('%a days') . "</span>";
+                }else{
+                $child_ac_Age =  "<span>error1</span>";
+                }
+            } else {
+                $child_ac_Age =  "<span>error2</span>";
+            }
+            //Age calculation ended
 
             // Construct table row with escaped output and URL-encoded query parameters
             echo "<tr>
@@ -26,7 +40,10 @@ if (isset($_GET['parent_id'])) {
                     <td>" . htmlspecialchars($account['name']) . "</td>
                     <td>" . htmlspecialchars($account['email']) . "</td>
                     <td>$statusBadge</td>
-                    <td>" . $account['worth_type']. "</td>
+                    <td>" . $account['worth_type'] . "</td>
+                    <td>" . (!empty($account['added_date']) ? date('j F', strtotime($account['added_date'])) : '') . "</td>
+
+                    <td>$child_ac_Age</td>
                     <td>" . htmlspecialchars($account['account_id']) . "</td>
                     <td>
                         <a href='./bulk_regional_send.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-success'>Bulk Regional Send</a>
@@ -45,4 +62,3 @@ if (isset($_GET['parent_id'])) {
 } else {
     echo "<tr><td colspan='6' class='text-center'>Parent ID is missing.</td></tr>";
 }
-?>

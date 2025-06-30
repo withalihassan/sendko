@@ -169,6 +169,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
       cursor: pointer;
       font-size: 16px;
     }
+
     button:disabled {
       background: #6c757d;
       cursor: not-allowed;
@@ -253,7 +254,8 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
         <div id="autoCreateLog" class="mt-3 border p-2" style="max-height:300px; overflow:auto;"></div>
       </div>
     </div>
-
+  </div>
+  <div class="container-fluid" style="padding: 0 7% 7% 7%;">
     <!-- Table to display existing child accounts -->
     <div class="card">
       <div class="card-header">Existing Child Accounts</div>
@@ -266,6 +268,8 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
               <th>Email</th>
               <th>Status</th>
               <th>Type</th>
+              <th>Date</th>
+              <th>age</th>
               <th>AWS Account ID</th>
               <th>Action</th>
             </tr>
@@ -279,7 +283,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
       </div>
     </div>
   </div>
-
   <!-- jQuery CDN -->
   <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
   <script>

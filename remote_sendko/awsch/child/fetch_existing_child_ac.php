@@ -21,13 +21,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['parent_id'])) {
 
         if ($account) {
             // Extract AWS key and secret
-            $aws_key = $account['aws_key'];
+            $aws_key    = $account['aws_key'];
             $aws_secret = $account['aws_secret'];
 
             // Initialize AWS Organizations client using the fetched credentials
             $orgClient = new OrganizationsClient([
-                'region' => 'us-east-1',  // Set your AWS region
-                'version' => 'latest',
+                'region'      => 'us-east-1',  // Set your AWS region
+                'version'     => 'latest',
                 'credentials' => [
                     'key'    => $aws_key,
                     'secret' => $aws_secret
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['parent_id'])) {
             ]);
 
             // Fetch child accounts under the given parent account
-            $result = $orgClient->listAccounts();
+            $result   = $orgClient->listAccounts();
             $accounts = $result['Accounts'];
 
             if (empty($accounts)) {
@@ -44,31 +44,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['parent_id'])) {
             }
 
             // Prepare the statements for insertion or updating using $pdo
-            $insertStmt = $pdo->prepare("INSERT INTO child_accounts (parent_id, email, name, account_id, status) VALUES (?, ?, ?, ?, ?)");
-            $updateStmt = $pdo->prepare("UPDATE child_accounts SET status = ? WHERE account_id = ?");
+            $insertStmt = $pdo->prepare(
+                "INSERT INTO child_accounts (parent_id, email, name, account_id, status, added_date) VALUES (?, ?, ?, ?, ?, ?)"
+            );
+            $updateStmt = $pdo->prepare(
+                "UPDATE child_accounts SET status = ?, added_date = ? WHERE account_id = ?"
+            );
 
             // Iterate through the returned accounts
             foreach ($accounts as $acc) {
                 // Ensure keys exist before accessing them
-                $email = isset($acc['Email']) ? $acc['Email'] : 'No email';
-                $name = isset($acc['Name']) ? $acc['Name'] : 'No name';
-                $account_id = isset($acc['Id']) ? $acc['Id'] : 'No account ID';
-                $status = isset($acc['Status']) ? $acc['Status'] : 'Running';
+                $email           = $acc['Email'] ?? 'No email';
+                $name            = $acc['Name'] ?? 'No name';
+                $account_id      = $acc['Id'] ?? 'No account ID';
+                $status          = $acc['Status'] ?? 'UNKNOWN';
+                // Fetch the JoinedTimestamp (account creation date)
+                $joinedTsObj     = $acc['JoinedTimestamp'] ?? null;
+                $joinedTimestamp = $joinedTsObj instanceof \DateTimeInterface
+                                   ? $joinedTsObj->format('Y-m-d H:i:s')
+                                   : null;
 
                 // Check if account already exists in the local DB
-                $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM child_accounts WHERE account_id = ?");
+                $checkStmt        = $pdo->prepare("SELECT COUNT(*) FROM child_accounts WHERE account_id = ?");
                 $checkStmt->execute([$account_id]);
                 $existingAccount = $checkStmt->fetchColumn();
 
                 if ($existingAccount > 0) {
-                    // Account exists, update its status
-                    $updateStmt->execute([$status, $account_id]);
+                    // Account exists, update its status and added_date
+                    $updateStmt->execute([
+                        $status,
+                        $joinedTimestamp,
+                        $account_id
+                    ]);
                 } else {
                     // Account does not exist, insert a new record
-                    $insertStmt->execute([$parent_id, $email, $name, $account_id, $status]);
+                    $insertStmt->execute([
+                        $parent_id,
+                        $email,
+                        $name,
+                        $account_id,
+                        $status,
+                        $joinedTimestamp
+                    ]);
                     $newAccountsInserted++;
                 }
             }
+
             if ($newAccountsInserted > 0) {
                 echo "$newAccountsInserted new child account(s) inserted successfully!";
             } else {
@@ -85,4 +106,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['parent_id'])) {
 } else {
     echo 'Parent ID is missing.';
 }
-?>
