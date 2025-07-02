@@ -109,7 +109,7 @@ if (isset($_POST['submit'])) {
                 } else {
                     echo '<a href="?toggle_status=1&id=' . $row['id'] . '" class="btn btn-success btn-sm mr-1">Mark as fresh</a> ';
                 }
-                // Delete button (optional AJAX delete functionality)
+                // Delete button (AJAX delete functionality)
                 echo '<button class="btn btn-danger btn-sm delete-btn" data-id="' . $row['id'] . '">Delete</button>';
                 echo '</td>';
                 echo '</tr>';
@@ -122,25 +122,30 @@ if (isset($_POST['submit'])) {
 <script>
 $(document).ready(function() {
     // Initialize DataTable for better record display
-    $('#setsTable').DataTable();
+    var table = $('#setsTable').DataTable();
 
-    // Optional Delete functionality using AJAX
-    $('.delete-btn').click(function() {
-        if (confirm('Are you sure you want to delete this set?')) {
-            var setId = $(this).data('id');
-            $.ajax({
-                url: './scripts/delete_set.php',
-                type: 'POST',
-                data: { id: setId },
-                success: function(response) {
-                    alert(response);
-                    location.reload();
-                },
-                error: function() {
-                    alert('Error deleting set.');
-                }
-            });
+    // Delegate delete click so it works on all pages
+    $(document).on('click', '.delete-btn', function() {
+        if (!confirm('Are you sure you want to delete this set?')) {
+            return;
         }
+        var setId = $(this).data('id');
+        $.ajax({
+            url: './scripts/delete_set.php',
+            type: 'POST',
+            data: { id: setId },
+            success: function(response) {
+                alert(response);
+                // Remove the row from DataTable and redraw
+                table
+                    .row( $('button.delete-btn[data-id="' + setId + '"]').parents('tr') )
+                    .remove()
+                    .draw();
+            },
+            error: function() {
+                alert('Error deleting set.');
+            }
+        });
     });
 });
 </script>
