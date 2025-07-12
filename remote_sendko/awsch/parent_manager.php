@@ -190,7 +190,7 @@ try {
                 </select>
             </div>
             <div class="col-md-2 d-grid">
-                <button class="btn btn-info mt-2" onclick="launchInSelectedRegion()">Launch in Selected Region</button>
+                <button class="btn btn-info mt-2" onclick="launchInSelectedRegion()" disabled>Launch in Selected Region</button>
             </div>
             <div class="col-md-2 d-grid">
                 <button class="btn btn-success" onclick="launchInAllRegions()" disabled>Launch in All Regions</button>
@@ -233,7 +233,7 @@ try {
   ORDER BY `created_at` DESC
   LIMIT 1
 ");
-        $stmt->execute([$child_id]);
+        $stmt->execute([$parent_id]);
         $iamRow = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($iamRow):
@@ -329,18 +329,17 @@ try {
         // AWS credentials + account ID
         const awsAccessKey = "<?php echo $aws_access_key; ?>";
         const awsSecretKey = "<?php echo $aws_secret_key; ?>";
-        const childAccountId = "<?php echo $child_id; ?>";
-        const user_id = "<?php echo $_GET['user_id']; ?>";
+        const parent_id = "<?php echo $parent_id; ?>";
         // console.log("User ID:", user_id);
 
         function checkQuota() {
-            console.log('Sending:');
-            // const region = $("#region").val();
-            // $.post("child_actions/check_quota.php", {
-            //     region,
-            //     aws_access_key: awsAccessKey,
-            //     aws_secret_key: awsSecretKey
-            // }, resp => $("#response").html(resp));
+            console.log("working");
+            const region = $("#region").val();
+            $.post("child_actions/check_quota.php", {
+                region,
+                aws_access_key: awsAccessKey,
+                aws_secret_key: awsSecretKey
+            }, resp => $("#response").html(resp));
         }
 
         function checkAccountStatus() {
@@ -428,8 +427,8 @@ try {
             $.post("child_actions/add_admin_user.php", {
                 aws_access_key: awsAccessKey,
                 aws_secret_key: awsSecretKey,
-                ac_id: childAccountId,
-                user_id: user_id
+                ac_id: parent_id,
+                user_id: 1200
             }, json => {
                 let data;
                 try {

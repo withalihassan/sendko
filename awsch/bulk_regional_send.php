@@ -417,8 +417,11 @@ if (isset($_GET['stream'])) {
             <button id="stopButton" style="background:#dc3545;">Stop Process</button>
           </div>
           <?php
+          require '../sendko_db.php';
+
+          $sendkkoPdo = openSendkkoConnection();
           // Fetch available sets from bulk_sets table (only fresh sets)
-          $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
+          $stmtSets = $sendkkoPdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
           $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
           ?>
           <form id="bulk-regional-otp-form">
@@ -429,7 +432,10 @@ if (isset($_GET['stream'])) {
                   <option value="">-- Select a Set --</option>
                   <?php foreach ($sets as $set): ?>
                     <option value="<?php echo $set['id']; ?>"><?php echo htmlspecialchars($set['set_name']); ?></option>
-                  <?php endforeach; ?>
+                  <?php
+                  endforeach;
+                  closeSendkkoConnection($sendkkoPdo);
+                  ?>
                 </select>
               </div>
               <div>

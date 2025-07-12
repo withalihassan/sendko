@@ -70,7 +70,7 @@
     <ul>
       <li><a href="index.php">Home</a></li>
       <li><a href="iam_users.php">IAM List</a></li>
-      <li><a href="../">Sender</a></li>
+      <li><a href="qrtine_ac.php" target="_blank">Qrtine AC</a></li>
       <li><a href="number_dir.php">Numbers Directory</a></li>
       <li><a href="my_numbers.php">My Numbers</a></li>
       <li><a href="./update_numbers.php">Update Numbers</a></li>

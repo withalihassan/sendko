@@ -114,7 +114,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
     }
 
     // Proceed with the update if last_used is not today
-    $stmt = $pdo->prepare("UPDATE accounts SET ac_score = ac_score + 1, last_used = :last_used WHERE account_id = :id");
+    $stmt = $pdo->prepare("UPDATE accounts SET ac_score = ac_score + 1, last_used = :last_used , ac_worth='special' WHERE account_id = :id");
     try {
       $stmt->execute([':last_used' => $currentTimestamp, ':id' => $accountId]);
       echo json_encode([

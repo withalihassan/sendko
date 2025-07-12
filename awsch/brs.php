@@ -133,6 +133,13 @@ if (isset($_GET['stream'])) {
         usleep(2500000);
       } else if ($result['status'] === 'skip') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Skipped: " . $result['message']);
+        // Detect spend limit and break region
+        if (strpos($result['message'], 'Monthly spend limit reached') !== false) {
+          sendSSE("STATUS", "[$region] Spend limit hit. Skipping region...");
+          sleep(3);
+          $verifDestError = true;
+          break;
+        }
       } else if ($result['status'] === 'error') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Failed: " . $result['message']);
         if (strpos($result['message'], "VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT") !== false) {
