@@ -16,4 +16,6 @@ mysql -u admin -psLoGMCVfEo4TpMGOEm18 -h database-1.ct22ws4u0c7g.me-central-1.rd
 
 
 Emergency  Export 
-mysql -u admin -psLoGMCVfEo4TpMGOEm18 -h database-1.ct22ws4u0c7g.me-central-1.rds.amazonaws.com sp_sender > /tmp/chksender.sql 
+PsW: sLoGMCVfEo4TpMGOEm18
+mysql -u admin -p -h database-1.ct22ws4u0c7g.me-central-1.rds.amazonaws.com sp_sender > ./6july_sp_sender.sql 
+mysql -u admin -psLoGMCVfEo4TpMGOEm18 -h database-1.ct22ws4u0c7g.me-central-1.rds.amazonaws.com sender > ./6july_sender.sql 

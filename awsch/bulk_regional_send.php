@@ -206,6 +206,13 @@ if (isset($_GET['stream'])) {
         usleep(2500000);
       } else if ($result['status'] === 'skip') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Skipped: " . $result['message']);
+        // Detect spend limit and break region
+        if (strpos($result['message'], 'Monthly spend limit reached') !== false) {
+          sendSSE("STATUS", "[$region] Spend limit hit. Skipping region...");
+          sleep(3);
+          $verifDestError = true;
+          break;
+        }
       } else if ($result['status'] === 'error') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Failed: " . $result['message']);
         if (strpos($result['message'], "VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT") !== false) {
@@ -468,8 +475,9 @@ if (isset($_GET['stream'])) {
               <div>
                 <label for="language_select">Select Language:</label>
                 <select id="language_select" name="language_select">
-                  <option value="es-419" selected>Spanish Latin America</option>
-                  <option value="en-US">English (US)</option>
+
+                  <option value="it-IT" selected>Default-it</option>
+                  <option value="es-419">Spanish Latin America</option>
                   <!-- Add additional languages as needed -->
                 </select>
               </div>
@@ -482,7 +490,7 @@ if (isset($_GET['stream'])) {
 
           <!-- Display area for allowed numbers -->
           <label for="numbers">Allowed Phone Numbers (from database):</label>
-          <textarea id="numbers" name="numbers" rows="10" readonly></textarea>
+          <textarea id="numbers" name="numbers" rows="5" readonly></textarea>
           <!-- Status messages -->
           <div id="process-status" class="message"></div>
           <!-- Live Counters -->
@@ -644,132 +652,132 @@ if (isset($_GET['stream'])) {
       });
     });
   </script>
-    <script>
-        $(function() {
-            const acId = "<?php echo htmlspecialchars($id, ENT_QUOTES); ?>";
-            const userId = <?php echo $parent_id; ?>;
-            const regions = [
-                "me-central-1", "af-south-1",
-                "ap-southeast-3", "ap-southeast-4", "ca-west-1",
-                "eu-south-1", "eu-south-2", "eu-central-2",
-                "me-south-1", "il-central-1", "ap-south-2"
-            ];
-            const maxConcurrent = 5;
-            const delayMs = 2000; // 2 seconds
-            const pollIntervals = {};
-            let queue = [];
-            let activeCount = 0;
+  <script>
+    $(function() {
+      const acId = "<?php echo htmlspecialchars($id, ENT_QUOTES); ?>";
+      const userId = <?php echo $parent_id; ?>;
+      const regions = [
+        "me-central-1", "af-south-1",
+        "ap-southeast-3", "ap-southeast-4", "ca-west-1",
+        "eu-south-1", "eu-south-2", "eu-central-2",
+        "me-south-1", "il-central-1", "ap-south-2"
+      ];
+      const maxConcurrent = 5;
+      const delayMs = 2000; // 2 seconds
+      const pollIntervals = {};
+      let queue = [];
+      let activeCount = 0;
 
-            $('#enableRegionsButton').on('click', () => {
-                const $tbody = $('#regions-status-table tbody').empty();
-                queue = regions.slice(); // clone
-                activeCount = 0;
+      $('#enableRegionsButton').on('click', () => {
+        const $tbody = $('#regions-status-table tbody').empty();
+        queue = regions.slice(); // clone
+        activeCount = 0;
 
-                // Kick off the loop
-                scheduleNext($tbody);
-            });
+        // Kick off the loop
+        scheduleNext($tbody);
+      });
 
-            /**
-             * Tries to start _one_ region; then always re‑schedules itself after delayMs.
-             * Stops only when both the queue is empty AND there are no active polls.
-             */
-            function scheduleNext($tbody) {
-                // If we have capacity and work to do, start one
-                if (activeCount < maxConcurrent && queue.length > 0) {
-                    const region = queue.shift();
-                    checkAndSubmit(region, $tbody);
-                }
+      /**
+       * Tries to start _one_ region; then always re‑schedules itself after delayMs.
+       * Stops only when both the queue is empty AND there are no active polls.
+       */
+      function scheduleNext($tbody) {
+        // If we have capacity and work to do, start one
+        if (activeCount < maxConcurrent && queue.length > 0) {
+          const region = queue.shift();
+          checkAndSubmit(region, $tbody);
+        }
 
-                // Continue looping until completely done
-                if (queue.length > 0 || activeCount > 0) {
-                    setTimeout(() => scheduleNext($tbody), delayMs);
-                }
-            }
+        // Continue looping until completely done
+        if (queue.length > 0 || activeCount > 0) {
+          setTimeout(() => scheduleNext($tbody), delayMs);
+        }
+      }
 
-            function checkAndSubmit(region, $tbody) {
-                let $row = $tbody.find(`tr[data-region="${region}"]`);
-                if (!$row.length) {
-                    $tbody.append(`
+      function checkAndSubmit(region, $tbody) {
+        let $row = $tbody.find(`tr[data-region="${region}"]`);
+        if (!$row.length) {
+          $tbody.append(`
         <tr data-region="${region}">
           <td>${region}</td>
           <td class="status">Checking…</td>
         </tr>
       `);
-                    $row = $tbody.find(`tr[data-region="${region}"]`);
-                }
-                const $status = $row.find('.status');
+          $row = $tbody.find(`tr[data-region="${region}"]`);
+        }
+        const $status = $row.find('.status');
 
-                // 1️⃣ Check if already enabled
-                $.post(
-                        `region_enable_handler.php?ac_id=${acId}&user_id=${userId}`, {
-                            action: 'check_region_status',
-                            region
-                        },
-                        'json'
-                    )
-                    .done(data => {
-                        if (data.success && data.status === 'ENABLED') {
-                            $status.text('Already Enabled');
-                            // No slot consumed, next will fire in scheduleNext()
-                        } else {
-                            // 2️⃣ Submit enable request
-                            $status.text('Submitted, Waiting…');
-                            $.post(
-                                    `region_enable_handler.php?ac_id=${acId}&user_id=${userId}`, {
-                                        action: 'enable_region',
-                                        region
-                                    },
-                                    'json'
-                                )
-                                .done(() => {
-                                    // Consume a slot for polling
-                                    activeCount++;
-                                    startPolling(region, $status, $tbody);
-                                })
-                                .fail(() => {
-                                    $status.text('Enable Error');
-                                    // slot never used; we'll get next in the scheduleNext loop
-                                });
-                        }
-                    })
-                    .fail(() => {
-                        $status.text('Check Error');
-                        // on error we simply let scheduleNext() fire next time
-                    });
+        // 1️⃣ Check if already enabled
+        $.post(
+            `region_enable_handler.php?ac_id=${acId}&user_id=${userId}`, {
+              action: 'check_region_status',
+              region
+            },
+            'json'
+          )
+          .done(data => {
+            if (data.success && data.status === 'ENABLED') {
+              $status.text('Already Enabled');
+              // No slot consumed, next will fire in scheduleNext()
+            } else {
+              // 2️⃣ Submit enable request
+              $status.text('Submitted, Waiting…');
+              $.post(
+                  `region_enable_handler.php?ac_id=${acId}&user_id=${userId}`, {
+                    action: 'enable_region',
+                    region
+                  },
+                  'json'
+                )
+                .done(() => {
+                  // Consume a slot for polling
+                  activeCount++;
+                  startPolling(region, $status, $tbody);
+                })
+                .fail(() => {
+                  $status.text('Enable Error');
+                  // slot never used; we'll get next in the scheduleNext loop
+                });
             }
+          })
+          .fail(() => {
+            $status.text('Check Error');
+            // on error we simply let scheduleNext() fire next time
+          });
+      }
 
-            /**
-             * Polls every 40 s until status == ENABLED, then frees up a slot.
-             */
-            function startPolling(region, $status, $tbody) {
-                if (pollIntervals[region]) {
-                    clearInterval(pollIntervals[region]);
-                }
-                pollIntervals[region] = setInterval(() => {
-                    $.post(
-                            `region_enable_handler.php?ac_id=${acId}&user_id=${userId}`, {
-                                action: 'check_region_status',
-                                region
-                            },
-                            'json'
-                        )
-                        .done(data => {
-                            if (data.success && data.status === 'ENABLED') {
-                                clearInterval(pollIntervals[region]);
-                                $status.text('Enabled Successfully');
-                                activeCount--;
-                                // Next slot opens; next scheduleNext() (if pending) will pick it up
-                            } else {
-                                $status.text(`Still Enabling…(${data.status})`);
-                            }
-                        })
-                        .fail(() => {
-                            $status.text('Poll Error');
-                        });
-                }, 40000);
-            }
-        });
-    </script>
+      /**
+       * Polls every 40 s until status == ENABLED, then frees up a slot.
+       */
+      function startPolling(region, $status, $tbody) {
+        if (pollIntervals[region]) {
+          clearInterval(pollIntervals[region]);
+        }
+        pollIntervals[region] = setInterval(() => {
+          $.post(
+              `region_enable_handler.php?ac_id=${acId}&user_id=${userId}`, {
+                action: 'check_region_status',
+                region
+              },
+              'json'
+            )
+            .done(data => {
+              if (data.success && data.status === 'ENABLED') {
+                clearInterval(pollIntervals[region]);
+                $status.text('Enabled Successfully');
+                activeCount--;
+                // Next slot opens; next scheduleNext() (if pending) will pick it up
+              } else {
+                $status.text(`Still Enabling…(${data.status})`);
+              }
+            })
+            .fail(() => {
+              $status.text('Poll Error');
+            });
+        }, 40000);
+      }
+    });
+  </script>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js" integrity="sha384-k6d4wzSIapyDyv1kpU366/PK5hCdSbCRGRCMv+eplOQJWyd1fbcAu9OCUj5zNLiq" crossorigin="anonymous"></script>
 

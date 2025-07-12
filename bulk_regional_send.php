@@ -205,6 +205,13 @@ if (isset($_GET['stream'])) {
         // usleep(500000);
       } else if ($result['status'] === 'skip') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Skipped: " . $result['message']);
+         // Detect spend limit and break region
+        if (strpos($result['message'], 'Monthly spend limit reached') !== false) {
+          sendSSE("STATUS", "[$region] Spend limit hit. Skipping region...");
+          sleep(3);
+          $verifDestError = true;
+          break;
+        }
       } else if ($result['status'] === 'error') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Failed: " . $result['message']);
         if (strpos($result['message'], "VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT") !== false) {
@@ -218,19 +225,19 @@ if (isset($_GET['stream'])) {
           sendSSE("STATUS", "[$region] Critical error (" . $result['message'] . "). Skipping region.");
           break;
         } else {
-          sleep(5);
+          sleep(3);
         }
       }
     }
     if ($verifDestError) {
-      sendSSE("STATUS", "Region $region encountered an error. Waiting 5 seconds...");
-      sleep(5);
+      sendSSE("STATUS", "Region $region encountered an error. Waiting 3 seconds...");
+      sleep(3);
     } else if ($otpSentInThisRegion) {
-      sendSSE("STATUS", "Completed Patch sending for region $region. Waiting 20 seconds...");
-      sleep(20);
+      sendSSE("STATUS", "Completed Patch sending for region $region. Waiting 8 seconds...");
+      sleep(8);
     } else {
-      sendSSE("STATUS", "Completed Patch sending for region $region. Waiting 5 seconds...");
-      sleep(5);
+      sendSSE("STATUS", "Completed Patch sending for region $region. Waiting 3 seconds...");
+      sleep(3);
     }
   }
 
@@ -413,10 +420,10 @@ if (isset($_GET['stream'])) {
           <label for="lang_select">Select Language:</label>
           <select id="lang_select" name="lang_select">
             <!-- Spanish Latin America is now the first/default option -->
-            <option value="Spanish Latin America" selected>Spanish Latin America</option>
-            <option value="United States">United States</option>
-            <option value="Japanese">Japanese</option>
-            <option value="German">German</option>
+
+            <option value="United States" selected>Default</option>
+            <!-- <option value="it-IT" selected>Default</option> -->
+            <option value="Spanish Latin America" >Spanish Latin America</option>
           </select>
         </div>
       </div>

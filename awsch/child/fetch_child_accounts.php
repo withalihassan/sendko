@@ -3,7 +3,13 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 require '../../db.php'; // This file defines $pdo
-require '../../session.php'; // This file defines $pdo
+// require '../../session.php'; // This file defines $pdo
+
+if (!isset($_SESSION['user_id'])) {
+    $session_id = 12;
+}else {
+    $session_id = $_SESSION['user_id'];
+}
 
 if (isset($_GET['parent_id'])) {
     $parentId = $_GET['parent_id'];

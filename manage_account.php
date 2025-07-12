@@ -5,6 +5,7 @@ require_once __DIR__ . '/aws/aws-autoloader.php';
 
 use Aws\Ec2\Ec2Client;
 use Aws\Exception\AwsException;
+
 include('db.php');
 
 if (!isset($_GET['ac_id']) || !isset($_GET['user_id'])) {
@@ -91,7 +92,8 @@ if (isset($_GET['stream'])) {
     set_time_limit(0);
     ignore_user_abort(true);
 
-    function sendSSE($type, $message) {
+    function sendSSE($type, $message)
+    {
         echo "data:" . $type . "|" . str_replace("\n", "\\n", $message) . "\n\n";
         flush();
     }
@@ -110,13 +112,32 @@ if (isset($_GET['stream'])) {
 
     $regions = $selectedRegion ? [$selectedRegion] : [
         "us-east-1",
-         "us-east-2", "us-west-1", "us-west-2", "ap-south-1",
-        "ap-northeast-3", "ap-southeast-1", "ap-southeast-2", "ap-northeast-1",
-        "ca-central-1", "eu-central-1", "eu-west-1", "eu-west-2", "eu-west-3",
-        "eu-north-1", "me-central-1", "sa-east-1", "af-south-1", "ap-southeast-3",
-        "ap-southeast-4", "ca-west-1", "eu-south-1", "eu-south-2", "eu-central-2",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2",
+        "ap-south-1",
+        "ap-northeast-3",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ap-northeast-1",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "eu-north-1",
+        "me-central-1",
+        "sa-east-1",
+        "af-south-1",
+        "ap-southeast-3",
+        "ap-southeast-4",
+        "ca-west-1",
+        "eu-south-1",
+        "eu-south-2",
+        "eu-central-2",
         "me-south-1",
-         "il-central-1", "ap-south-2"
+        "il-central-1",
+        "ap-south-2"
     ];
 
     $totalRegions = count($regions);
@@ -148,12 +169,12 @@ if (isset($_GET['stream'])) {
                             'secret' => $aws_secret,
                         ],
                     ]);
-    
+
                     // Attempt region-specific API call
                     $regionEc2Client->describeInstanceTypeOfferings([
                         'LocationType' => 'region'
                     ]);
-                    
+
                     $enabled = true;
                     sendSSE("STATUS", "✅ Region $region enabled verification passed");
                 } catch (AwsException $e) {
@@ -167,7 +188,7 @@ if (isset($_GET['stream'])) {
                         sleep(30);
                     }
                 }
-    
+
                 // Check stop flag again
                 if (file_exists($stopFile)) {
                     sendSSE("STATUS", "Process stopped by user.");
@@ -237,6 +258,14 @@ if (isset($_GET['stream'])) {
                 sleep(2);
             } elseif ($result['status'] === 'skip') {
                 sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|⏭️ Patch Skipped: " . $result['message']);
+
+                // Detect spend limit and break region
+                if (strpos($result['message'], 'Monthly spend limit reached') !== false) {
+                    sendSSE("STATUS", "[$region] Spend limit hit. Skipping region...");
+                    sleep(3);
+                    $verifDestError = true;
+                    break;
+                }
             } elseif ($result['status'] === 'error') {
                 sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|❌ Patch Failed: " . $result['message']);
                 if (strpos($result['message'], "VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT") !== false) {
@@ -419,7 +448,7 @@ if (isset($_GET['stream'])) {
         <div class="row">
             <div class="col-md-4">
                 <div class="container">
-                    <h1>Region Enable Box</h1>
+                    <h1>Region Enable Boxs</h1>
                     <button id="enableRegionsButton" class="btn btn-primary mb-3">
                         Enable All Opt‑In Regions
                     </button>
@@ -503,24 +532,20 @@ if (isset($_GET['stream'])) {
                                 <label for="lang_select">Select Language:</label>
                                 <select id="lang_select" name="lang_select">
                                     <!-- Spanish Latin America is now the first/default option -->
-                                    <option value="Spanish Latin America" selected>Spanish Latin America</option>
-                                    <option value="United States">United States</option>
-                                    <option value="Japanese">Japanese</option>
-                                    <option value="German">German</option>
+                                    <option value="United States" selected>Default-It</option>
+                                    <option value="Spanish Latin America" >Spanish Latin America</option>
                                 </select>
                             </div>
                         </div>
                         <!-- AWS Credentials (read-only) -->
-                        <label for="awsKey">AWS Key:</label>
-                        <input type="text" id="awsKey" name="awsKey" value="<?php echo $aws_key; ?>" disabled>
-                        <label for="awsSecret">AWS Secret:</label>
-                        <input type="text" id="awsSecret" name="awsSecret" value="<?php echo $aws_secret; ?>" disabled>
+                        <label for="awsCreds">AWS Credentials (Key | Secret):</label>
+                        <input type="text" id="awsCreds" name="awsCreds" value="<?php echo $aws_key . ' | ' . $aws_secret; ?>" disabled>
                         <button type="button" id="start-bulk-regional-otp">Start Bulk Patch Process for Selected Set</button>
                     </form>
 
                     <!-- Display area for allowed numbers -->
                     <label for="numbers">Allowed Phone Numbers (from database):</label>
-                    <textarea id="numbers" name="numbers" rows="10" readonly></textarea>
+                    <textarea id="numbers" name="numbers" rows="5" readonly></textarea>
                     <!-- Status messages -->
                     <div id="process-status" class="message"></div>
                     <!-- Live Counters -->

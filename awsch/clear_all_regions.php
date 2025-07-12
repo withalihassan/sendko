@@ -236,7 +236,7 @@ $("#startAll").on("click", function() {
             button.prop("disabled", true);
             processRegionsForChild(child_id, parent_id);
         }, delay);
-        delay += regions.length * 2100; // delay for all regions (2.1 sec per region)
+        delay +=  1200; // delay for all regions (2.1 sec per region)
     });
 });
 </script>

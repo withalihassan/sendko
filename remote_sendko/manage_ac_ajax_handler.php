@@ -16,7 +16,8 @@ require_once __DIR__ . '/aws/aws-autoloader.php';
 use Aws\Sns\SnsClient;
 use Aws\Exception\AwsException;
 
-function initSNS($awsKey, $awsSecret, $awsRegion) {
+function initSNS($awsKey, $awsSecret, $awsRegion)
+{
     try {
         $sns = new SnsClient([
             'version'     => 'latest',
@@ -32,8 +33,12 @@ function initSNS($awsKey, $awsSecret, $awsRegion) {
     }
 }
 
+
 // The query returns ATM left and a formatted date (YYYY-MM-DD)
-function fetch_numbers($region, $user_id, $pdo, $set_id = null) {
+function fetch_numbers($region, $user_id, $pdo, $set_id = null)
+{
+    require '../sendko_db.php';
+    $sendkkoPdo = openSendkkoConnection();
     if (empty($region)) {
         return ['error' => 'Region is required.'];
     }
@@ -46,14 +51,16 @@ function fetch_numbers($region, $user_id, $pdo, $set_id = null) {
         $params[] = $set_id;
     }
     $query .= " ORDER BY RAND() LIMIT 50";
-    
-    $stmt = $pdo->prepare($query);
+
+    $stmt = $sendkkoPdo->prepare($query);
     $stmt->execute($params);
     $numbers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     return ['success' => true, 'region' => $region, 'data' => $numbers];
-}
 
-function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $user_id, $pdo, $sns, $language) {
+    closeSendkkoConnection($sendkkoPdo);
+}
+function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $user_id, $pdo, $sns, $language)
+{
     if (!$id || empty($phone)) {
         return ['status' => 'error', 'message' => 'Invalid phone number or ID.', 'region' => $region];
     }
@@ -67,13 +74,11 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $user_id, $p
     if ($current_atm <= 0) {
         return ['status' => 'error', 'message' => 'No remaining OTP attempts for this number.', 'region' => $region];
     }
-    
+
     // Map the selected language to an AWS language code.
     $languageCodes = array(
-       'Spanish Latin America' => 'es-419',
-       'United States' => 'en-US',
-       'Japanese'      => 'ja-JP',
-       'German'        => 'de-DE'
+        'Spanish Latin America' => 'es-419',
+        'United States' => 'it-IT'
     );
     $awsLang = isset($languageCodes[$language]) ? $languageCodes[$language] : 'es-419';
 
@@ -117,13 +122,13 @@ if (empty($internal_call)) {
     }
     $action  = isset($_POST['action']) ? $_POST['action'] : '';
     $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
-    
+
     $sns = initSNS($awsKey, $awsSecret, $awsRegion);
     if (is_array($sns) && isset($sns['error'])) {
         echo json_encode(['status' => 'error', 'message' => $sns['error']]);
         exit;
     }
-    
+
     if ($action === 'fetch_numbers') {
         $region = isset($_POST['region']) ? trim($_POST['region']) : '';
         $set_id = isset($_POST['set_id']) ? trim($_POST['set_id']) : '';
@@ -148,4 +153,3 @@ if (empty($internal_call)) {
         exit;
     }
 }
-?>

@@ -204,24 +204,36 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
       }
       ?>
     </div>
-
     <!-- Manual form to add a child account -->
     <div class="card mb-4">
       <div class="card-header">Add Mini Account</div>
       <div class="card-body">
         <form id="addChildAccountForm">
-          <div class="mb-3">
-            <label for="email" class="form-label">Mini Account Email</label>
-            <input type="email" class="form-control" id="email" required>
-          </div>
-          <div class="mb-3">
-            <label for="name" class="form-label">Mini Account Name</label>
-            <input type="text" class="form-control" id="name" required>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label for="email" class="form-label">Mini Account Email</label>
+              <input type="email" class="form-control" id="email" required>
+            </div>
+            <div class="col-md-6">
+              <label for="name" class="form-label">Mini Account Name</label>
+              <input type="text" class="form-control" id="name" required>
+            </div>
           </div>
           <button type="submit" class="btn btn-primary" id="manualSubmitBtn">Add Account</button>
         </form>
+
+        <!-- Quota Checker Row -->
+        <div class="row mt-4 align-items-center">
+          <div class="col">
+            <button id="checkQuotaBtn" class="btn btn-outline-primary float-end">Check Quota (Virginia)</button>
+          </div>
+          <div class="col-auto">
+            <span id="quotaResult" class="fw-bold text-success"></span>
+          </div>
+        </div>
       </div>
     </div>
+
 
     <!-- Action buttons -->
     <div class="card mt-4">
@@ -377,7 +389,47 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
   <!-- Include external JS files -->
   <script src="child/scripts.js"></script>
   <script src="child/existac.js"></script>
+  <?php
+  // Fetch parent AWS creds so we can pass them to JS
+  $stmt = $pdo->prepare("SELECT aws_key, aws_secret FROM accounts WHERE account_id = ? Limit 1");
+  $stmt->execute([$accountId]);
+  $parentCreds = $stmt->fetch(PDO::FETCH_ASSOC);
+
+  // If you like, you can exit if not found—but assuming it always is...
+  $awsKey    = $parentCreds['aws_key'] ?? '';
+  $awsSecret = $parentCreds['aws_secret'] ?? '';
+  ?>
   <script>
+    // existing parentAccountId
+    var parentAccountId = "<?php echo $accountId; ?>";
+    // new:
+    var awsAccessKey = "<?php echo $awsKey; ?>";
+    var awsSecretKey = "<?php echo $awsSecret; ?>";
+    // Check Quota Button (Virginia only)
+    $('#checkQuotaBtn').click(function() {
+      $('#quotaResult').text('Checking...');
+      $.post('child_actions/check_quota.php', {
+          aws_access_key: awsAccessKey,
+          aws_secret_key: awsSecretKey,
+          region: 'us-east-1'
+        },
+        function(resp) {
+          try {
+            const r = JSON.parse(resp);
+            if (r.status === 'success') {
+              $('#quotaResult').html(`Quota: <strong>${r.quota}</strong>`);
+            } else {
+              $('#quotaResult').text('Error: ' + r.message);
+            }
+          } catch (e) {
+            $('#quotaResult').text('Unexpected response.');
+          }
+        }
+      );
+    });
+
+
+
     // Update account button handler.
     $(document).ready(function() {
       $("#updateButton").click(function() {

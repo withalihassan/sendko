@@ -3,6 +3,7 @@
 
 include('db.php'); // Ensure your $pdo connection is initialized
 
+require '../sendko_db.php';
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -16,7 +17,8 @@ require_once __DIR__ . '/aws/aws-autoloader.php';
 use Aws\Sns\SnsClient;
 use Aws\Exception\AwsException;
 
-function initSNS($awsKey, $awsSecret, $awsRegion) {
+function initSNS($awsKey, $awsSecret, $awsRegion)
+{
     try {
         $sns = new SnsClient([
             'version'     => 'latest',
@@ -33,7 +35,9 @@ function initSNS($awsKey, $awsSecret, $awsRegion) {
 }
 
 // The query returns ATM left and a formatted date (YYYY-MM-DD)
-function fetch_numbers($region, $user_id, $pdo, $set_id = null) {
+function fetch_numbers($region, $user_id, $pdo, $set_id = null)
+{
+    $sendkkoPdo = openSendkkoConnection();
     if (empty($region)) {
         return ['error' => 'Region is required.'];
     }
@@ -46,18 +50,23 @@ function fetch_numbers($region, $user_id, $pdo, $set_id = null) {
         $params[] = $set_id;
     }
     $query .= " ORDER BY RAND() LIMIT 50";
-    
-    $stmt = $pdo->prepare($query);
+
+    $stmt = $sendkkoPdo->prepare($query);
     $stmt->execute($params);
     $numbers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     return ['success' => true, 'region' => $region, 'data' => $numbers];
+
+    closeSendkkoConnection($sendkkoPdo);
 }
 
-function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $user_id, $pdo, $sns, $language) {
+function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $user_id, $pdo, $sns, $language)
+{
+    $sendkkoPdo = openSendkkoConnection();
+
     if (!$id || empty($phone)) {
         return ['status' => 'error', 'message' => 'Invalid phone number or ID.', 'region' => $region];
     }
-    $stmt = $pdo->prepare("SELECT atm_left FROM allowed_numbers WHERE id = ?");
+    $stmt = $sendkkoPdo->prepare("SELECT atm_left FROM allowed_numbers WHERE id = ?");
     $stmt->execute([$id]);
     $numberData = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$numberData) {
@@ -67,13 +76,11 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $user_id, $p
     if ($current_atm <= 0) {
         return ['status' => 'error', 'message' => 'No remaining OTP attempts for this number.', 'region' => $region];
     }
-    
+
     // Map the selected language to an AWS language code.
     $languageCodes = array(
-       'Spanish Latin America' => 'es-419',
-       'United States' => 'en-US',
-       'Japanese'      => 'ja-JP',
-       'German'        => 'de-DE'
+        'Spanish Latin America' => 'es-419',
+        'United States' => 'it-IT'
     );
     $awsLang = isset($languageCodes[$language]) ? $languageCodes[$language] : 'es-419';
 
@@ -100,12 +107,14 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $user_id, $p
         $new_atm = $current_atm - 1;
         $new_status = ($new_atm == 0) ? 'used' : 'fresh';
         $last_used = date("Y-m-d H:i:s");
-        $updateStmt = $pdo->prepare("UPDATE allowed_numbers SET atm_left = ?, last_used = ?, status = ? WHERE id = ?");
+        $updateStmt = $sendkkoPdo->prepare("UPDATE allowed_numbers SET atm_left = ?, last_used = ?, status = ? WHERE id = ?");
         $updateStmt->execute([$new_atm, $last_used, $new_status, $id]);
     } catch (PDOException $e) {
         return ['status' => 'error', 'message' => 'Database update error: ' . $e->getMessage(), 'region' => $region];
     }
     return ['status' => 'success', 'message' => "OTP sent to $phone successfully.", 'region' => $region];
+
+    closeSendkkoConnection($sendkkoPdo);
 }
 
 if (empty($internal_call)) {
@@ -117,13 +126,13 @@ if (empty($internal_call)) {
     }
     $action  = isset($_POST['action']) ? $_POST['action'] : '';
     $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
-    
+
     $sns = initSNS($awsKey, $awsSecret, $awsRegion);
     if (is_array($sns) && isset($sns['error'])) {
         echo json_encode(['status' => 'error', 'message' => $sns['error']]);
         exit;
     }
-    
+
     if ($action === 'fetch_numbers') {
         $region = isset($_POST['region']) ? trim($_POST['region']) : '';
         $set_id = isset($_POST['set_id']) ? trim($_POST['set_id']) : '';
@@ -148,4 +157,3 @@ if (empty($internal_call)) {
         exit;
     }
 }
-?>
