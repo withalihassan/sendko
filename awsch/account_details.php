@@ -192,6 +192,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
       <div id="result" class="text-success fw-bold"></div>
       <button id="quarantineButton" class="btn btn-warning">Quarantine For 7 Days</button>
       <div id="quarantineresult" class="text-warning fw-bold"></div>
+      <a href="./parent_manager.php?parent_id=<?php echo $accountId;?>" target="_blank"><button class="btn btn-outline-primary float-end">open Manager</button></a>
     </div>
 
     <!-- Display base child account email or a message if none available -->
