@@ -39,10 +39,15 @@ if (isset($_GET['parent_id'])) {
                 $child_ac_Age =  "<span>error2</span>";
             }
             //Age calculation ended
-
+            //is in org checking
+            if($account['is_in_org']=="No"){
+                $color_mark="style='background-color: #ffcccc;'";
+            }else{
+                $color_mark="";
+            }
             // Construct table row with escaped output and URL-encoded query parameters
             echo "<tr>
-                    <td>" . ($index + 1) . "</td>
+                    <td $color_mark>" . ($index + 1) . "</td>
                     <td>" . htmlspecialchars($account['name']) . "</td>
                     <td>" . htmlspecialchars($account['email']) . "</td>
                     <td>$statusBadge</td>

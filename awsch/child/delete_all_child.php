@@ -6,7 +6,7 @@ require '../../db.php';
 $accountId = $_GET['parent_id'];
 
 // Prepare and execute the DELETE query based on parent_account_id
-$query = "DELETE FROM child_accounts WHERE parent_id = '$accountId'";
+$query = "DELETE FROM child_accounts WHERE parent_id = '$accountId' AND is_in_org='No'";
 
 if ($pdo->query($query) === TRUE) {
     echo "
