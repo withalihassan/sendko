@@ -40,10 +40,34 @@ $account_id = intval($_GET['id']);
 <body>
     <div class="container-fluid " style="padding: 0% 3% 3% 3%;">
         <!-- Main heading now includes the account ID -->
-        <h1 class="mt-5">AWS EC2 Instance Manager - Account <?php echo $account_id; ?></h1>
+        <h1 class="mt-5">Tencent Server Launch</h1>
         <!-- Alert messages will appear here -->
         <div id="message"></div>
+        <form id="launchForTencent" method="post" class="form-inline">
+            <input type="hidden" name="account_id" value="<?php echo $account_id; ?>">
+            <div class="form-group mb-2 mr-3">
+                <label for="region" class="mr-2">Select Region:</label>
+                <select name="region" id="region" class="form-control">
+                    <option value="us-east-2">Ohio (us-east-2)</option>
+                    <option value="us-west-1">California (us-west-1)</option>
+                    <option value="ap-south-1">Mumbai (ap-south-1)</option>
+                    <option value="us-west-2" disabled>Oregon (us-west-2)</option>
+                    <!-- Additional regions can be added here -->
+                </select>
+            </div>
+            <div class="form-group mb-2 mr-3">
+                <label for="instance_type" class="mr-2">Select Instance Type:</label>
+                <select name="instance_type" id="instance_type" class="form-control">
+                    <option value="c5.xlarge">c5.xlarge</option>
+                    <option value="t2.small">t2.small</option>
+                    <option value="t2.medium">t2.medium</option>
+                    <!-- Additional instance types can be added here -->
+                </select>
+            </div>
+            <button type="submit" class="btn btn-success mb-2">Launch  tencent Instance</button>
+        </form>
 
+        <h1 class="mt-5">AWS EC2 Instance Manager - Account <?php echo $account_id; ?></h1>
         <!-- Launch Instance Form (inline) -->
         <form id="launchForm" method="post" class="form-inline">
             <input type="hidden" name="account_id" value="<?php echo $account_id; ?>">
@@ -138,6 +162,30 @@ $account_id = intval($_GET['id']);
                         if (response.success) {
                             showMessage(response.message, 'success');
                             $('#launchForm')[0].reset();
+                            loadInstances();
+                        } else {
+                            showMessage(response.message, 'danger');
+                        }
+                    },
+                    error: function(xhr) {
+                        showMessage('Error launching instance. The process may be taking longer than expected.', 'danger');
+                    }
+                });
+            });
+
+            // Handle launch form submission via AJAX
+            $('#launchForTencent').submit(function(e) {
+                e.preventDefault();
+                $.ajax({
+                    url: 'launch_tencent_instance.php',
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    dataType: 'json',
+                    timeout: 180000, // Set timeout to 180 seconds (3 minutes)
+                    success: function(response) {
+                        if (response.success) {
+                            showMessage(response.message, 'success');
+                            $('#launchForTencent')[0].reset();
                             loadInstances();
                         } else {
                             showMessage(response.message, 'danger');

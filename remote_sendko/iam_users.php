@@ -95,7 +95,7 @@ if (isset($_POST['submit'])) {
                 </thead>
                 <tbody>
                     <?php
-                    $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE by_user='$session_id' ORDER BY created_at DESC");
+                    $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE by_user='$session_id' AND added_by='girls' ORDER BY created_at DESC");
                     while ($row_iam_users = $stmt_iam->fetch(PDO::FETCH_ASSOC)) {
                         // Update by_user for this iam_users record
                         // $iam_user_id = $row_iam_users['id'];
