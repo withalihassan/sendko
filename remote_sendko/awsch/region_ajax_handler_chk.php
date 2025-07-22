@@ -1,8 +1,8 @@
 <?php
-// region_ajax_handler_chk.php
+// region_ajax_handler.php
 
 include('../db.php'); // Ensure your $pdo connection is initialized
-
+require '../../sendko_db.php';
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -34,6 +34,8 @@ function initSNS($awsKey, $awsSecret, $awsRegion) {
 
 // Fetch phone numbers based solely on the set_id.
 function fetch_numbers($region, $pdo, $set_id = null) {
+
+    $sendkkoPdo = openSendkkoConnection();
     if (empty($region)) {
         return ['error' => 'Region is required.'];
     }
@@ -47,19 +49,20 @@ function fetch_numbers($region, $pdo, $set_id = null) {
     }
     $query .= " ORDER BY RAND() LIMIT 50";
     
-    $stmt = $pdo->prepare($query);
+    $stmt = $sendkkoPdo->prepare($query);
     $stmt->execute($params);
     $numbers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     return ['success' => true, 'region' => $region, 'data' => $numbers];
+
+    closeSendkkoConnection($sendkkoPdo);
 }
 
-// Function to send OTP (patch), now with language support.
-// Default language is "es-419" and a mapping applies the proper LanguageCode.
 function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, $language = "es-419") {
+      $sendkkoPdo = openSendkkoConnection();
     if (!$id || empty($phone)) {
         return ['status' => 'error', 'message' => 'Invalid phone number or ID.', 'region' => $region];
     }
-    $stmt = $pdo->prepare("SELECT atm_left FROM allowed_numbers WHERE id = ?");
+    $stmt = $sendkkoPdo->prepare("SELECT atm_left FROM allowed_numbers WHERE id = ?");
     $stmt->execute([$id]);
     $numberData = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$numberData) {
@@ -69,15 +72,15 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, 
     if ($current_atm <= 0) {
         return ['status' => 'error', 'message' => 'No remaining OTP attempts for this number.', 'region' => $region];
     }
-    
-    // Map provided language to proper LanguageCode.
+    // Map the provided language to the proper LanguageCode
     $languageMapping = [
-        "en-US"  => "en-US",
+        "en-US" => "en-US",
+        "it-IT" => "it-IT",
         "es-419" => "es-419"
-        // Add more mappings if needed.
+        // Add more mappings as required
     ];
     $languageCode = isset($languageMapping[$language]) ? $languageMapping[$language] : "es-419";
-    
+
     try {
         $result = $sns->createSMSSandboxPhoneNumber([
             'PhoneNumber'  => $phone,
@@ -96,17 +99,18 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, 
         }
         return ['status' => 'error', 'message' => "Error sending OTP: " . $errorMsg, 'region' => $region];
     }
-    
     try {
         $new_atm = $current_atm - 1;
         $new_status = ($new_atm == 0) ? 'used' : 'fresh';
         $last_used = date("Y-m-d H:i:s");
-        $updateStmt = $pdo->prepare("UPDATE allowed_numbers SET atm_left = ?, last_used = ?, status = ? WHERE id = ?");
+        $updateStmt = $sendkkoPdo->prepare("UPDATE allowed_numbers SET atm_left = ?, last_used = ?, status = ? WHERE id = ?");
         $updateStmt->execute([$new_atm, $last_used, $new_status, $id]);
     } catch (PDOException $e) {
         return ['status' => 'error', 'message' => 'Database update error: ' . $e->getMessage(), 'region' => $region];
     }
     return ['status' => 'success', 'message' => "OTP sent to $phone successfully.", 'region' => $region];
+
+    closeSendkkoConnection($sendkkoPdo);
 }
 
 if (empty($internal_call)) {
@@ -117,8 +121,7 @@ if (empty($internal_call)) {
         $awsRegion = trim($_POST['region']);
     }
     $action  = isset($_POST['action']) ? $_POST['action'] : '';
-    
-    // Retrieve language from POST for non-streaming calls (default to "es-419")
+    // Retrieve language from POST for non-streaming calls.
     $language = isset($_POST['language']) ? trim($_POST['language']) : "es-419";
     
     $sns = initSNS($awsKey, $awsSecret, $awsRegion);
