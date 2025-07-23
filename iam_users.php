@@ -77,7 +77,7 @@ if (isset($_POST['submit'])) {
     <div class="container-fluid" style="padding: 1% 4% 4% 4%;">
         <!-- Table Section 1: Accounts List -->
         <div class="table-section mb-5">
-            <h2>IAM Accounts List</h2>
+            <h2>IAM Accounts Lists</h2>
             <!-- Div for check status messages -->
             <div class="status-message-iam mb-2"></div>
             <table id="accountsTable3" class="display table table-bordered">
@@ -87,6 +87,7 @@ if (isset($_POST['submit'])) {
                         <th>Child ID</th>
                         <th>Key</th>
                         <th>Secret Key</th>
+                        <th>Parent Exp..</th>
                         <th>Added Date</th>
                         <th>Status</th>
                         <th>Clean</th>
@@ -95,17 +96,27 @@ if (isset($_POST['submit'])) {
                 </thead>
                 <tbody>
                     <?php
-                    $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE by_user='$session_id' ORDER BY created_at DESC");
+                    $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE by_user='$session_id' AND added_by='girlsNew' ORDER BY created_at DESC");
                     while ($row_iam_users = $stmt_iam->fetch(PDO::FETCH_ASSOC)) {
                         // Update by_user for this iam_users record
                         // $iam_user_id = $row_iam_users['id'];
                         // $pdo->query("UPDATE iam_users SET by_user = '$session_id' WHERE id = '$iam_user_id'");
-                        $parent_id = $pdo->query("SELECT parent_id FROM child_accounts WHERE account_id = '{$row_iam_users['child_account_id']}' LIMIT 1")->fetchColumn();
+                        $row = $pdo->query("SELECT parent_id, worth_type FROM child_accounts WHERE account_id = '{$row_iam_users['child_account_id']}' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+                        $parent_id  = $row['parent_id'] ?? null;
+                        $worth_type = $row['worth_type'] ?? null;
+                        if($worth_type ==  'half'){
+                            $parent_exp = "<span class='badge badge-success'>Full</span>";
+                        }else if ($worth_type ==  'full'){
+                            $parent_exp = "<span class='badge badge-warning'>Half</span>";
+                        }else{
+                            $parent_exp = "<span class='badge badge-primary'>Not Sure 🤔</span>";
+                        }
                         echo "<tr>";
-                        echo "<td>" . $row_iam_users['id'] . "</td>";
+                        echo "<td>" . $row_iam_users['id']. "</td>";
                         echo "<td>" . htmlspecialchars($row_iam_users['child_account_id']) . "</td>";
                         echo "<td>" . htmlspecialchars($row_iam_users['access_key_id']) . "</td>";
                         echo "<td>" . htmlspecialchars($row_iam_users['secret_access_key']) . "</td>";
+                        echo "<td>" . $parent_exp  . "</td>";
                         echo "<td>" . (new DateTime($row_iam_users['created_at']))->format('d M g:i a') . "</td>";
 
                         if ($row_iam_users['status'] == 'Delivered') {
@@ -138,8 +149,8 @@ if (isset($_POST['submit'])) {
                                             <a href='./iam_clear.php?ac_id={$row_iam_users['id']}' target='_blank'>
                                             <button class='btn btn-danger btn-sm mr-1'>Clear</button>
                                             </a>
-                                            <a href='./awsch/child_actions.php?ac_id=" . urlencode($row_iam_users['child_account_id']) .
-                            "&parent_id=" . urlencode($parent_id) ."&user_id=" . urlencode($session_id) .
+                                            <a href='./awsch/child_actions.php?ac_id=" .$row_iam_users['child_account_id'].
+                            "&parent_id=" .$parent_id. "&user_id=" .$session_id.
                             "' target='_blank'>
                                             <button class='btn btn-success btn-sm mr-1'>Open</button>
                                             </a>
