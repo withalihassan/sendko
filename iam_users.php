@@ -1,6 +1,6 @@
 <?php
 // iam_users.php
-
+include "./header.php";
 // ——————————————————————————
 // 1) AJAX DELETE HANDLER
 // ——————————————————————————
