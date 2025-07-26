@@ -94,76 +94,92 @@ if (isset($_POST['submit'])) {
                         <th>Quick Actions</th>
                     </tr>
                 </thead>
+
                 <tbody>
                     <?php
-                    $stmt_iam = $pdo->query("SELECT * FROM iam_users WHERE by_user='$session_id' AND added_by='girls' ORDER BY created_at DESC");
-                    while ($row_iam_users = $stmt_iam->fetch(PDO::FETCH_ASSOC)) {
-                        // Update by_user for this iam_users record
-                        // $iam_user_id = $row_iam_users['id'];
-                        // $pdo->query("UPDATE iam_users SET by_user = '$session_id' WHERE id = '$iam_user_id'");
-                        $row = $pdo->query("SELECT parent_id, worth_type FROM child_accounts WHERE account_id = '{$row_iam_users['child_account_id']}' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
-                        $parent_id  = $row['parent_id'] ?? null;
-                        $worth_type = $row['worth_type'] ?? null;
-                        if($worth_type ==  'half'){
-                            $parent_exp = "<span class='badge badge-success'>Full</span>";
-                        }else if ($worth_type ==  'full'){
-                            $parent_exp = "<span class='badge badge-warning'>Half</span>";
-                        }else{
-                            $parent_exp = "<span class='badge badge-primary'>Not Sure 🤔</span>";
-                        }
-                        echo "<tr>";
-                        echo "<td>" . $row_iam_users['id']. "</td>";
-                        echo "<td>" . htmlspecialchars($row_iam_users['child_account_id']) . "</td>";
-                        echo "<td>" . htmlspecialchars($row_iam_users['access_key_id']) . "</td>";
-                        echo "<td>" . htmlspecialchars($row_iam_users['secret_access_key']) . "</td>";
-                        echo "<td>" . $parent_exp  . "</td>";
-                        echo "<td>" . (new DateTime($row_iam_users['created_at']))->format('d M g:i a') . "</td>";
+                    // Fetch all iam_users ordered by creation date Old condition boys
+                    $sql = "SELECT * 
+                            FROM iam_users 
+                            WHERE by_user = :session_id 
+                            AND added_by = 'girls' 
+                            ORDER BY created_at DESC";
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute([':session_id' => $session_id]);
 
-                        if ($row_iam_users['status'] == 'Delivered') {
-                            echo "<td><span class='badge badge-success'>Delivered</span></td>";
-                        } else if ($row_iam_users['status'] == 'Canceled') {
-                            echo "<td><span class='badge badge-danger'>Canceled</span></td>";
-                        } else if ($row_iam_users['status'] == 'Pending') {
-                            echo "<td><span class='badge badge-warning'>Pending</span></td>";
+                    $seen = [];
+
+                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                        // Skip if we've already processed this child_account_id
+                        $childId = $row['child_account_id'] ?? '';
+                        if (in_array($childId, $seen, true)) {
+                            continue;
+                        }
+                        $seen[] = $childId;
+
+                        // Lookup parent info
+                        $infoStmt = $pdo->prepare(
+                            "SELECT parent_id, worth_type 
+                            FROM child_accounts 
+                            WHERE account_id = :child_id 
+                            LIMIT 1"
+                        );
+                        $infoStmt->execute([':child_id' => $childId]);
+                        $info = $infoStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+                        $parentId  = $info['parent_id'] ?? '';
+                        $worthType = $info['worth_type'] ?? '';
+
+                        // Determine badge for worth_type
+                        if ($worthType === 'half') {
+                            $parentExp = "<span class='badge badge-success'>Full</span>";
+                        } elseif ($worthType === 'full') {
+                            $parentExp = "<span class='badge badge-warning'>Half</span>";
                         } else {
-                            echo "<td><span class='badge badge-primary'>" . $row_iam_users['status'] . "</span></td>";
+                            $parentExp = "<span class='badge badge-primary'>Not Sure 🤔</span>";
                         }
-                        echo "<td>" . $row_iam_users['cleanup_status'] . "</td>";
 
+                        echo "<tr>";
+                        echo "<td>" . htmlspecialchars($row['id'] ?? '') . "</td>";
+                        echo "<td>" . htmlspecialchars($childId) . "</td>";
+                        echo "<td>" . htmlspecialchars($row['access_key_id'] ?? '') . "</td>";
+                        echo "<td>" . htmlspecialchars($row['secret_access_key'] ?? '') . "</td>";
+                        echo "<td>$parentExp</td>";
 
-                        // Quick Actions inline buttons
-                        echo "<td>
-                                        <div class='d-inline-flex align-items-center'>
-                                        <!-- inline status buttons -->
-                                            <div class='btn-group'>
-                                            <button type='button' class='btn btn-info btn-sm dropdown-toggle' data-toggle='dropdown'>
-                                                Status
-                                            </button>
-                                            <div class='dropdown-menu'>
-                                                <a href='#' class='dropdown-item update-status-btn-iam' data-id='{$row_iam_users['id']}' data-status='Delivered'>Delivered</a>
-                                                <a href='#' class='dropdown-item update-status-btn-iam' data-id='{$row_iam_users['id']}' data-status='Pending'>Pending</a>
-                                                <a href='#' class='dropdown-item update-status-btn-iam' data-id='{$row_iam_users['id']}' data-status='Canceled'>Canceled</a>
-                                                <a href='#' class='dropdown-item update-status-btn-iam' data-id='{$row_iam_users['id']}' data-status='Recheck'>Recheck</a>
-                                            </div>
-                                            </div>
-                                            <a href='./iam_clear.php?ac_id={$row_iam_users['id']}' target='_blank'>
-                                            <button class='btn btn-danger btn-sm mr-1'>Clear</button>
-                                            </a>
-                                            <a href='./awsch/child_actions.php?ac_id=" .$row_iam_users['child_account_id'].
-                            "&parent_id=" .$parent_id. "&user_id=" .$session_id.
-                            "' target='_blank'>
-                                            <button class='btn btn-success btn-sm mr-1'>Open</button>
-                                            </a>
+                        // Format created_at
+                        $created = $row['created_at'] ?? '';
+                        $date = $created ? (new DateTime($created))->format('d M g:i a') : '';
+                        echo "<td>" . htmlspecialchars($date) . "</td>";
 
-                                            
-                                        </div>
-                                        </td>";
+                        // Status badge
+                        $status = $row['status'] ?? '';
+                        $badgeClass = ['Delivered' => 'success', 'Canceled' => 'danger', 'Pending' => 'warning'][$status] ?? 'primary';
+                        echo "<td><span class='badge badge-" . $badgeClass . "'>" . htmlspecialchars($status) . "</span></td>";
 
+                        echo "<td>" . htmlspecialchars($row['cleanup_status'] ?? '') . "</td>";
+
+                        // Quick action buttons
+                        echo "<td>";
+                        echo "<div class='d-inline-flex align-items-center'>";
+                        echo "<div class='btn-group'>";
+                        echo "<button type='button' class='btn btn-info btn-sm dropdown-toggle' data-toggle='dropdown'>Status</button>";
+                        echo "<div class='dropdown-menu'>";
+                        foreach (['Delivered', 'Pending', 'Canceled', 'Recheck'] as $st) {
+                            echo "<a href='#' class='dropdown-item update-status-btn-iam' data-id='" . htmlspecialchars($row['id'] ?? '') . "' data-status='" . $st . "'>" . $st . "</a>";
+                        }
+                        echo "</div></div>";
+
+                        // Clear and Open buttons
+                        echo "<a href='./iam_clear.php?ac_id=" . urlencode($row['id'] ?? '') . "' target='_blank'>";
+                        echo "<button class='btn btn-danger btn-sm mr-1'>Clear</button></a>";
+
+                        echo "<a href='./awsch/child_actions.php?ac_id=" . urlencode($childId) . "&parent_id=" . urlencode($parentId) . "&user_id=" . urlencode($session_id) . "' target='_blank'>";
+                        echo "<button class='btn btn-success btn-sm mr-1'>Open</button></a>";
+
+                        echo "</div></td>";
                         echo "</tr>";
                     }
-
-                    // <a href='bulk_regional_send.php?ac_id=" . $row['id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-danger btn-sm'>Start sending</button></a>
                     ?>
+
                 </tbody>
             </table>
         </div>

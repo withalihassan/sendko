@@ -229,78 +229,75 @@ try {
         </div>
         <hr>
         <hr>
-        <?php
+       <?php
         // 1) Fetch latest IAM admin user for this child account
-        $stmt = $pdo->prepare("
-  SELECT `login_url`, `username`, `password`, `access_key_id`, `secret_access_key`
-  FROM `iam_users`
-  WHERE `child_account_id` = ?
-  ORDER BY `created_at` DESC
-  LIMIT 1
-");
+        $stmt = $pdo->prepare(
+            "SELECT `login_url`, `username`, `password`, `access_key_id`, `secret_access_key`, `created_at`
+     FROM `iam_users`
+     WHERE `child_account_id` = ?
+     ORDER BY `created_at` DESC
+     LIMIT 1"
+        );
         $stmt->execute([$child_id]);
         $iamRow = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($iamRow):
+            // Format creation date for badge
+            $createdDate = date('d M Y', strtotime($iamRow['created_at']));
         ?>
-            <!-- 2) Render the five detail‑boxes -->
+            <!-- 2) Render the detail-boxes and date badge on Login URL -->
             <div class="row mb-4">
                 <?php
                 $fields = [
-                    'Login URL'         => ['id' => 'loginUrl',          'val' => $iamRow['login_url']],
-                    'Username'          => ['id' => 'userName',          'val' => $iamRow['username']],
-                    'Password'          => ['id' => 'passWord',          'val' => $iamRow['password']],
-                    'Access Key ID'     => ['id' => 'accessKeyId',       'val' => $iamRow['access_key_id']],
-                    'Secret Access Key' => ['id' => 'secretAccessKey',   'val' => $iamRow['secret_access_key']],
+                    'Login URL'           => ['id' => 'loginUrl',        'val' => $iamRow['login_url']],
+                    'Username'            => ['id' => 'userName',        'val' => $iamRow['username']],
+                    'Password'            => ['id' => 'passWord',        'val' => $iamRow['password']],
+                    'Access Key ID'       => ['id' => 'accessKeyId',     'val' => $iamRow['access_key_id']],
+                    'Secret Access Key'   => ['id' => 'secretAccessKey', 'val' => $iamRow['secret_access_key']],
                 ];
 
                 foreach ($fields as $label => $info):
                 ?>
                     <div class="col-md-4 mb-3">
-                        <label class="form-label"><?= $label ?></label>
+                        <label class="form-label d-flex align-items-center">
+                            <?php echo $label; ?>
+                            <?php if ($label === 'Login URL'): ?>
+                                <span class="badge bg-success ms-2"><?php echo $createdDate; ?></span>
+                            <?php endif; ?>
+                        </label>
                         <div class="input-group">
                             <input type="text"
-                                id="<?= $info['id'] ?>"
+                                id="<?php echo $info['id']; ?>"
                                 class="form-control"
                                 readonly
-                                value="<?= htmlspecialchars($info['val']) ?>">
-                            <button class="btn btn-outline-secondary"
-                                type="button"
-                                onclick="copyField('<?= $info['id'] ?>')">
-                                📋
-                            </button>
+                                value="<?php echo htmlspecialchars($info['val'], ENT_QUOTES); ?>">
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyField('<?php echo $info['id']; ?>')">📋</button>
                         </div>
                     </div>
                 <?php endforeach; ?>
 
                 <?php
-                // New combined field
-                $combinedId = 'combinedKeys';
-                $combinedVal = htmlspecialchars($iamRow['access_key_id'] . ' | ' . $iamRow['secret_access_key']);
+                // Combined Access Key & Secret field
+                $combinedId  = 'combinedKeys';
+                $combinedVal = $iamRow['access_key_id'] . ' | ' . $iamRow['secret_access_key'];
                 ?>
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Access Key & Secret (one‑shot)</label>
+                    <label class="form-label">Access Key & Secret (one-shot)</label>
                     <div class="input-group">
                         <input type="text"
-                            id="<?= $combinedId ?>"
+                            id="<?php echo $combinedId; ?>"
                             class="form-control"
                             readonly
-                            value="<?= $combinedVal ?>">
-                        <button class="btn btn-outline-secondary"
-                            type="button"
-                            onclick="copyField('<?= $combinedId ?>')">
-                            📋
-                        </button>
+                            value="<?php echo htmlspecialchars($combinedVal, ENT_QUOTES); ?>">
+                        <button class="btn btn-outline-secondary" type="button" onclick="copyField('<?php echo $combinedId; ?>')">📋</button>
                     </div>
                 </div>
+
                 <div class="col-md-4 mb-3">
                     <button id="deliverBtn" class="btn btn-primary">Deliver</button>
                 </div>
-
             </div>
-        <?php
-        endif;
-        ?>
+        <?php endif; ?>
         <div class="col-md-4 mb-3">
             <label class="form-label">Details Entry Link</label>
             <div class="input-group">

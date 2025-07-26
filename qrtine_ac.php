@@ -1,7 +1,7 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// ini_set('display_errors', 1);
+// ini_set('display_startup_errors', 1);
+// error_reporting(E_ALL);
 // session.php, header.php, db.php and aws-autoloader.php should be in your include paths
 include "./session.php";
 include "./header.php";
@@ -77,7 +77,7 @@ if (isset($_POST['submit'])) {
     <div class="container-fluid" style="padding: 1% 4% 4% 4%;">
         <!-- Table Section 1: Accounts List -->
         <div class="table-section mb-5">
-            <h2>Special Accounts List</h2>
+            <h2>Qrtine Accounts List</h2>
             <!-- Div for check status messages -->
             <div class="status-message mb-2"></div>
             <table id="accountsTable1" class="display table table-bordered">
@@ -99,7 +99,7 @@ if (isset($_POST['submit'])) {
                 <tbody>
                     <?php
                     // Table 1 query: Accounts List
-                    $stmt = $pdo->query("SELECT * FROM accounts WHERE ( status='active' AND ac_worth='special' AND  by_user='$session_id') ORDER BY 1 DESC");
+                    $stmt = $pdo->query("SELECT * FROM accounts WHERE status='active' AND ac_worth='quarantined' AND  by_user='$session_id' ORDER BY 1 DESC");
                     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                         echo "<tr>";
                         echo "<td>" . $row['id'] . "</td>";
