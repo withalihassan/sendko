@@ -5,10 +5,10 @@ error_reporting(E_ALL);
 
 // Get child_id and parent_id safely
 $child_id  = $_GET['ac_id']      ?? '';
-$parent_id = $_GET['parent_id'] ?? '';
+echo $parent_id = $_GET['parent_id'] ?? '';
 $session_user_id = $_GET['user_id'] ?? '';
 
-if (empty($child_id) || empty($parent_id)) {
+if (empty($child_id) && empty($parent_id)) {
     die("Invalid request. Missing parameters.");
 }
 
@@ -29,13 +29,27 @@ try {
     $stmt->execute([$child_id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$row) {
-        die("<div class='alert alert-danger'>No account found.</div>");
-    }
+    // if (!$row) {
+    //     die("<div class='alert alert-danger'>No account found.</div>");
+    // }
 
     $aws_access_key = htmlspecialchars($row['aws_access_key']);
     $aws_secret_key = htmlspecialchars($row['aws_secret_key']);
+    //Use IAM Keys wheen man keeys not work
+    if($aws_access_key == NULL AND  $aws_secret_key == NULL){
+    $stmt_new = $pdo->prepare(
+        "SELECT `login_url`, `username`, `password`, `access_key_id`, `secret_access_key`, `created_at`
+     FROM `iam_users`
+     WHERE `child_account_id` = ?
+     ORDER BY `created_at` DESC
+     LIMIT 1"
+    );
+    $stmt_new->execute([$child_id]);
+    $iamRow = $stmt_new->fetch(PDO::FETCH_ASSOC);
 
+    $aws_access_key = htmlspecialchars($iamRow['access_key_id']);
+    $aws_secret_key = htmlspecialchars($iamRow['secret_access_key']);
+    }
     // Decide response badge
     if ($aws_access_key !== null) {
         $response = "<div class='alert alert-success'>Account setup is perfect and ready to use.</div>";
