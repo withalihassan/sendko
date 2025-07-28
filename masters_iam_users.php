@@ -76,19 +76,13 @@ error_reporting(E_ALL);
 
 // Fetch non-suspended users
 $stmt = $pdo->prepare(
-    "SELECT *
-     FROM iam_users
-     WHERE by_user  = :uid
-       AND added_by = 'boys'
-       AND (
-         status IS NULL
-         OR status NOT IN ('Master','Suspended','Canceled')
-         OR status = 'Standalone'
-       )
+    "SELECT * FROM iam_users
+     WHERE by_user = :uid
+       AND added_by = 'girlsNew'
+       AND (status = 'master' OR status = 'Delivered')
+       AND status != 'Suspended'
      ORDER BY created_at DESC"
 );
-
-
 
 $stmt->execute([':uid' => $session_id]);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -104,7 +98,7 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </head>
 <body>
 <div class="container-fluid p-4">
-  <h2>IAM Accounts Manager <a href="masters_iam_users.php" target="_blank"><button class="btn bt-xs btn-primary">Open Master IAM Users</button></a></h2>
+  <h2>IAM Accounts Manager <a href="./iam_users.php"><button class="btn bt-xs btn-success">Open Fresh IAM Users</button></a></h2>
 
   <!-- Status Check Response -->
   <div id="check-response" class="mb-3"></div>
