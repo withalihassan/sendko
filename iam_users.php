@@ -74,15 +74,22 @@ ini_set('display_errors',1);
 ini_set('display_startup_errors',1);
 error_reporting(E_ALL);
 
-// Fetch non-suspended users
+// Fetch non-suspended users girlsNew
 $stmt = $pdo->prepare(
-    "SELECT * FROM iam_users
-      WHERE by_user = :uid
-        AND added_by = 'girlsNew'
-        AND status != 'Suspended'
-        AND status != 'master'
-      ORDER BY created_at DESC"
+    "SELECT *
+     FROM iam_users
+     WHERE by_user  = :uid
+       AND added_by = 'girlsNew'
+       AND (
+         status IS NULL
+         OR status NOT IN ('Master','Suspended','Canceled')
+         OR status = 'Standalone'
+       )
+     ORDER BY created_at DESC"
 );
+
+
+
 $stmt->execute([':uid' => $session_id]);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>

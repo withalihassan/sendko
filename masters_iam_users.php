@@ -18,23 +18,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     error_reporting(0);
 
     // DELETE SELECTED
-    if (isset($_POST['delete_selected']) && is_array($_POST['selected_ids'])) {
-        $ids = array_map('intval', $_POST['selected_ids']);
+    if (isset($_POST['delete_selected'], $_POST['selected_ids']) && is_array($_POST['selected_ids'])) {
+        $ids          = array_map('intval', $_POST['selected_ids']);
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $stmt = $pdo->prepare("DELETE FROM iam_users WHERE id IN ($placeholders)");
-        $success = $stmt->execute($ids);
-        echo json_encode(['success' => $success, 'msg' => $success ? 'Selected users deleted.' : 'Delete failed.']);
+        $stmt         = $pdo->prepare("DELETE FROM iam_users WHERE id IN ($placeholders)");
+        $success      = $stmt->execute($ids);
+        echo json_encode([
+            'success' => $success,
+            'msg'     => $success ? 'Selected users deleted.' : 'Delete failed.'
+        ]);
         exit;
     }
 
     // CHECK STATUS
     if (isset($_POST['check_status'], $_POST['id'])) {
-        $id = (int) $_POST['id'];
+        $id   = (int) $_POST['id'];
         $stmt = $pdo->prepare('SELECT access_key_id, secret_access_key FROM iam_users WHERE id = ?');
         $stmt->execute([$id]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$row) {
-            echo json_encode(['success'=>false,'msg'=>'User not found']);
+            echo json_encode(['success' => false, 'msg' => 'User not found']);
             exit;
         }
         $key    = $row['access_key_id'];
@@ -42,18 +45,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $region = 'us-east-1';
         // Validate STS
         try {
-            $sts = new StsClient(['version'=>'latest','region'=>$region,'credentials'=>['key'=>$key,'secret'=>$secret]]);
+            $sts      = new StsClient([
+                'version'     => 'latest',
+                'region'      => $region,
+                'credentials' => ['key' => $key, 'secret' => $secret]
+            ]);
             $identity = $sts->getCallerIdentity();
-            $acct = $identity['Account'];
+            $acct     = $identity['Account'];
         } catch (AwsException $e) {
             $status = 'Suspended';
-            $pdo->prepare('UPDATE iam_users SET status = ? WHERE id = ?')->execute([$status, $id]);
-            echo json_encode(['success'=>true,'status'=>$status,'msg'=>'Account suspended or invalid keys']);
+            $pdo->prepare('UPDATE iam_users SET status = ? WHERE id = ?')
+                ->execute([$status, $id]);
+            echo json_encode([
+                'success' => true,
+                'status'  => $status,
+                'msg'     => 'Account suspended or invalid keys'
+            ]);
             exit;
         }
         // Check org membership
         try {
-            $org = new OrganizationsClient(['version'=>'latest','region'=>$region,'credentials'=>['key'=>$key,'secret'=>$secret]]);
+            $org  = new OrganizationsClient([
+                'version'     => 'latest',
+                'region'      => $region,
+                'credentials' => ['key' => $key, 'secret' => $secret]
+            ]);
             $info = $org->describeOrganization();
             $master = $info['Organization']['MasterAccountId'] ?? null;
             $status = ($acct === $master) ? 'Master' : 'Attached';
@@ -61,8 +77,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $status = 'Standalone';
         }
         // Update DB
-        $pdo->prepare('UPDATE iam_users SET status = ? WHERE id = ?')->execute([$status, $id]);
-        echo json_encode(['success'=>true,'status'=>$status,'msg'=>'Status: '.$status]);
+        $pdo->prepare('UPDATE iam_users SET status = ? WHERE id = ?')
+            ->execute([$status, $id]);
+        echo json_encode(['success' => true, 'status' => $status, 'msg' => 'Status: ' . $status]);
         exit;
     }
 }
@@ -70,20 +87,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // ——————————————————————————
 // 2) PAGE LOGIC
 // ——————————————————————————
-ini_set('display_errors',1);
-ini_set('display_startup_errors',1);
+
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Fetch non-suspended users
-$stmt = $pdo->prepare(
-    "SELECT * FROM iam_users
-     WHERE by_user = :uid
-       AND added_by = 'girlsNew'
-       AND (status = 'master' OR status = 'Delivered')
-       AND status != 'Suspended'
-     ORDER BY created_at DESC"
-);
+// Fetch only the latest record per child_account_id
+$sql = <<<SQL
+SELECT u.*
+FROM iam_users AS u
+JOIN (
+    SELECT child_account_id, MAX(created_at) AS max_created
+    FROM iam_users
+    WHERE by_user   = :uid
+      AND added_by  = 'girlsNew'
+      AND status   IN ('Master','Delivered')
+      AND status   != 'Suspended'
+    GROUP BY child_account_id
+) AS latest
+  ON u.child_account_id = latest.child_account_id
+ AND u.created_at       = latest.max_created
+ORDER BY u.created_at DESC
+SQL;
 
+$stmt = $pdo->prepare($sql);
 $stmt->execute([':uid' => $session_id]);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -98,7 +125,12 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </head>
 <body>
 <div class="container-fluid p-4">
-  <h2>IAM Accounts Manager <a href="./iam_users.php"><button class="btn bt-xs btn-success">Open Fresh IAM Users</button></a></h2>
+  <h2>
+    IAM Accounts Manager
+    <a href="./iam_users.php">
+      <button class="btn btn-xs btn-success">Open Fresh IAM Users</button>
+    </a>
+  </h2>
 
   <!-- Status Check Response -->
   <div id="check-response" class="mb-3"></div>
@@ -121,29 +153,24 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
       </tr>
     </thead>
     <tbody>
+      <?php foreach ($rows as $row): ?>
       <?php
-      $seen = [];
-      foreach ($rows as $row) {
-          $id = (int) $row['id'];
-          $child = htmlspecialchars($row['child_account_id'], ENT_QUOTES);
-          if (in_array($child, $seen, true)) continue;
-          $seen[] = $child;
-
-          // Parent Exp
-          $infoStmt = $pdo->prepare('SELECT worth_type FROM child_accounts WHERE account_id = ?');
-          $infoStmt->execute([$child]);
-          $info = $infoStmt->fetch(PDO::FETCH_ASSOC);
-          $parentExp = '<span class="badge badge-primary">Unknown</span>';
-          if (!empty($info['worth_type'])) {
-              $parentExp = $info['worth_type'] === 'half'
-                  ? '<span class="badge badge-success">Full</span>'
-                  : '<span class="badge badge-warning">Half</span>';
-          }
-
-          $date = $row['created_at']
-              ? (new DateTime($row['created_at']))->format('d M g:i a')
-              : '';
-          $statusText = htmlspecialchars($row['status'] ?? '', ENT_QUOTES);
+        $id         = (int) $row['id'];
+        $child      = htmlspecialchars($row['child_account_id'], ENT_QUOTES);
+        // Parent Exp
+        $infoStmt   = $pdo->prepare('SELECT worth_type FROM child_accounts WHERE account_id = ?');
+        $infoStmt->execute([$child]);
+        $info       = $infoStmt->fetch(PDO::FETCH_ASSOC);
+        $parentExp  = '<span class="badge badge-primary">Unknown</span>';
+        if (!empty($info['worth_type'])) {
+            $parentExp = $info['worth_type'] === 'half'
+                ? '<span class="badge badge-success">Full</span>'
+                : '<span class="badge badge-warning">Half</span>';
+        }
+        $date       = $row['created_at']
+                    ? (new DateTime($row['created_at']))->format('d M g:i a')
+                    : '';
+        $statusText = htmlspecialchars($row['status'] ?? '', ENT_QUOTES);
       ?>
       <tr data-id="<?= $id ?>">
         <td><input type="checkbox" class="row-select" value="<?= $id ?>"></td>
@@ -161,15 +188,18 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <button class="btn btn-sm btn-secondary dropdown-toggle" data-toggle="dropdown">Update</button>
             <div class="dropdown-menu">
               <?php foreach (['Delivered','Pending','Canceled','Recheck'] as $s): ?>
-                <a class="dropdown-item upd-status" href="#" data-id="<?= $id ?>" data-status="<?= $s ?>"><?= $s ?></a>
+                <a class="dropdown-item upd-status" href="#" data-id="<?= $id ?>" data-status="<?= $s ?>">
+                  <?= $s ?>
+                </a>
               <?php endforeach; ?>
             </div>
           </div>
           <a href="iam_clear.php?ac_id=<?= $id ?>" class="btn btn-sm btn-danger" target="_blank">Clear</a>
-          <a href="awsch/child_actions.php?ac_id=<?= $child ?>&user_id=<?= $session_id ?>" class="btn btn-sm btn-success" target="_blank">Open</a>
+          <a href="awsch/child_actions.php?ac_id=<?= $child ?>&user_id=<?= $session_id ?>"
+             class="btn btn-sm btn-success" target="_blank">Open</a>
         </td>
       </tr>
-      <?php } ?>
+      <?php endforeach; ?>
     </tbody>
   </table>
 </div>
@@ -190,7 +220,10 @@ $(function(){
 
   // Delete Selected
   $('#delete-selected').click(function(){
-    var ids = tbl.rows().nodes().to$().find('.row-select:checked').map(function(){ return this.value; }).get();
+    var ids = tbl.rows().nodes().to$()
+                .find('.row-select:checked')
+                .map(function(){ return this.value; })
+                .get();
     if (!ids.length) return alert('Select rows');
     if (!confirm('Delete selected?')) return;
     $.post('', { delete_selected:1, selected_ids: ids }, function(res){
@@ -202,21 +235,33 @@ $(function(){
   $('#accountsTable').on('click', '.check-status', function(){
     var btn = $(this).prop('disabled', true).text('Checking...');
     var row = btn.closest('tr');
-    var id = row.data('id');
+    var id  = row.data('id');
     $.post('', { check_status:1, id: id }, function(res){
-      $('#check-response').removeClass().addClass(res.success ? 'alert alert-success' : 'alert alert-danger').text(res.msg);
+      $('#check-response')
+        .removeClass()
+        .addClass(res.success ? 'alert alert-success' : 'alert alert-danger')
+        .text(res.msg);
       if (res.success) {
-        row.find('.status-cell').text(res.status).removeClass().addClass('badge badge-info status-cell');
+        row.find('.status-cell')
+           .text(res.status)
+           .removeClass()
+           .addClass('badge badge-info status-cell');
       }
-    }, 'json').always(function(){ btn.prop('disabled', false).text('Check Status'); });
+    }, 'json').always(function(){
+      btn.prop('disabled', false).text('Check Status');
+    });
   });
 
   // Update Status via dropdown
   $('body').on('click', '.upd-status', function(e){
     e.preventDefault();
-    var id = $(this).data('id'), st = $(this).data('status');
+    var id = $(this).data('id'),
+        st = $(this).data('status');
     $.post('iam_users_status_ajax.php', { update_status:1, id: id, status: st }, function(res){
-      $('#check-response').removeClass().addClass(res.success ? 'alert alert-success' : 'alert alert-danger').text(res.msg);
+      $('#check-response')
+        .removeClass()
+        .addClass(res.success ? 'alert alert-success' : 'alert alert-danger')
+        .text(res.msg);
     }, 'json');
   });
 });
