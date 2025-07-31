@@ -5,7 +5,7 @@ error_reporting(E_ALL);
 
 // Get child_id and parent_id safely
 $child_id  = $_GET['ac_id']      ?? '';
-echo $parent_id = $_GET['parent_id'] ?? '';
+$parent_id = $_GET['parent_id'] ?? '';
 $session_user_id = $_GET['user_id'] ?? '';
 
 if (empty($child_id) && empty($parent_id)) {

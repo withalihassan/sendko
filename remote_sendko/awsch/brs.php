@@ -329,8 +329,11 @@ if (isset($_GET['stream'])) {
         <div class="container">
           <h1>Bulk Regional Patch Sending</h1>
           <?php
+          require '../../sendko_db.php';
+
+          $sendkkoPdo = openSendkkoConnection();
           // Fetch available sets from bulk_sets table (only fresh sets)
-          $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
+          $stmtSets = $sendkkoPdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
           $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
           ?>
           <form id="bulk-regional-otp-form">
@@ -342,14 +345,17 @@ if (isset($_GET['stream'])) {
                   <option value="">-- Select a Set --</option>
                   <?php foreach ($sets as $set): ?>
                     <option value="<?php echo $set['id']; ?>"><?php echo htmlspecialchars($set['set_name']); ?></option>
-                  <?php endforeach; ?>
+                  <?php
+                  endforeach;
+                  closeSendkkoConnection($sendkkoPdo);
+                  ?>
                 </select>
               </div>
               <div class="column">
                 <label for="language_select">Select Language:</label>
                 <select id="language_select" name="language_select">
                   <option value="es-419" selected>Spanish Latin America</option>
-                  <option value="en-US">English (US)</option>
+                  <option value="it-IT">Default (IT)</option>
                   <!-- Add additional languages as needed -->
                 </select>
               </div>
@@ -489,7 +495,7 @@ if (isset($_GET['stream'])) {
 
   <script>
     $(function() {
-      const acId = <?php echo $id; ?>;
+      const acId = "<?php echo htmlspecialchars($id, ENT_QUOTES); ?>";
       const userId = <?php echo $parent_id; ?>;
       const regions = [
         "me-central-1",

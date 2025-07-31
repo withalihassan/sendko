@@ -100,7 +100,7 @@ JOIN (
     SELECT child_account_id, MAX(created_at) AS max_created
     FROM iam_users
     WHERE by_user   = :uid
-      AND added_by  = 'girlsNew'
+      AND added_by  = 'girls'
       AND status   IN ('Master','Delivered')
       AND status   != 'Suspended'
     GROUP BY child_account_id

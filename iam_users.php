@@ -79,7 +79,7 @@ $stmt = $pdo->prepare(
     "SELECT *
      FROM iam_users
      WHERE by_user  = :uid
-       AND added_by = 'girlsNew'
+       AND added_by = 'girls'
        AND (
          status IS NULL
          OR status NOT IN ('Master','Suspended','Canceled')

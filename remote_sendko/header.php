@@ -72,7 +72,7 @@
       <li><a href="iam_users.php">IAM List</a></li>
       <li><a href="qrtine_ac.php" target="_blank">Qrtine AC</a></li>
       <li><a href="number_dir.php">Numbers Directory</a></li>
-      <li><a href="my_numbers.php">My Numbers</a></li>
+      <li><a href="./ready_iam.php" target="_blank" >READY-IAM</a></li>
       <li><a href="./update_numbers.php">Update Numbers</a></li>
       <!-- <li><a href="ac_summary.php">Ac Summary</a></li> -->
       <li><a class="logout-button" href="logout.php">Logout</a></li>

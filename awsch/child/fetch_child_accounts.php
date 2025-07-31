@@ -5,12 +5,12 @@ error_reporting(E_ALL);
 require '../../db.php'; // This file defines $pdo
 require '../../session.php'; // This file defines $pdo
 
-if (!isset($_SESSION['user_id'])) {
-    $session_id = 12;
+if (isset($_SESSION['user_id'])) {
+    // $session_id = 12;
+    // $session_id = $_SESSION['user_id'];
 }else {
-    $session_id = $_SESSION['user_id'];
 }
-
+// echo $session_id = $_SESSION['user_id'];
 if (isset($_GET['parent_id'])) {
     $parentId = $_GET['parent_id'];
     // $user_id = $_GET['user_id'];

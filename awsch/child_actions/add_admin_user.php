@@ -74,7 +74,7 @@ try {
     ]);
     $acct    = $sts->getCallerIdentity([])['Account'];
     $loginUrl = "https://{$acct}.signin.aws.amazon.com/console";
-    $added_by = "girlsNew";
+    $added_by = "girls";
 
     // 9) persist everything
     $stmt = $pdo->prepare("
