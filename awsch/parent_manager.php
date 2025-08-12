@@ -190,7 +190,7 @@ try {
                 </select>
             </div>
             <div class="col-md-2 d-grid">
-                <button class="btn btn-info mt-2" onclick="launchInSelectedRegion()" disabled>Launch in Selected Region</button>
+                <button class="btn btn-info mt-2" onclick="launchInSelectedRegion()" >Launch in Selected Region</button>
             </div>
             <div class="col-md-2 d-grid">
                 <button class="btn btn-success" onclick="launchInAllRegions()" disabled>Launch in All Regions</button>

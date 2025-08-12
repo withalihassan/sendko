@@ -1,8 +1,5 @@
 <?php
 // manage_account.php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 
 require_once __DIR__ . '/aws/aws-autoloader.php';
 
@@ -10,7 +7,6 @@ use Aws\Ec2\Ec2Client;
 use Aws\Exception\AwsException;
 
 include('db.php');
-// include('../sendko_db.php');
 
 if (!isset($_GET['ac_id']) || !isset($_GET['user_id'])) {
     echo "Account ID and User ID required.";
@@ -477,7 +473,7 @@ if (isset($_GET['stream'])) {
                         <button id="stopButton" style="background:#dc3545;">Stop Process</button>
                     </div>
                     <?php
-                    require '../sendko_db.php';
+                   require '../sendko_db.php';
 
                     $sendkkoPdo = openSendkkoConnection();
                     // Fetch available sets from bulk_sets.
@@ -493,7 +489,7 @@ if (isset($_GET['stream'])) {
                                     <?php foreach ($sets as $set): ?>
                                         <option value="<?php echo $set['id']; ?>"><?php echo htmlspecialchars($set['set_name']); ?></option>
                                     <?php
-                                    endforeach;
+                                      endforeach;
                                     closeSendkkoConnection($sendkkoPdo);
                                     ?>
                                 </select>
@@ -543,7 +539,7 @@ if (isset($_GET['stream'])) {
                                 <select id="lang_select" name="lang_select">
                                     <!-- Spanish Latin America is now the first/default option -->
                                     <option value="United States" selected>Default-It</option>
-                                    <option value="Spanish Latin America">Spanish Latin America</option>
+                                    <option value="Spanish Latin America" >Spanish Latin America</option>
                                 </select>
                             </div>
                         </div>
