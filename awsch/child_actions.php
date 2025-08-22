@@ -309,6 +309,7 @@ try {
 
                 <div class="col-md-4 mb-3">
                     <button id="deliverBtn" class="btn btn-primary">Deliver</button>
+                    <button id="addInCurrentUser" class="btn btn-success">Add in current user</button>
                 </div>
             </div>
         <?php endif; ?>
@@ -674,6 +675,51 @@ try {
                 'No matching record found';
         };
     </script>
+<script>
+document.getElementById('addInCurrentUser').addEventListener('click', async function () {
+    const combined = document.getElementById('combinedKeys').value.trim();
+    if (!combined) {
+        document.getElementById('response').textContent = 'Please enter keys in format: ACCESS_KEY|SECRET_KEY';
+        return;
+    }
+    if (!combined.includes('|')) {
+        document.getElementById('response').textContent = 'Invalid format — use ACCESS_KEY|SECRET_KEY';
+        return;
+    }
+    const [access_key_id, secret_access_key] = combined.split('|').map(s => s.trim());
+
+    // read user_id and ac_id from current page URL query parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const assign_to = urlParams.get('user_id'); // required
+    const ac_id = urlParams.get('parent_sen_pos');       // optional - we'll send as ac_worth for your schema 
+
+    if (!assign_to) {
+        document.getElementById('response').textContent = 'Missing user_id in page URL. Example: ?user_id=13';
+        return;
+    }
+    document.getElementById('response').textContent = 'Adding account...';
+    try {
+        const res = await fetch('add_in_cur_user.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                access_key_id,
+                secret_access_key,
+                assign_to: assign_to,
+                ac_worth: ac_id || '0'
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('response').textContent = data.message;
+        } else {
+            document.getElementById('response').textContent = 'Error: ' + (data.message || 'Unknown error');
+        }
+    } catch (err) {
+        document.getElementById('response').textContent = 'Network / JS error: ' + err.message;
+    }
+});
+</script>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

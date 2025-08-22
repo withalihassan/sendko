@@ -140,10 +140,13 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
           $infoStmt->execute([$child]);
           $info = $infoStmt->fetch(PDO::FETCH_ASSOC);
           $parentExp = '<span class="badge badge-primary">Unknown</span>';
+          $parent_sending_possible="normal"; // means Parent sendiing possible
           if (!empty($info['worth_type'])) {
               $parentExp = $info['worth_type'] === 'half'
                   ? '<span class="badge badge-success">Full</span>'
                   : '<span class="badge badge-warning">Half</span>';
+
+               $parent_sending_possible="special"; // means Parent not sendiing possible
           }
 
           $date = $row['created_at']
@@ -172,7 +175,7 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
           </div>
           <a href="iam_clear.php?ac_id=<?= $id ?>" class="btn btn-sm btn-danger" target="_blank">Clear</a>
-          <a href="awsch/child_actions.php?ac_id=<?= $child ?>&user_id=<?= $session_id ?>" class="btn btn-sm btn-success" target="_blank">Open</a>
+          <a href="awsch/child_actions.php?ac_id=<?= $child ?>&user_id=<?= $session_id ?>&parent_sen_pos=<?= $parent_sending_possible ?>" class="btn btn-sm btn-success" target="_blank">Open</a>
         </td>
       </tr>
       <?php } ?>

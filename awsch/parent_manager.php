@@ -4,7 +4,7 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // Get child_id and parent_id safely
-$child_id  = $_GET['ac_id']      ?? '';
+$child_id  = $_GET['parent_id']      ?? '';
 $parent_id = $_GET['parent_id'] ?? '';
 $session_user_id = $_GET['user_id'] ?? '';
 
@@ -53,7 +53,7 @@ try {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>AWSsss EC2 & IAM Admin</title>
+    <title>Parent Manager</title>
 
     <!-- Bootstrap CSS -->
     <link
@@ -507,11 +507,12 @@ try {
 
     <script>
         // Reuse awsAccessKey, awsSecretKey, and childAccountId defined in your page
+
         function scanInstances() {
             const region = $("#regionSelect").val();
             const awsAccessKey = $("#aws_access_key").val();
             const awsSecretKey = $("#aws_secret_key").val();
-
+            const childAccountId = "<?php echo $child_id; ?>";
             // Show a scanning message
             $("#response").html(
                 `<div class='text-info'>Scanning for EC2 instances in ${region}&hellip;</div>`
