@@ -25,10 +25,10 @@ if (isset($_GET['parent_id'])) {
                 : "<span class='badge bg-danger'>Suspended</span>";
             //Age calculation strted 
             if ($account['status'] == 'ACTIVE') {
-                if($account['added_date']  != NULL){
-                $td_Added_date = new DateTime($account['added_date']);
+                if($account['created_at']  != NULL){
+                $td_created_at = new DateTime($account['created_at']);
                 $td_current_date = new DateTime();
-                $diff = $td_Added_date->diff($td_current_date);
+                $diff = $td_created_at->diff($td_current_date);
                 $child_ac_Age = "<span>" . $diff->format('%a days') . "</span>";
                 }else{
                 $child_ac_Age =  "<span>error1</span>";
@@ -50,7 +50,7 @@ if (isset($_GET['parent_id'])) {
                     <td>" . htmlspecialchars($account['email']) . "</td>
                     <td>$statusBadge</td>
                     <td>" . $account['worth_type'] . "</td>
-                    <td>" . (!empty($account['added_date']) ? date('j F', strtotime($account['added_date'])) : '') . "</td>
+                    <td>" . (!empty($account['created_at']) ? date('j F', strtotime($account['created_at'])) : '') . "</td>
 
                     <td>$child_ac_Age</td>
                     <td>" . htmlspecialchars($account['account_id']) . "</td>

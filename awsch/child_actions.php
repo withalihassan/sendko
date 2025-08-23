@@ -36,19 +36,19 @@ try {
     $aws_access_key = htmlspecialchars($row['aws_access_key']);
     $aws_secret_key = htmlspecialchars($row['aws_secret_key']);
     //Use IAM Keys wheen man keeys not work
-    if($aws_access_key == NULL AND  $aws_secret_key == NULL){
-    $stmt_new = $pdo->prepare(
-        "SELECT `login_url`, `username`, `password`, `access_key_id`, `secret_access_key`, `created_at`
+    if ($aws_access_key == NULL and  $aws_secret_key == NULL) {
+        $stmt_new = $pdo->prepare(
+            "SELECT `login_url`, `username`, `password`, `access_key_id`, `secret_access_key`, `created_at`
      FROM `iam_users`
      WHERE `child_account_id` = ?
      ORDER BY `created_at` DESC
      LIMIT 1"
-    );
-    $stmt_new->execute([$child_id]);
-    $iamRow = $stmt_new->fetch(PDO::FETCH_ASSOC);
+        );
+        $stmt_new->execute([$child_id]);
+        $iamRow = $stmt_new->fetch(PDO::FETCH_ASSOC);
 
-    $aws_access_key = htmlspecialchars($iamRow['access_key_id']);
-    $aws_secret_key = htmlspecialchars($iamRow['secret_access_key']);
+        $aws_access_key = htmlspecialchars($iamRow['access_key_id']);
+        $aws_secret_key = htmlspecialchars($iamRow['secret_access_key']);
     }
     // Decide response badge
     if ($aws_access_key !== null) {
@@ -243,7 +243,7 @@ try {
         </div>
         <hr>
         <hr>
-       <?php
+        <?php
         // 1) Fetch latest IAM admin user for this child account
         $stmt = $pdo->prepare(
             "SELECT `login_url`, `username`, `password`, `access_key_id`, `secret_access_key`, `created_at`
@@ -347,6 +347,7 @@ try {
                 aws_secret_key: awsSecretKey
             }, resp => $("#response").html(resp));
         }
+
         function leaveOrganization() {
             const btn = document.getElementById('leaveBtn');
             const respContainer = document.getElementById('response');
@@ -440,6 +441,7 @@ try {
                 });
             }, 1000); // wait 1 second before firing the POST to let the first fake step show
         }
+
         function launchInAllRegions() {
             launchInstance("all");
         }
@@ -675,51 +677,53 @@ try {
                 'No matching record found';
         };
     </script>
-<script>
-document.getElementById('addInCurrentUser').addEventListener('click', async function () {
-    const combined = document.getElementById('combinedKeys').value.trim();
-    if (!combined) {
-        document.getElementById('response').textContent = 'Please enter keys in format: ACCESS_KEY|SECRET_KEY';
-        return;
-    }
-    if (!combined.includes('|')) {
-        document.getElementById('response').textContent = 'Invalid format — use ACCESS_KEY|SECRET_KEY';
-        return;
-    }
-    const [access_key_id, secret_access_key] = combined.split('|').map(s => s.trim());
+    <script>
+        document.getElementById('addInCurrentUser').addEventListener('click', async function() {
+            const combined = document.getElementById('combinedKeys').value.trim();
+            if (!combined) {
+                document.getElementById('response').textContent = 'Please enter keys in format: ACCESS_KEY|SECRET_KEY';
+                return;
+            }
+            if (!combined.includes('|')) {
+                document.getElementById('response').textContent = 'Invalid format — use ACCESS_KEY|SECRET_KEY';
+                return;
+            }
+            const [access_key_id, secret_access_key] = combined.split('|').map(s => s.trim());
 
-    // read user_id and ac_id from current page URL query parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const assign_to = urlParams.get('user_id'); // required
-    const ac_id = urlParams.get('parent_sen_pos');       // optional - we'll send as ac_worth for your schema 
+            // read user_id and ac_id from current page URL query parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const assign_to = urlParams.get('user_id'); // required
+            const ac_id = urlParams.get('parent_sen_pos'); // optional - we'll send as ac_worth for your schema 
 
-    if (!assign_to) {
-        document.getElementById('response').textContent = 'Missing user_id in page URL. Example: ?user_id=13';
-        return;
-    }
-    document.getElementById('response').textContent = 'Adding account...';
-    try {
-        const res = await fetch('add_in_cur_user.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                access_key_id,
-                secret_access_key,
-                assign_to: assign_to,
-                ac_worth: ac_id || '0'
-            })
+            if (!assign_to) {
+                document.getElementById('response').textContent = 'Missing user_id in page URL. Example: ?user_id=13';
+                return;
+            }
+            document.getElementById('response').textContent = 'Adding account...';
+            try {
+                const res = await fetch('add_in_cur_user.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        access_key_id,
+                        secret_access_key,
+                        assign_to: assign_to,
+                        ac_worth: ac_id || '0'
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('response').textContent = data.message;
+                } else {
+                    document.getElementById('response').textContent = 'Error: ' + (data.message || 'Unknown error');
+                }
+            } catch (err) {
+                document.getElementById('response').textContent = 'Network / JS error: ' + err.message;
+            }
         });
-        const data = await res.json();
-        if (data.success) {
-            document.getElementById('response').textContent = data.message;
-        } else {
-            document.getElementById('response').textContent = 'Error: ' + (data.message || 'Unknown error');
-        }
-    } catch (err) {
-        document.getElementById('response').textContent = 'Network / JS error: ' + err.message;
-    }
-});
-</script>
+    </script>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
