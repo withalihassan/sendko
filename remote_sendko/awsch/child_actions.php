@@ -66,7 +66,7 @@ try {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>AWSsss EC2 & IAM Admin</title>
+    <title>Child Manager</title>
 
     <!-- Bootstrap CSS -->
     <link
