@@ -101,7 +101,7 @@ JOIN (
     FROM iam_users
     WHERE by_user   = :uid
       AND added_by  = 'girls'
-      AND status   IN ('Master','Delivered')
+      AND status   IN ('Delivered','Canceled')
       AND status   != 'Suspended'
     GROUP BY child_account_id
 ) AS latest

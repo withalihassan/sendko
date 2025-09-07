@@ -136,9 +136,10 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
           $seen[] = $child;
 
           // Parent Exp
-          $infoStmt = $pdo->prepare('SELECT worth_type FROM child_accounts WHERE account_id = ?');
+          $infoStmt = $pdo->prepare('SELECT parent_id, worth_type FROM child_accounts WHERE account_id = ?');
           $infoStmt->execute([$child]);
           $info = $infoStmt->fetch(PDO::FETCH_ASSOC);
+          $master_parent_id=$info['parent_id'];
           $parentExp = '<span class="badge badge-primary">Unknown</span>';
           $parent_sending_possible="normal"; // means Parent sendiing possible
           if (!empty($info['worth_type'])) {
@@ -176,6 +177,7 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
           </div>
           <a href="iam_clear.php?ac_id=<?= $id ?>" class="btn btn-sm btn-danger" target="_blank">Clear</a>
           <a href="awsch/child_actions.php?ac_id=<?= $child ?>&user_id=<?= $session_id ?>&parent_sen_pos=<?= $parent_sending_possible ?>" class="btn btn-sm btn-success" target="_blank">Open</a>
+          <!-- <a href="awsch/iam_brs.php?ac_id=<?= $child ?>&user_id=<?= $session_id ?>&parrent_id=<?= $master_parent_id ?>" class="btn btn-sm btn-success" target="_blank">Send</a> -->
         </td>
       </tr>
       <?php } ?>

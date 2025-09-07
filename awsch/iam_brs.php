@@ -15,7 +15,7 @@ $id = htmlspecialchars($_GET['ac_id']);
 $parent_id = htmlspecialchars($_GET['parrent_id']);
 
 // Fetch AWS credentials for the provided account ID from child_accounts table
-$stmt = $pdo->prepare("SELECT aws_access_key, aws_secret_key FROM child_accounts WHERE account_id = ?");
+$stmt = $pdo->prepare("SELECT access_key_id, secret_access_key FROM iam_users WHERE child_account_id = ?");
 $stmt->execute([$id]);
 $account = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -31,8 +31,8 @@ date_default_timezone_set('Asia/Karachi');
 $currentTimestamp = date('Y-m-d H:i:s');
 
 // Retrieve AWS keys from child_accounts
-echo $aws_key    = $account['aws_access_key'];
-echo $aws_secret = $account['aws_secret_key'];
+$aws_key    = $account['access_key_id'];
+$aws_secret = $account['secret_access_key'];
 
 // STREAMING MODE: If stream=1 is present, run the SSE loop.
 if (isset($_GET['stream'])) {
