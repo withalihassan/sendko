@@ -31,8 +31,8 @@ date_default_timezone_set('Asia/Karachi');
 $currentTimestamp = date('Y-m-d H:i:s');
 
 // Retrieve AWS keys from child_accounts
-echo $aws_key    = $account['aws_access_key'];
-echo $aws_secret = $account['aws_secret_key'];
+ $aws_key    = $account['aws_access_key'];
+ $aws_secret = $account['aws_secret_key'];
 
 // STREAMING MODE: If stream=1 is present, run the SSE loop.
 if (isset($_GET['stream'])) {
