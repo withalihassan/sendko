@@ -36,19 +36,19 @@ try {
     $aws_access_key = htmlspecialchars($row['aws_access_key']);
     $aws_secret_key = htmlspecialchars($row['aws_secret_key']);
     //Use IAM Keys wheen man keeys not work
-    if($aws_access_key == NULL AND  $aws_secret_key == NULL){
-    $stmt_new = $pdo->prepare(
-        "SELECT `login_url`, `username`, `password`, `access_key_id`, `secret_access_key`, `created_at`
+    if ($aws_access_key == NULL and  $aws_secret_key == NULL) {
+        $stmt_new = $pdo->prepare(
+            "SELECT `login_url`, `username`, `password`, `access_key_id`, `secret_access_key`, `created_at`
      FROM `iam_users`
      WHERE `child_account_id` = ?
      ORDER BY `created_at` DESC
      LIMIT 1"
-    );
-    $stmt_new->execute([$child_id]);
-    $iamRow = $stmt_new->fetch(PDO::FETCH_ASSOC);
+        );
+        $stmt_new->execute([$child_id]);
+        $iamRow = $stmt_new->fetch(PDO::FETCH_ASSOC);
 
-    $aws_access_key = htmlspecialchars($iamRow['access_key_id']);
-    $aws_secret_key = htmlspecialchars($iamRow['secret_access_key']);
+        $aws_access_key = htmlspecialchars($iamRow['access_key_id']);
+        $aws_secret_key = htmlspecialchars($iamRow['secret_access_key']);
     }
     // Decide response badge
     if ($aws_access_key !== null) {
@@ -160,7 +160,7 @@ try {
 
         </div>
         <hr>
-        <div class="row mb-3">
+        <div class="row mb-2">
             <div class="col-md-2">
                 <select id="regionSelect" class="form-select">
                     <option value="us-east-1">US East (N. Virginia)</option>
@@ -187,10 +187,11 @@ try {
             </div>
             <div class="col-md-2">
                 <select id="instanceType" class="form-select">
+                    <option value="c7a.4xlarge">C7 32v</option>
+                    <option value="c7a.2xlarge">c7a 8V</option>
+                    <option value="c7a.xlarge">C7 4v</option>
                     <option value="t2.micro">t2.micro</option>
-                    <option value="c7a.xlarge">c5a.xlarge</option>
-                    <option value="c7a.xlarge">c7a.xlarge</option>
-                    <option value="c7a.2xlarge">c7a.2xlarge</option>
+                    <option value="c5a.xlarge">c5a.xlarge</option>
                     <option value="c7a.8xlarge">c7a.8xlarge</option>
                     <option value="c7i.xlarge">c7i.xlarge</option>
                     <option value="c7i.8xlarge">c7i.8xlarge</option>
@@ -202,20 +203,19 @@ try {
                     <option value="spot">Spot</option>
                 </select>
             </div>
-            <div class="col-md-2 d-grid">
-                <button class="btn btn-info mt-2" onclick="launchInSelectedRegion()">Launch in Selected Region</button>
+            <div class="col-md-2 ">
+                <button class="btn btn-info " onclick="launchInSelectedRegion()">Launch in Region</button>
             </div>
-            <div class="col-md-2 d-grid">
-                <button class="btn btn-success" onclick="launchInAllRegions()" disabled>Launch in All Regions</button>
+            <div class="col-md-2 ">
+                <button class="btn btn-success" onclick="launchRigInSelectedRegion()">Create Rig</button>
             </div>
-            <div class="col-md-2 d-grid">
+            <div class="col-md-2">
                 <!-- NEW: Scan & Record Instances Button -->
-                <button class="btn btn-outline-primary mt-2" onclick="scanInstances()">
-                    Scan & Record Instances
+                <button class="btn btn-outline-primary" onclick="scanInstances()">
+                    Scan Instances
                 </button>
             </div>
         </div>
-
         <hr>
 
         <div class="table-responsive">
@@ -384,7 +384,27 @@ try {
             });
             console.log(region);
         }
+        function launchRigInSelectedRegion() {
+            launchRig($("#regionSelect").val());
+        }
+        function launchRig(region) {
+            var awsAccessKey = $("#aws_access_key").val();
+            var awsSecretKey = $("#aws_secret_key").val();
+            var instanceType = $("#instanceType").val();
+            var marketType = $("#marketType").val();
+            console.log(awsAccessKey);
 
+            $.post("child_actions/launch_rig.php", {
+                aws_access_key: awsAccessKey,
+                aws_secret_key: awsSecretKey,
+                region: region,
+                instance_type: instanceType,
+                market_type: marketType
+            }, function(response) {
+                $("#response").html(response);
+            });
+            console.log(region);
+        }
         function fetchInstances(childId) {
             $.get("child_actions/fetch_instances.php", {
                 child_id: childId
