@@ -66,7 +66,7 @@ try {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>AWSsss EC2 & IAM Admin</title>
+    <title><?php echo $_GET['CHID'];?> Child Manager</title>
 
     <!-- Bootstrap CSS -->
     <link
@@ -731,7 +731,7 @@ try {
                         access_key_id,
                         secret_access_key,
                         assign_to: assign_to,
-                        ac_worth: ac_id || '0'
+                        ac_worth: ac_id || 'special'
                     })
                 });
                 const data = await res.json();

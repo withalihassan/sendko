@@ -23,3 +23,6 @@ mysql -u admin -psLoGMCVfEo4TpMGOEm18 -h database-1.ct22ws4u0c7g.me-central-1.rd
 
 Impotant sql
 SELECT status, COUNT(DISTINCT account_id) AS unique_child_accounts FROM accounts WHERE by_user = 1 GROUP BY status;
+
+
+

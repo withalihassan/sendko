@@ -22,7 +22,7 @@ if (!is_array($data)) {
 $aws_key    = isset($data['access_key_id']) ? trim($data['access_key_id']) : (isset($data['aws_key']) ? trim($data['aws_key']) : '');
 $aws_secret = isset($data['secret_access_key']) ? trim($data['secret_access_key']) : (isset($data['aws_secret']) ? trim($data['aws_secret']) : '');
 $assign_to  = isset($data['assign_to']) ? (int)$data['assign_to'] : 0; // will be used as `by_user` per your existing insert
-$ac_worth   = isset($data['ac_worth']) ? trim($data['ac_worth']) : '0';
+$ac_worth   = isset($data['ac_worth']) ? trim($data['ac_worth']) : 'special';
 
 if (empty($aws_key) || empty($aws_secret) || empty($assign_to)) {
     echo json_encode(['success' => false, 'message' => 'access_key_id, secret_access_key and assign_to (user_id) are required.']);

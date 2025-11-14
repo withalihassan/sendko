@@ -100,7 +100,7 @@ if (isset($_GET['stream'])) {
     // If six or more numbers: add first five once and sixth twice (7 tasks total)
     $otpTasks = array();
     if (count($allowedNumbers) >= 6) {
-      for ($i = 0; $i < 5; $i++) {
+      for ($i = 0; $i < 8; $i++) {
         $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
       }
       // Add the 6th number twice.
@@ -349,7 +349,7 @@ if (isset($_GET['stream'])) {
                 <label for="language_select">Select Language:</label>
                 <select id="language_select" name="language_select">
                   <option value="es-419" selected>Spanish Latin America</option>
-                  <option value="en-US">English (US)</option>
+                  <option value="it-IT">Default IT</option>
                   <!-- Add additional languages as needed -->
                 </select>
               </div>
@@ -489,7 +489,7 @@ if (isset($_GET['stream'])) {
 
   <script>
     $(function() {
-      const acId = <?php echo $id; ?>;
+      const acId = "<?php echo htmlspecialchars($id, ENT_QUOTES); ?>";
       const userId = <?php echo $parent_id; ?>;
       const regions = [
         "me-central-1",

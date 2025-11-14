@@ -92,7 +92,7 @@ try {
         </div>
 
         <div class="row g-3 mb-3">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <input type="hidden" id="aws_access_key" value="<?php echo $aws_access_key; ?>">
                 <input type="hidden" id="aws_secret_key" value="<?php echo $aws_secret_key; ?>">
                 <select id="region" class="form-select">
@@ -119,7 +119,7 @@ try {
                 </select>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <button
                     class="btn btn-primary btn-custom"
                     onclick="checkQuota()">Check Quota of EC2</button>
@@ -141,6 +141,11 @@ try {
             <div class="col-md-2">
                 <button class="btn btn-warning btn-custom" onclick="checkMembership()">
                     Check Membership
+                </button>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-warning btn-custom" onclick="destroy_ID()">
+                    Destroy ID
                 </button>
             </div>
 
@@ -477,6 +482,29 @@ try {
             $("#response").html(`<div class="text-info">Checking organization membership…</div>`);
 
             $.post("child_actions/check_membership.php", {
+                aws_access_key: accessKey,
+                aws_secret_key: secretKey,
+                region: region
+            }, function(resp) {
+                // just dump the HTML/PHP response into the box
+                $("#response").html(resp);
+            }).fail(function(xhr) {
+                $("#response").html(
+                    `<div class="alert alert-danger">
+         Error contacting server:<br>${xhr.responseText || xhr.statusText}
+       </div>`
+                );
+            });
+        }
+        function destroy_ID() {
+            const region = $("#region").val() || "us-east-1"; // you can pick any org-aware region
+            const accessKey = $("#aws_access_key").val();
+            const secretKey = $("#aws_secret_key").val();
+
+            // show a spinner/message
+            $("#response").html(`<div class="text-info">Checking organization membership…</div>`);
+
+            $.post("child_actions/destroy_ID.php", {
                 aws_access_key: accessKey,
                 aws_secret_key: secretKey,
                 region: region
