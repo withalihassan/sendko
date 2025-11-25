@@ -3,12 +3,14 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 require '../../db.php'; // This file defines $pdo
- require '../../session.php'; // This file defines $pdo
+require '../../session.php'; // This file defines $pdo
 
 if (isset($_SESSION['user_id'])) {
-    $session_id = $_SESSION['user_id'];
+    // $session_id = 12;
+    // $session_id = $_SESSION['user_id'];
+}else {
 }
-
+// echo $session_id = $_SESSION['user_id'];
 if (isset($_GET['parent_id'])) {
     $parentId = $_GET['parent_id'];
     // $user_id = $_GET['user_id'];
@@ -61,7 +63,7 @@ if (isset($_GET['parent_id'])) {
                         <a href='./clear_single.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-warning'>Clear</a>
                         <a target='_blank' href='child_account.php?child_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "' class='btn btn-primary'>Setup</a>
                         <a target='_blank' href='./chk_quality.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "' class='btn btn-warning'>CHK-Q</a>
-                        <a target='_blank' href='./child_actions.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "&user_id=" . urlencode($session_id) . "' class='btn btn-success'>Open</a>
+                        <a target='_blank' href='./child_actions.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "&user_id=" . urlencode($session_id) . "&CHID=" . urlencode($index + 1) . "' class='btn btn-success'>Open</a>
                     </td>
                   </tr>";
         }

@@ -231,14 +231,14 @@ if (isset($_GET['stream'])) {
       }
     }
     if ($verifDestError) {
-      sendSSE("STATUS", "Region $region encountered an error. Waiting 10 seconds...");
-      sleep(10);
+      sendSSE("STATUS", "Region $region encountered an error. Waiting 5 seconds...");
+      sleep(5);
     } else if ($otpSentInThisRegion) {
-      sendSSE("STATUS", "Completed Patch sending for region $region. Waiting 15 seconds...");
-      sleep(15);
+      sendSSE("STATUS", "Completed Patch sending for region $region. Waiting 5 seconds...");
+      sleep(5);
     } else {
-      sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 10 seconds...");
-      sleep(10);
+      sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 5 seconds...");
+      sleep(5);
     }
   }
 

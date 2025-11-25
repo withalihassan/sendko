@@ -114,7 +114,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
     }
 
     // Proceed with the update if last_used is not today
-    $stmt = $pdo->prepare("UPDATE accounts SET ac_score = ac_score + 1, last_used = :last_used , ac_worth='special' WHERE account_id = :id");
+    $stmt = $pdo->prepare("UPDATE accounts SET ac_score = ac_score + 1, last_used = :last_used WHERE account_id = :id");
     try {
       $stmt->execute([':last_used' => $currentTimestamp, ':id' => $accountId]);
       echo json_encode([
@@ -205,26 +205,24 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
       }
       ?>
     </div>
+
     <!-- Manual form to add a child account -->
     <div class="card mb-4">
       <div class="card-header">Add Mini Account</div>
       <div class="card-body">
         <form id="addChildAccountForm">
-          <div class="row g-3 mb-3">
-            <div class="col-md-6">
-              <label for="email" class="form-label">Mini Account Email</label>
-              <input type="email" class="form-control" id="email" required>
-            </div>
-            <div class="col-md-6">
-              <label for="name" class="form-label">Mini Account Name</label>
-              <input type="text" class="form-control" id="name" required>
-            </div>
+          <div class="mb-3">
+            <label for="email" class="form-label">Mini Account Email</label>
+            <input type="email" class="form-control" id="email" required>
+          </div>
+          <div class="mb-3">
+            <label for="name" class="form-label">Mini Account Name</label>
+            <input type="text" class="form-control" id="name" required>
           </div>
           <button type="submit" class="btn btn-primary" id="manualSubmitBtn">Add Account</button>
         </form>
       </div>
     </div>
-
 
     <!-- Action buttons -->
     <div class="card mt-4">
@@ -380,47 +378,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
   <!-- Include external JS files -->
   <script src="child/scripts.js"></script>
   <script src="child/existac.js"></script>
-  <?php
-  // Fetch parent AWS creds so we can pass them to JS
-  $stmt = $pdo->prepare("SELECT aws_key, aws_secret FROM accounts WHERE account_id = ? Limit 1");
-  $stmt->execute([$accountId]);
-  $parentCreds = $stmt->fetch(PDO::FETCH_ASSOC);
-
-  // If you like, you can exit if not found—but assuming it always is...
-  $awsKey    = $parentCreds['aws_key'] ?? '';
-  $awsSecret = $parentCreds['aws_secret'] ?? '';
-  ?>
   <script>
-    // existing parentAccountId
-    var parentAccountId = "<?php echo $accountId; ?>";
-    // new:
-    var awsAccessKey = "<?php echo $awsKey; ?>";
-    var awsSecretKey = "<?php echo $awsSecret; ?>";
-    // Check Quota Button (Virginia only)
-    $('#checkQuotaBtn').click(function() {
-      $('#quotaResult').text('Checking...');
-      $.post('child_actions/check_quota.php', {
-          aws_access_key: awsAccessKey,
-          aws_secret_key: awsSecretKey,
-          region: 'us-east-1'
-        },
-        function(resp) {
-          try {
-            const r = JSON.parse(resp);
-            if (r.status === 'success') {
-              $('#quotaResult').html(`Quota: <strong>${r.quota}</strong>`);
-            } else {
-              $('#quotaResult').text('Error: ' + r.message);
-            }
-          } catch (e) {
-            $('#quotaResult').text('Unexpected response.');
-          }
-        }
-      );
-    });
-
-
-
     // Update account button handler.
     $(document).ready(function() {
       $("#updateButton").click(function() {
