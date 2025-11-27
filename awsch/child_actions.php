@@ -714,6 +714,7 @@ try {
             // read user_id and ac_id from current page URL query parameters
             const urlParams = new URLSearchParams(window.location.search);
             const assign_to = urlParams.get('user_id'); // required
+            const child_age = urlParams.get('chage'); // required
             const ac_id = urlParams.get('parent_sen_pos'); // optional - we'll send as ac_worth for your schema 
 
             if (!assign_to) {
@@ -731,6 +732,7 @@ try {
                         access_key_id,
                         secret_access_key,
                         assign_to: assign_to,
+                        child_age: child_age,
                         ac_worth: ac_id || 'special'
                     })
                 });

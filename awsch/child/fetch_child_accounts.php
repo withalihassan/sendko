@@ -31,7 +31,7 @@ if (isset($_GET['parent_id'])) {
                 $td_created_at = new DateTime($account['created_at']);
                 $td_current_date = new DateTime();
                 $diff = $td_created_at->diff($td_current_date);
-                $child_ac_Age = "<span>" . $diff->format('%a days') . "</span>";
+                $child_ac_Age =$diff->format('%a');
                 }else{
                 $child_ac_Age =  "<span>error1</span>";
                 }
@@ -54,7 +54,7 @@ if (isset($_GET['parent_id'])) {
                     <td>" . $account['worth_type'] . "</td>
                     <td>" . (!empty($account['created_at']) ? date('j F', strtotime($account['created_at'])) : '') . "</td>
 
-                    <td>$child_ac_Age</td>
+                    <td><span>$child_ac_Age days</td>
                     <td>" . htmlspecialchars($account['account_id']) . "</td>
                     <td>
                         <a href='./bulk_regional_send.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-success'>Bulk Regional Send</a>
@@ -63,7 +63,7 @@ if (isset($_GET['parent_id'])) {
                         <a href='./clear_single.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-warning'>Clear</a>
                         <a target='_blank' href='child_account.php?child_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "' class='btn btn-primary'>Setup</a>
                         <a target='_blank' href='./chk_quality.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "' class='btn btn-warning'>CHK-Q</a>
-                        <a target='_blank' href='./child_actions.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "&user_id=" . urlencode($session_id) . "&CHID=" . urlencode($index + 1) . "' class='btn btn-success'>Open</a>
+                        <a target='_blank' href='./child_actions.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "&user_id=" . urlencode($session_id) . "&CHID=" . urlencode($index + 1) . "&chage=" . urlencode($child_ac_Age) . "' class='btn btn-success'>Open</a>
                     </td>
                   </tr>";
         }

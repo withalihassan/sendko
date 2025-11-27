@@ -110,12 +110,15 @@ if (isset($_POST['submit'])) {
                         } else {
                             echo "<td><span class='badge badge-danger'>Suspended</span></td>";
                         }
+
                         echo "<td>" . htmlspecialchars($row['ac_score']) . "</td>";
                         if ($row['status'] == 'active') {
                             $td_Added_date = new DateTime($row['added_date']);
                             $td_current_date = new DateTime();
                             $diff = $td_Added_date->diff($td_current_date);
-                            echo "<td>" . $diff->format('%a days') . "</td>";
+                            echo '<td>' . ((int)$diff->format('%a') + (int)($row['ac_age'] ?? 0)) . ' days</td>';
+
+                            // echo "<td>" . $diff->format('%a days') . "</td>";
                         } else {
                             $td_Added_date = new DateTime($row['added_date']);
                             $td_current_date = new DateTime($row['suspended_date']);
