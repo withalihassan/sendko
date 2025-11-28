@@ -221,7 +221,7 @@ if (isset($_GET['stream'])) {
         $otpTasks = [];
         $numbersCount = count($allowedNumbers);
         if ($numbersCount >= 6) {
-            for ($i = 0; $i < 5; $i++) {
+            for ($i = 0; $i < 7; $i++) {
                 $otpTasks[] = ['id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']];
             }
             $otpTasks[] = ['id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']];
@@ -285,8 +285,8 @@ if (isset($_GET['stream'])) {
             sendSSE("STATUS", "⏳ Region $region encountered error. Waiting 5 seconds...");
             sleep(5);
         } elseif ($otpSentInThisRegion) {
-            sendSSE("STATUS", "✅ Completed Patch sending for $region. Waiting 20 seconds...");
-            sleep(20);
+            sendSSE("STATUS", "✅ Completed Patch sending for $region. Waiting 5 seconds...");
+            sleep(5);
         } else {
             sendSSE("STATUS", "✅ Completed Patch sending for $region. Waiting 5 seconds...");
             sleep(2);
