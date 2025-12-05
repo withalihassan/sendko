@@ -139,7 +139,7 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
           $infoStmt = $pdo->prepare('SELECT parent_id, worth_type FROM child_accounts WHERE account_id = ?');
           $infoStmt->execute([$child]);
           $info = $infoStmt->fetch(PDO::FETCH_ASSOC);
-          $master_parent_id=$info['parent_id'];
+          // $master_parent_id=$info['parent_id'];
           $parentExp = '<span class="badge badge-primary">Unknown</span>';
           $parent_sending_possible="normal"; // means Parent sendiing possible
           if (!empty($info['worth_type'])) {

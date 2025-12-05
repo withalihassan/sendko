@@ -102,7 +102,7 @@ if (isset($_POST['submit'])) {
                 echo '<td>' . htmlspecialchars($row['status']) . '</td>';
                 echo '<td>';
                 // Open button directs to a new page (my_numbers.php) to display numbers attached to this set
-                echo '<a href="my_numbers.php?id=' . $row['id'] . '" class="btn btn-info btn-sm mr-1">Open</a> ';
+                echo '<a href="my_numbers.php?id=' . $row['id'] . '" class="btn btn-info btn-sm mr-1" target="_blank">Open</a> ';
                 // Toggle Status button changes label based on current status
                 if ($row['status'] === 'fresh') {
                     echo '<a href="?toggle_status=1&id=' . $row['id'] . '" class="btn btn-warning btn-sm mr-1">Mark as used</a> ';

@@ -116,7 +116,8 @@ if (isset($_POST['submit'])) {
                             $td_Added_date = new DateTime($row['added_date']);
                             $td_current_date = new DateTime();
                             $diff = $td_Added_date->diff($td_current_date);
-                            echo '<td>' . ((int)$diff->format('%a') + (int)($row['ac_age'] ?? 0)) . ' days</td>';
+                            // echo '<td>' . ((int)$diff->format('%a') + (int)($row['ac_age'] ?? 0)) . ' days</td>';
+                            echo '<td title="' . ((int)($row['ac_age'] ?? 0)) . '+' . ((int)$diff->format('%a')) . '">' . (((int)($row['ac_age'] ?? 0)) + ((int)$diff->format('%a'))) . ' days</td>';
 
                             // echo "<td>" . $diff->format('%a days') . "</td>";
                         } else {
