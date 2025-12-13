@@ -169,8 +169,8 @@ try {
         <div class="row mb-2">
             <div class="col-md-2">
                 <select id="regionSelect" class="form-select">
-                    <option value="us-east-1">US East (N. Virginia)</option>
                     <option value="us-east-2">US East (Ohio)</option>
+                    <option value="us-east-1">US East (N. Virginia)</option>
                     <option value="us-west-1">US West (N. California)</option>
                     <option value="us-west-2">US West (Oregon)</option>
                     <hr>
