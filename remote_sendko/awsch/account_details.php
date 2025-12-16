@@ -1,5 +1,5 @@
 <?php
-// account_details.php
+// account_details.php (rewritten per user request - v3)
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -288,7 +288,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
   <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
   <script>
     var parentAccountId = "<?php echo $accountId; ?>";
-    // Use the initially fetched child email as the base for auto-generated emails.
+    // Keep originalEmail for display/compatibility but auto-create no longer requires it.
     var originalEmail = <?php echo json_encode($childEmail); ?>;
 
     document.getElementById("refresh").addEventListener("click", function() {
@@ -314,54 +314,135 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
       });
     });
 
-    // Generate a random but meaningful name.
-    function generateRandomName() {
-      var adjectives = ["Brave", "Clever", "Mighty", "Swift", "Sly", "Happy", "Gentle", "Fierce"];
-      var nouns = ["Lion", "Tiger", "Eagle", "Falcon", "Shark", "Wolf", "Panther", "Dragon"];
-      var adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-      var noun = nouns[Math.floor(Math.random() * nouns.length)];
-      return adjective + " " + noun;
+    // Generate a random but meaningful display name for the AWS AccountName field.
+    function generateDisplayName(first, last) {
+      // Randomly decide order for human-friendly display name
+      if (Math.random() < 0.5) {
+        return first + ' ' + last;
+      }
+      return last + ' ' + first;
     }
 
-    // Auto-create additional child accounts with a 5-second delay between each.
+    // ------------------------------
+    // Names database (combined list of single-word first names and single-word last names)
+    // Minimum ~120 total names across Pakistan, India, China, Iran as requested.
+    // All names are single-word and suitable to combine.
+    // ------------------------------
+    var firstNames = [
+      "Ali","Ahsan","Ahmed","Faisal","Bilal","Omar","Usman","Salman","Zain","Imran",
+      "Amir","Naveed","Asad","Saad","Rizwan","Hamza","Shahid","Faraz","Danish","Raza",
+      "Javed","Adnan","Irfan","Usama","Zeeshan","Khurram","Sohail","Naeem","Iqbal","Qasim",
+      "Rahul","Raj","Vikram","Sunil","Sandeep","Amit","Rakesh","Anil","Mohan","Arjun",
+      "Karan","Manoj","Deepak","Ajay","Neha","Priya","Ritu","Sunita","Pooja","Kumar",
+      "Li","Wang","Zhang","Liu","Chen","Yang","Zhao","Huang","Wu","Zhou",
+      "Reza","Hossein","Mehdi","AmirReza","Sina","Arash","Kian","Dariush","Behzad","Farhad"
+    ];
+
+    var lastNames = [
+      "Hassan","Khan","Malik","Shaikh","Ansari","Rafiq","Qureshi","Baloch","Butt","Nawaz",
+      "Chaudhry","Patel","Singh","Sharma","Gupta","Reddy","Iyer","Desai","Kapoor","Bose",
+      "Liang","Peng","Guo","Lin","Gao","Luo","He","Xu","Sun","Ma",
+      "Karimi","Rahimi","Nazari","Farahani","Azimi","Jafari","Etemadi","Sabet","Taheri","Nouri",
+      "Khanum","Ali","Memon","Siddiqui","Saeed","Hashmi","Amjad","Rizvi","Munir","Aziz"
+    ];
+
+    // Utility: generate a unique username combining names and a numeric suffix
+    // Now supports three modes: first+last, first-only, last-only
+    function generateUniqueEmail(domain, usedSet) {
+      var attempts = 0;
+      while (attempts < 2000) {
+        attempts++;
+        var f = firstNames[Math.floor(Math.random() * firstNames.length)];
+        var l = lastNames[Math.floor(Math.random() * lastNames.length)];
+        // mode: 0 -> first+last, 1 -> first-only, 2 -> last-only
+        var mode = Math.floor(Math.random() * 3);
+        var number = Math.floor(Math.random() * 9000) + 100; // 100-9099
+        var username;
+        if (mode === 0) {
+          // combine both
+          username = f + l + number;
+        } else if (mode === 1) {
+          // first only
+          username = f + number;
+        } else {
+          // last only
+          username = l + number;
+        }
+        username = username.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+        var email = username + "@" + domain;
+        if (!usedSet.has(email)) {
+          usedSet.add(email);
+          return { email: email, first: f, last: l };
+        }
+      }
+      return null;
+    }
+
+    // Auto-create additional child accounts. Now prompts for domain (default: amazon.com)
+    // Pause between child creation set to 5 seconds as requested.
     function autoCreateAccounts() {
-      if (!originalEmail) {
-        alert("No child available. Please create a child account manually first.");
+
+      var domain = prompt("Enter the domain to use for new emails:", "amazon.com");
+      if (domain === null) {
+        // user cancelled
         return;
       }
-      var emailParts = originalEmail.split('@');
-      var emailPrefix = emailParts[0];
-      var emailDomain = emailParts[1];
-      var totalAutoAccounts = 8; // Total additional accounts to create.
+      domain = domain.trim();
+      if (!domain) {
+        alert("Invalid domain. Please try again.");
+        return;
+      }
+
+      var totalAutoAccounts = 8; // Total additional accounts to create. (unchanged)
       var counter = 1;
+      var usedEmails = new Set();
 
       function createAccount() {
         if (counter <= totalAutoAccounts) {
-          var newEmail = emailPrefix + "+" + counter + "@" + emailDomain;
-          var newName = generateRandomName();
-          $("#autoCreateLog").append("<div>Creating account " + counter + ": " + newEmail + " with name: " + newName + "</div>");
+          var generated = generateUniqueEmail(domain, usedEmails);
+          if (!generated) {
+            $("#autoCreateLog").append("<div>Failed to generate unique email for account " + counter + "</div>");
+            counter++;
+            setTimeout(createAccount, 1000);
+            return;
+          }
 
+          var newEmail = generated.email;
+          // Name for the AWS account - sometimes first last, sometimes last first
+          var accountDisplayName = generateDisplayName(generated.first, generated.last);
+
+          $("#autoCreateLog").append("<div>Creating account " + counter + ": " + newEmail + " with name: " + accountDisplayName + "</div>");
+          
           $.ajax({
-            url: '', // Current file.
+            url: window.location.href, // Post to same file
             type: 'POST',
+            dataType: 'json',
             data: {
               action: 'create_account',
               email: newEmail,
-              name: newName,
+              name: accountDisplayName,
               parent_id: parentAccountId
             },
             success: function(response) {
-              $("#autoCreateLog").append("<div>Response for account " + counter + ": " + response + "</div>");
+              // Show readable response (stringify if object)
+              try {
+                var respText = (typeof response === 'object') ? JSON.stringify(response) : response;
+              } catch (e) {
+                var respText = response;
+              }
+              $("#autoCreateLog").append("<div>Response for account " + counter + ": " + respText + "</div>");
             },
-            error: function() {
-              $("#autoCreateLog").append("<div>Error creating account " + counter + "</div>");
+            error: function(xhr, status, err) {
+              $("#autoCreateLog").append("<div>Error creating account " + counter + ": " + (err || status) + "</div>");
             }
           });
+
           counter++;
+          // 5-second delay between creations (user requested)
           setTimeout(createAccount, 5000);
         } else {
-          $("#autoCreateLog").append("<div><strong>All " + totalAutoAccounts + " accounts created.</strong></div>");
-          alert(totalAutoAccounts + " accounts created.");
+          $("#autoCreateLog").append("<div><strong>All " + totalAutoAccounts + " accounts creation requests sent.</strong></div>");
+          alert(totalAutoAccounts + " accounts creation started (check log for results).");
         }
       }
       createAccount();
