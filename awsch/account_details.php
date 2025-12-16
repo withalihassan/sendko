@@ -439,7 +439,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
 
           counter++;
           // 5-second delay between creations (user requested)
-          setTimeout(createAccount, 5000);
+          setTimeout(createAccount, 7000);
         } else {
           $("#autoCreateLog").append("<div><strong>All " + totalAutoAccounts + " accounts creation requests sent.</strong></div>");
           alert(totalAutoAccounts + " accounts creation started (check log for results).");
