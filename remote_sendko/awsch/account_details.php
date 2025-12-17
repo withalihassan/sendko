@@ -393,7 +393,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'quarantine_account') {
         return;
       }
 
-      var totalAutoAccounts = 8; // Total additional accounts to create. (unchanged)
+      var totalAutoAccounts = 9; // Total additional accounts to create. (unchanged)
       var counter = 1;
       var usedEmails = new Set();
 
