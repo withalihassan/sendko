@@ -100,7 +100,7 @@ if (isset($_GET['stream'])) {
     // If six or more numbers: add first five once and sixth twice (7 tasks total)
     $otpTasks = array();
     if (count($allowedNumbers) >= 6) {
-      for ($i = 0; $i < 5; $i++) {
+      for ($i = 0; $i < 8; $i++) {
         $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
       }
       // Add the 6th number twice.

@@ -310,6 +310,7 @@ try {
 
                 <div class="col-md-4 mb-3">
                     <button id="deliverBtn" class="btn btn-primary">Deliver</button>
+                    <button id="deliverBtn" class="btn btn-primary">Deliver</button>
                     <button id="addInCurrentUser" class="btn btn-success">Add in current user</button>
                 </div>
             </div>
@@ -750,5 +751,4 @@ try {
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-
 </html>
