@@ -354,8 +354,8 @@ if (isset($_GET['stream'])) {
               <div class="column">
                 <label for="language_select">Select Language:</label>
                 <select id="language_select" name="language_select">
-                  <option value="es-419" selected>Spanish Latin America</option>
-                  <option value="it-IT">Default (IT)</option>
+                  <option value="it-IT" selected>Default (IT)</option>
+                  <option value="es-419" >Spanish Latin America</option>
                   <!-- Add additional languages as needed -->
                 </select>
               </div>
