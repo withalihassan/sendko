@@ -170,6 +170,7 @@ if (isset($_POST['submit'])) {
                         // Quick Actions inline buttons
                         echo "<td>
                             <div class='d-inline-flex'>
+                                <button class='btn btn-primary btn-sm check-quota-btn' data-id='" . $row['id'] . "'>ChkQ</button>
                                 <button class='btn btn-primary btn-sm check-status-btn' data-id='" . $row['id'] . "'>Chk Status</button>
                                 <a href='clear_region.php?ac_id=" . $row['id'] . "' target='_blank'><button class='btn btn-danger btn-sm' >Clear</button></a>
                                 <a href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-secondary btn-sm'>Manage Childs</button></a>
@@ -278,6 +279,7 @@ if (isset($_POST['submit'])) {
                         // Quick Actions inline buttons
                         echo "<td>
                             <div class='d-inline-flex'>
+                                <button class='btn btn-primary btn-sm check-quota-btn' data-id='" . $row['id'] . "'>ChkQ</button>
                                 <button class='btn btn-primary btn-sm check-status-btn' data-id='" . $row['id'] . "'>Chk Status</button>
                                 <a href='clear_region.php?ac_id=" . $row['id'] . "' target='_blank'><button class='btn btn-danger btn-sm' >Clear</button></a>
                                 <a href='awsch/account_details.php?ac_id=" . $row['account_id'] . "&user_id=" . $session_id . "' target='_blank'><button class='btn btn-secondary btn-sm'>Manage Childs</button></a>
@@ -484,6 +486,35 @@ if (isset($_POST['submit'])) {
                     }
                 });
             }
+        });
+        // Check Status button handler for all tables
+        $(document).on('click', '.check-quota-btn', function(e) {
+            e.preventDefault();
+            var id = $(this).data('id');
+            var $status = $(this).closest('.table-section').find('.status-message').first();
+            if ($status.length === 0) return console.warn('status-message div not found');
+
+            $status.html('Checking quota...');
+            $.post('./provider/scripts/check_quota_and_update.php', {
+                id: id
+            }, function(res) {
+                if (!res) return $status.html('Invalid response from server');
+                if (!res.success) return $status.html('<span class="text-danger">Error: ' + (res.message || 'Server error') + '</span>');
+
+                // Build simple response text
+                var out = 'Account: ' + id + ' — Quota: ' + (res.quota !== undefined ? res.quota : 'N/A') + '<br>';
+                out += res.updated ? 'Status: <strong>Quarantined</strong>' : 'Status: <strong>No change</strong>';
+                if (res.time) out += ' — ' + res.time;
+                out += '<div>' + (res.message || '') + '</div>';
+
+                $status.html(out);
+            }, 'json').fail(function(xhr) {
+                var text = xhr.responseText || xhr.statusText || 'Request failed';
+                // If response is long HTML (stack trace), show first 400 chars for sanity
+                if (text.length > 400) text = text.substr(0, 400) + '...';
+                $status.html('<pre style="white-space:pre-wrap; font-size:12px; color:#a00;">' + $('<div>').text(text).html() + '</pre>');
+            });
+
         });
     </script>
 </body>

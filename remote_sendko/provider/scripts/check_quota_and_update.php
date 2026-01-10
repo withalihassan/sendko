@@ -1,178 +1,155 @@
 <?php
-// check_quota_display.php  (DEV) - prints "Account: X — Quota: Y" (tries hard to find quota)
+// check_quota_update.php - simple: fetch quota and update accounts.ac_score
+// If quota === 0 -> also set accounts.ac_worth = 'Quarantined'
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-$debugLog = sys_get_temp_dir() . '/check_quota_display.log';
-function dbg($m)
-{
-  global $debugLog;
-  @file_put_contents($debugLog, date('c') . ' - ' . $m . PHP_EOL, FILE_APPEND);
-}
-
 header('Content-Type: text/plain; charset=utf-8');
 
 try {
-  $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
-  if ($id <= 0) throw new Exception('POST id required (int)');
+    $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+    if ($id <= 0) throw new RuntimeException('POST id required (int)');
 
-  // include your DB (adjust path if necessary)
-  $dbPath = __DIR__ . '/../../db.php';
-  if (!file_exists($dbPath)) throw new Exception("db.php not found at: $dbPath");
-  require_once $dbPath;
-  if (!isset($pdo) || !($pdo instanceof PDO)) throw new Exception('$pdo missing or not PDO.');
+    // Path to your DB bootstrap which must provide $pdo (PDO instance)
+    $dbPath = __DIR__ . '/../../db.php';
+    if (!file_exists($dbPath)) throw new RuntimeException("db.php not found at: $dbPath");
+    require_once $dbPath;
+    if (!isset($pdo) || !($pdo instanceof PDO)) throw new RuntimeException('$pdo missing or not PDO.');
 
-  // fetch account row
-  $stmt = $pdo->prepare("SELECT * FROM accounts WHERE id = :id LIMIT 1");
-  $stmt->execute([':id' => $id]);
-  $row = $stmt->fetch(PDO::FETCH_ASSOC);
-  if (!$row) throw new Exception("Account id {$id} not found.");
+    // fetch account row
+    $stmt = $pdo->prepare("SELECT * FROM accounts WHERE id = :id LIMIT 1");
+    $stmt->execute([':id' => $id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) throw new RuntimeException("Account id {$id} not found.");
 
-  dbg("DB row: " . var_export(array_intersect_key($row, ['id' => 1, 'account_id' => 1, 'aws_key' => 1, 'region' => 1]), true));
+    $awsKey = $row['aws_key'] ?? '';
+    $awsSecret = $row['aws_secret'] ?? '';
+    $region = !empty($row['region']) ? $row['region'] : 'us-east-1';
+    $accountIdentifier = $row['account_id'] ?? $row['id'];
 
-  $awsKey = $row['aws_key'] ?? '';
-  $awsSecret = $row['aws_secret'] ?? '';
-  $region = !empty($row['region']) ? $row['region'] : 'us-east-1';
-  $accountIdentifier = $row['account_id'] ?? $row['id'];
-
-  if (empty($awsKey) || empty($awsSecret)) throw new Exception("AWS credentials missing for id {$id}.");
-
-  // load SDK autoloader (adjust as needed)
-  $autoloads = [
-    __DIR__ . '/../../vendor/autoload.php',
-    __DIR__ . '/../../aws/aws-autoloader.php',
-    __DIR__ . '/../vendor/autoload.php',
-    __DIR__ . '/vendor/autoload.php',
-  ];
-  $used = null;
-  foreach ($autoloads as $a) {
-    if (file_exists($a)) {
-      require_once $a;
-      $used = $a;
-      break;
+    // If no credentials, set ac_score = NULL and exit
+    if (empty($awsKey) || empty($awsSecret)) {
+        $u = $pdo->prepare("UPDATE accounts SET ac_score = NULL WHERE id = :id LIMIT 1");
+        $u->execute([':id' => $id]);
+        echo "Account: {$accountIdentifier} — Quota: N/A\n";
+        exit;
     }
-  }
-  if (!$used) throw new Exception('AWS autoloader not found. Tried: ' . implode('; ', $autoloads));
-  dbg("Autoloader used: {$used}");
 
-  if (!class_exists('Aws\\Credentials\\Credentials')) throw new Exception('Aws\\Credentials\\Credentials missing.');
-  $creds = new Aws\Credentials\Credentials($awsKey, $awsSecret);
-
-  // STS: who are we? (useful to detect wrong keys)
-  $stsIdentity = null;
-  try {
-    $sts = new Aws\Sts\StsClient([
-      'region' => $region,
-      'version' => 'latest',
-      'credentials' => $creds
-    ]);
-    $stsIdentity = $sts->getCallerIdentity()->toArray();
-    dbg("STS identity: " . var_export($stsIdentity, true));
-  } catch (Aws\Exception\AwsException $e) {
-    dbg("STS failed: " . $e->getMessage());
-    // continue — not fatal for display, but helpful in log
-  }
-
-  // ServiceQuotas client
-  $sq = new Aws\ServiceQuotas\ServiceQuotasClient([
-    'region' => $region,
-    'version' => 'latest',
-    'credentials' => $creds
-  ]);
-
-  $serviceCode = 'ec2';
-  $quotaCode   = 'L-34B43A08'; // spot instance quota (change if you need another)
-  $quotaValue = null;
-  $quotaRaw = null;
-
-  // Attempt 1: getServiceQuota
-  try {
-    $res = $sq->getServiceQuota(['ServiceCode' => $serviceCode, 'QuotaCode' => $quotaCode]);
-    $quotaRaw = method_exists($res, 'toArray') ? $res->toArray() : (array)$res;
-    dbg("getServiceQuota raw: " . var_export($quotaRaw, true));
-    if (isset($quotaRaw['Quota']['Value'])) $quotaValue = $quotaRaw['Quota']['Value'];
-  } catch (Aws\Exception\AwsException $e) {
-    dbg("getServiceQuota AwsException: " . $e->getMessage());
-    // continue to fallback
-  } catch (Throwable $t) {
-    dbg("getServiceQuota threw: " . $t->getMessage());
-  }
-
-  // Attempt 2: listServiceQuotas fallback if no value
-  if ($quotaValue === null) {
-    try {
-      $list = $sq->listServiceQuotas(['ServiceCode' => $serviceCode, 'MaxResults' => 1000]);
-      $listArr = method_exists($list, 'toArray') ? $list->toArray() : (array)$list;
-      dbg("listServiceQuotas count: " . count($listArr['Quotas'] ?? []));
-      // first search by QuotaCode
-      foreach ($listArr['Quotas'] ?? [] as $q) {
-        if (isset($q['QuotaCode']) && $q['QuotaCode'] === $quotaCode) {
-          $quotaRaw = $q;
-          $quotaValue = $q['Value'] ?? ($q['Quota']['Value'] ?? null);
-          break;
-        }
-      }
-      // if still not found, try lookups by common names (extra heuristics)
-      if ($quotaValue === null) {
-        foreach ($listArr['Quotas'] ?? [] as $q) {
-          // look for text containing 'Spot' / 'Spot Instance' as heuristic
-          if (!empty($q['QuotaName']) && stripos($q['QuotaName'], 'spot') !== false) {
-            $quotaRaw = $q;
-            $quotaValue = $q['Value'] ?? ($q['Quota']['Value'] ?? null);
+    // try to load AWS SDK autoloader (adjust list if needed)
+    $autoloads = [
+        __DIR__ . '/../../vendor/autoload.php',
+        __DIR__ . '/../../aws/aws-autoloader.php',
+        __DIR__ . '/../vendor/autoload.php',
+        __DIR__ . '/vendor/autoload.php',
+    ];
+    $found = false;
+    foreach ($autoloads as $a) {
+        if (file_exists($a)) {
+            require_once $a;
+            $found = true;
             break;
-          }
         }
-      }
-      // attach sample to log
-      dbg("list sample: " . var_export(array_slice($listArr['Quotas'] ?? [], 0, 6), true));
-    } catch (Aws\Exception\AwsException $e) {
-      dbg("listServiceQuotas AwsException: " . $e->getMessage());
-    } catch (Throwable $t) {
-      dbg("listServiceQuotas threw: " . $t->getMessage());
     }
-  }
-
-  // Normalize displayable quota
-  $displayQuota = 'N/A';
-  if ($quotaValue !== null && $quotaValue !== '') {
-    // cast nicely
-    if (is_numeric($quotaValue)) {
-      // if it's whole number, show as int, otherwise show float
-      $displayQuota = (float)$quotaValue == (int)$quotaValue ? (string)(int)$quotaValue : (string)(float)$quotaValue;
-    } else {
-      $displayQuota = (string)$quotaValue;
+    if (!$found || !class_exists('Aws\\ServiceQuotas\\ServiceQuotasClient')) {
+        // can't call AWS, set ac_score = NULL
+        $u = $pdo->prepare("UPDATE accounts SET ac_score = NULL WHERE id = :id LIMIT 1");
+        $u->execute([':id' => $id]);
+        echo "Account: {$accountIdentifier} — Quota: N/A\n";
+        exit;
     }
-  }
 
-  // Decide status (example rule: quarantine when <= 1)
-  $status = 'No change';
-  if (is_numeric($displayQuota)) {
-    if ((float)$displayQuota <= 1) $status = 'Quarantined';
-  }
-  // --- after we set $status ----------------
-  if ($status === 'Quarantined') {
+    $creds = new Aws\Credentials\Credentials($awsKey, $awsSecret);
+    $sq = new Aws\ServiceQuotas\ServiceQuotasClient([
+        'region' => $region,
+        'version' => 'latest',
+        'credentials' => $creds
+    ]);
+
+    $serviceCode = 'ec2';
+    $quotaCode   = 'L-34B43A08'; // change if you need a different quota
+    $quotaValue = null;
+
+    // Attempt 1: getServiceQuota
     try {
-      // Update the accounts table to mark as Quarantine
-      $u = $pdo->prepare("UPDATE accounts SET ac_worth = :worth WHERE id = :id LIMIT 1");
-      $u->execute([':worth' => 'Quarantined', ':id' => $id]);
-      dbg("DB update: set ac_worth='Quarantined' for id={$id}; rows=" . $u->rowCount());
-    } catch (Throwable $t) {
-      dbg("DB update failed for id={$id}: " . $t->getMessage());
-      // do not throw—log and continue, so the script output stays friendly
+        $res = $sq->getServiceQuota(['ServiceCode' => $serviceCode, 'QuotaCode' => $quotaCode]);
+        $arr = method_exists($res, 'toArray') ? $res->toArray() : (array)$res;
+        if (isset($arr['Quota']['Value'])) $quotaValue = $arr['Quota']['Value'];
+    } catch (Throwable $e) {
+        // ignore and fallback to listServiceQuotas
     }
-  }
-  // Print concise output (same format you used)
-  echo "Account: {$accountIdentifier} — Quota: {$displayQuota} Status: {$status}";
 
-  // Also log the full raw quota for deeper inspection
-  dbg("FINAL: account={$accountIdentifier} displayQuota={$displayQuota} raw=" . var_export($quotaRaw, true));
+    // Attempt 2: listServiceQuotas fallback
+    if ($quotaValue === null) {
+        try {
+            $list = $sq->listServiceQuotas(['ServiceCode' => $serviceCode, 'MaxResults' => 1000]);
+            $listArr = method_exists($list, 'toArray') ? $list->toArray() : (array)$list;
+            foreach ($listArr['Quotas'] ?? [] as $q) {
+                if (!empty($q['QuotaCode']) && $q['QuotaCode'] === $quotaCode) {
+                    $quotaValue = $q['Value'] ?? ($q['Quota']['Value'] ?? null);
+                    break;
+                }
+            }
+            if ($quotaValue === null) {
+                foreach ($listArr['Quotas'] ?? [] as $q) {
+                    if (!empty($q['QuotaName']) && stripos($q['QuotaName'], 'spot') !== false) {
+                        $quotaValue = $q['Value'] ?? ($q['Quota']['Value'] ?? null);
+                        break;
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+            // ignore
+        }
+    }
 
-  exit;
+    // Normalize quota to numeric or NULL
+    $isNumericQuota = is_numeric($quotaValue);
+    if ($isNumericQuota) {
+        // prefer integer when whole
+        $quotaNormalized = ((float)$quotaValue == (int)$quotaValue) ? (int)$quotaValue : (float)$quotaValue;
+        $bindValue = $quotaNormalized;
+        $bindType = is_int($bindValue) ? PDO::PARAM_INT : PDO::PARAM_STR;
+    } else {
+        $bindValue = null;
+        $bindType = PDO::PARAM_NULL;
+    }
+
+    // Update accounts.ac_score always (either numeric value or NULL)
+    $u = $pdo->prepare("UPDATE accounts SET ac_score = :score WHERE id = :id LIMIT 1");
+    if ($bindType === PDO::PARAM_NULL) {
+        $u->bindValue(':score', null, PDO::PARAM_NULL);
+    } elseif ($bindType === PDO::PARAM_INT) {
+        $u->bindValue(':score', $bindValue, PDO::PARAM_INT);
+    } else {
+        $u->bindValue(':score', (string)$bindValue, PDO::PARAM_STR);
+    }
+    $u->bindValue(':id', $id, PDO::PARAM_INT);
+    $u->execute();
+
+    // NEW: only when quota is exactly 0 -> set ac_worth = 'Quarantined'
+    if ($isNumericQuota && (float)$quotaValue === 0.0) {
+        $q = $pdo->prepare("UPDATE accounts SET ac_worth = 'Quarantined' WHERE id = :id LIMIT 1");
+        $q->execute([':id' => $id]);
+        $status = 'Quarantined';
+    } else {
+        $status = 'No change';
+    }
+
+    $display = ($bindType === PDO::PARAM_NULL) ? 'N/A' : (string)$bindValue;
+    echo "Account: {$accountIdentifier} — Quota: {$display} Status: {$status}\n";
+    exit;
+
 } catch (Throwable $ex) {
-  dbg("Exception: " . $ex->getMessage() . ' trace:' . $ex->getTraceAsString());
-  // DEV friendly output
-  echo "Account: {$id} — Quota: N/A\n";
-  echo "Status: No change\n";
-  exit;
+    // best-effort: set ac_score = NULL then output minimal message
+    if (isset($pdo) && ($pdo instanceof PDO) && isset($id) && $id > 0) {
+        try {
+            $u = $pdo->prepare("UPDATE accounts SET ac_score = NULL WHERE id = :id LIMIT 1");
+            $u->execute([':id' => $id]);
+        } catch (Throwable $_) {
+            // ignore
+        }
+    }
+    echo "Account: " . (isset($accountIdentifier) ? $accountIdentifier : 'N/A') . " — Quota: N/A\n";
+    exit;
 }
