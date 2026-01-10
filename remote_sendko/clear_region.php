@@ -203,10 +203,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_region' && isset($_GET
         }
 
         // Define the AWS regions to process.
-        const regions = ["us-east-1", "us-east-2", "us-west-1", "us-west-2", "ap-south-1", "ap-northeast-3", 
-        "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "ca-central-1", "eu-central-1", "eu-west-1", "eu-west-2", "eu-west-3",
-        "eu-north-1", "me-central-1", "sa-east-1", "af-south-1", "ap-southeast-3", "ap-southeast-4", "ca-west-1", "eu-south-1", 
-        "eu-south-2", "eu-central-2", "me-south-1", "il-central-1",  "ap-south-2"];
+        // const regions = ["us-east-1", "us-east-2", "us-west-1", "us-west-2", "ap-south-1", "ap-northeast-3", 
+        // "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "ca-central-1", "eu-central-1", "eu-west-1", "eu-west-2", "eu-west-3",
+        // "eu-north-1", "me-central-1", "sa-east-1", "af-south-1", "ap-southeast-3", "ap-southeast-4", "ca-west-1", "eu-south-1", 
+        // "eu-south-2", "eu-central-2", "me-south-1", "il-central-1",  "ap-south-2"];         
+
+        const regions = ["me-central-1", "ap-southeast-3", "ap-southeast-4", "eu-south-2", "eu-central-2", "ap-south-2"];
         const ac_id = <?php echo json_encode($ac_id); ?>;
         const log = document.getElementById("log");
         const startButton = document.getElementById("startButton");
