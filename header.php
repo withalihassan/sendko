@@ -72,6 +72,7 @@
       <li><a href="iam_users.php">IAM List</a></li>
       <li><a href="qrtine_ac.php" target="_blank">Qrtine AC</a></li>
       <li><a href="number_dir.php">Numbers Directory</a></li>
+      <li><a href="./CloudDesk" target="_blank">CloudDesk</a></li>
       <li><a href="./remote_sendko" target="_blank">Remote Accounts</a></li>
       <!-- <li><a href="my_numbers.php">My Numbers</a></li> -->
       <!-- <li><a href="./update_numbers.php">Update Numbers</a></li> -->

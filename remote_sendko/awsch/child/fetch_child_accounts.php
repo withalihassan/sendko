@@ -18,14 +18,15 @@ if (isset($_GET['parent_id'])) {
     $stmt = $pdo->prepare("SELECT * FROM child_accounts WHERE parent_id = ? AND account_id != ?");
     $stmt->execute([$parentId, $parentId]);
     $accounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+    
     if (count($accounts) > 0) {
         foreach ($accounts as $index => $account) {
+            $child_id=$account['account_id'];
             // Determine status badge based on account status
             $statusBadge = ($account['status'] === 'ACTIVE')
                 ? "<span class='badge bg-success'>Active</span>"
-                : "<span class='badge bg-danger'>Suspended</span>";
-            //Age calculation strted 
+                : "<a href='./child/remove_child_internally.php?prnt_id=$parentId&child_id=$child_id' target='_blank' ><span class='badge bg-danger'>Suspended</span></a>";
+            //Age calculation strted s
             if ($account['status'] == 'ACTIVE') {
                 if($account['created_at']  != NULL){
                 $td_created_at = new DateTime($account['created_at']);

@@ -21,10 +21,11 @@ if (isset($_GET['parent_id'])) {
 
     if (count($accounts) > 0) {
         foreach ($accounts as $index => $account) {
+            $child_id=$account['account_id'];
             // Determine status badge based on account status
             $statusBadge = ($account['status'] === 'ACTIVE')
                 ? "<span class='badge bg-success'>Active</span>"
-                : "<span class='badge bg-danger'>Suspended</span>";
+                : "<a href='./child/remove_child_internally.php?prnt_id=$parentId&child_id=$child_id' target='_blank' ><span class='badge bg-danger'>Suspended</span></a>";
             //Age calculation strted 
             if ($account['status'] == 'ACTIVE') {
                 if($account['created_at']  != NULL){

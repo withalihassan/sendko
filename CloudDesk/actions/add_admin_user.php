@@ -14,8 +14,6 @@ $accessKey = $_POST['aws_access_key'] ?? '';
 $secretKey = $_POST['aws_secret_key'] ?? '';
 $childId   = $_POST['ac_id']         ?? '';
 $user_id   = $_POST['user_id']       ?? '';
-//Uncomment below line to direct add iam in anotther user
-// $user_id   = 4;
 
 if (!$accessKey || !$secretKey || !$childId) {
     echo json_encode(['error' => 'Missing credentials or account ID.']);

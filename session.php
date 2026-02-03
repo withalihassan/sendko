@@ -20,6 +20,6 @@ if (!$user) {
     exit;
 }
 
-$session_id = $_SESSION['user_id'];
+echo $session_id = $_SESSION['user_id'];
 $username = $user['username'];
 $account_status = $user['account_status'];
