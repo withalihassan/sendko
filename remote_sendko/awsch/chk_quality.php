@@ -133,7 +133,8 @@ if (isset($_GET['stream'])) {
       continue;
     }
     // Pass the language parameter to send_otp_single.
-    $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language);
+    // $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language);
+    $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns);
     if ($result['status'] === 'success') {
       sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Sent");
       $otpSentInThisRegion = true;
@@ -353,8 +354,9 @@ if (isset($_GET['stream'])) {
         <div>
           <label for="language">Select Language:</label>
           <select id="language" name="language" required>
+            <option value="" selected>No language selected</option>
             <option value="en-US">English (US)</option>
-            <option value="es-419" selected>Spanish (Latin America)</option>
+            <option value="es-419" >Spanish (Latin America)</option>
             <!-- Add more languages if needed -->
           </select>
         </div>

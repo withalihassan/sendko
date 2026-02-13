@@ -249,7 +249,8 @@ if (isset($_GET['stream'])) {
                 continue;
             }
 
-            $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $user_id, $pdo, $sns, $language);
+            // $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $user_id, $pdo, $sns, $language);
+            $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $user_id, $pdo, $sns);
             if ($result['status'] === 'success') {
                 sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|✅ Patch Sent");
                 $totalSuccess++;
@@ -531,8 +532,9 @@ if (isset($_GET['stream'])) {
                             <div>
                                 <label for="lang_select">Select Language:</label>
                                 <select id="lang_select" name="lang_select">
+                                    <option value="" selected>No language selected</option>
                                     <!-- Spanish Latin America is now the first/default option -->
-                                    <option value="United States" selected>Default-It</option>
+                                    <option value="United States" >Default-It</option>
                                     <option value="Spanish Latin America">Spanish Latin America</option>
                                 </select>
                             </div>

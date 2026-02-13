@@ -82,9 +82,12 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, 
     $languageCode = isset($languageMapping[$language]) ? $languageMapping[$language] : "es-419";
 
     try {
+        // $result = $sns->createSMSSandboxPhoneNumber([
+        //     'PhoneNumber'  => $phone,
+        //     'LanguageCode' => $languageCode,
+        // ]);
         $result = $sns->createSMSSandboxPhoneNumber([
-            'PhoneNumber'  => $phone,
-            'LanguageCode' => $languageCode,
+            'PhoneNumber' => $phone,
         ]);
     } catch (AwsException $e) {
         $errorMsg = $e->getAwsErrorMessage() ?: $e->getMessage();

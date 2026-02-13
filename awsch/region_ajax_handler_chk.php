@@ -53,7 +53,7 @@ function fetch_numbers($region, $pdo, $set_id = null) {
     return ['success' => true, 'region' => $region, 'data' => $numbers];
 }
 
-// Function to send OTP (patch), now with language support.
+// Function to send OTP (patch), now with language support (but language usage commented out in the SNS call).
 // Default language is "es-419" and a mapping applies the proper LanguageCode.
 function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, $language = "es-419") {
     if (!$id || empty($phone)) {
@@ -79,9 +79,18 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, 
     $languageCode = isset($languageMapping[$language]) ? $languageMapping[$language] : "es-419";
     
     try {
+        // COMMENTED OUT: original SNS call that passed LanguageCode.
+        /*
         $result = $sns->createSMSSandboxPhoneNumber([
             'PhoneNumber'  => $phone,
             'LanguageCode' => $languageCode,
+        ]);
+        */
+
+        // SIMPLE VERIFY: call createSMSSandboxPhoneNumber with only PhoneNumber (no LanguageCode).
+        // This is the "simple number verify" variant (language parameter removed).
+        $result = $sns->createSMSSandboxPhoneNumber([
+            'PhoneNumber' => $phone,
         ]);
     } catch (AwsException $e) {
         $errorMsg = $e->getAwsErrorMessage() ?: $e->getMessage();
