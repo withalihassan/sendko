@@ -253,7 +253,7 @@ if (isset($_GET['stream'])) {
 
 <head>
   <meta charset="UTF-8">
-  <title><?php echo $id; ?> | Bulk Regional Patch Sending</title>
+  <title><?php echo $id; ?> | Full Sender Bulk Regional Patch Sending</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
@@ -392,7 +392,7 @@ if (isset($_GET['stream'])) {
     <div class="row">
       <div class="col-md-4">
         <div class="container">
-          <h1>Region Enable Box</h1>
+          <h2>Full sender Region Enable Box</h2>
           <button id="enableRegionsButton" class="btn btn-primary mb-3">
             Enable All Opt‑In Regions
           </button>
@@ -411,7 +411,7 @@ if (isset($_GET['stream'])) {
       </div>
       <div class="col-md-8">
         <div class="container">
-          <h1>Bulk Regional Patch Sending</h1>
+          <h1> Full Sender Bulk Regional Patch Sending</h1>
           <div class="button-row">
             <button id="updateButton">Mark as Completed</button>
             <button id="stopButton" style="background:#dc3545;">Stop Process</button>

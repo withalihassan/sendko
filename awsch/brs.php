@@ -31,8 +31,8 @@ date_default_timezone_set('Asia/Karachi');
 $currentTimestamp = date('Y-m-d H:i:s');
 
 // Retrieve AWS keys from child_accounts
- $aws_key    = $account['aws_access_key'];
- $aws_secret = $account['aws_secret_key'];
+$aws_key    = $account['aws_access_key'];
+$aws_secret = $account['aws_secret_key'];
 
 // STREAMING MODE: If stream=1 is present, run the SSE loop.
 if (isset($_GET['stream'])) {
@@ -63,12 +63,14 @@ if (isset($_GET['stream'])) {
 
   // List of regions for BRS processing
   $regions = array(
-    "me-central-1",
+    "ap-south-2",
+    // "ap-east-2",
     "ap-southeast-3",
     "ap-southeast-4",
+    // "ap-southeast-6",
     "eu-south-2",
     "eu-central-2",
-    "ap-south-2"
+    "me-central-1"
   );
   $totalRegions = count($regions);
   $totalSuccess = 0;
@@ -349,9 +351,9 @@ if (isset($_GET['stream'])) {
               <div class="column">
                 <label for="language_select">Select Language:</label>
                 <select id="language_select" name="language_select">
-                <option value="" selected>No language selected</option>
-                  <option value="it-IT" >Default IT</option>
-                  <option value="es-419" >Spanish Latin America</option>
+                  <option value="" selected>No language selected</option>
+                  <option value="it-IT">Default IT</option>
+                  <option value="es-419">Spanish Latin America</option>
                   <!-- Add additional languages as needed -->
                 </select>
               </div>
@@ -494,10 +496,9 @@ if (isset($_GET['stream'])) {
       const acId = "<?php echo htmlspecialchars($id, ENT_QUOTES); ?>";
       const userId = <?php echo $parent_id; ?>;
       const regions = [
-        "me-central-1",
-        "ap-southeast-3", "ap-southeast-4",
-        "eu-south-2", "eu-central-2",
-        "ap-south-2"
+        "ap-south-2","ap-southeast-3",
+        "ap-southeast-4",
+        "eu-south-2", "eu-central-2", "me-central-1"
       ];
       const maxConcurrent = 6;
       const delayMs = 2000; // 2 seconds

@@ -8,7 +8,7 @@ require '../../session.php'; // This file defines $pdo
 if (isset($_SESSION['user_id'])) {
     // $session_id = 12;
     // $session_id = $_SESSION['user_id'];
-}else {
+} else {
 }
 // echo $session_id = $_SESSION['user_id'];
 if (isset($_GET['parent_id'])) {
@@ -21,30 +21,30 @@ if (isset($_GET['parent_id'])) {
 
     if (count($accounts) > 0) {
         foreach ($accounts as $index => $account) {
-            $child_id=$account['account_id'];
+            $child_id = $account['account_id'];
             // Determine status badge based on account status
             $statusBadge = ($account['status'] === 'ACTIVE')
                 ? "<span class='badge bg-success'>Active</span>"
                 : "<a href='./child/remove_child_internally.php?prnt_id=$parentId&child_id=$child_id' target='_blank' ><span class='badge bg-danger'>Suspended</span></a>";
             //Age calculation strted 
             if ($account['status'] == 'ACTIVE') {
-                if($account['created_at']  != NULL){
-                $td_created_at = new DateTime($account['created_at']);
-                $td_current_date = new DateTime();
-                $diff = $td_created_at->diff($td_current_date);
-                $child_ac_Age =$diff->format('%a');
-                }else{
-                $child_ac_Age =  "<span>error1</span>";
+                if ($account['created_at']  != NULL) {
+                    $td_created_at = new DateTime($account['created_at']);
+                    $td_current_date = new DateTime();
+                    $diff = $td_created_at->diff($td_current_date);
+                    $child_ac_Age = $diff->format('%a');
+                } else {
+                    $child_ac_Age =  "<span>error1</span>";
                 }
             } else {
                 $child_ac_Age =  "<span>error2</span>";
             }
             //Age calculation ended
             //is in org checking
-            if($account['is_in_org']=="No"){
-                $color_mark="style='background-color: #ffcccc;'";
-            }else{
-                $color_mark="";
+            if ($account['is_in_org'] == "No") {
+                $color_mark = "style='background-color: #ffcccc;'";
+            } else {
+                $color_mark = "";
             }
             // Construct table row with escaped output and URL-encoded query parameters
             echo "<tr>
@@ -58,13 +58,19 @@ if (isset($_GET['parent_id'])) {
                     <td><span>$child_ac_Age days</td>
                     <td>" . htmlspecialchars($account['account_id']) . "</td>
                     <td>
-                        <a href='./bulk_regional_send.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-success'>Bulk Regional Send</a>
-                        <a href='./brs.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-info'>BRS</a>
-                        <a href='./enable_regions.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-secondary'>E-R</a>
-                        <a href='./clear_single.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-warning'>Clear</a>
-                        <a target='_blank' href='child_account.php?child_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "' class='btn btn-primary'>Setup</a>
-                        <a target='_blank' rel='noopener noreferrer' href='./chk_quality.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "' class='btn btn-warning'>CHK-Q</a>
-                        <a target='_blank' href='./child_actions.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "&user_id=" . urlencode($session_id) . "&CHID=" . urlencode($index + 1) . "&chage=" . urlencode($child_ac_Age) . "' class='btn btn-success'>Open</a>
+                        <div class='btn-group d-inline-flex' role='group'>
+                            <a href='./bulk_regional_send.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-success btn-sm'>Full Sndr</a>
+                            <a href='./full_sender_v2.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-info btn-sm'>V2</a>
+                        </div>
+                        <div class='btn-group d-inline-flex' role='group'>
+                            <a href='./brs.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-success btn-sm'>Half Sndr</a>
+                            <a href='./half_sender_v2.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-info btn-sm'>V2</a>
+                        </div>
+                        <a href='./enable_regions.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-secondary btn-sm'>E-R</a>
+                        <a href='./clear_single.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-warning btn-sm'>Clear</a>
+                        <a target='_blank' href='child_account.php?child_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "' class='btn btn-primary btn-sm'>Setup</a>
+                        <a target='_blank' rel='noopener noreferrer' href='./chk_quality.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "' class='btn btn-warning btn-sm'>CHK-Q</a>
+                        <a target='_blank' href='./child_actions.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "&user_id=" . urlencode($session_id) . "&CHID=" . urlencode($index + 1) . "&chage=" . urlencode($child_ac_Age) . "' class='btn btn-success btn-sm'>Open</a>
                     </td>
                   </tr>";
         }
