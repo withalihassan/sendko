@@ -13,7 +13,7 @@ if (!isset($_GET['ac_id'])) {
 }
 
 $id = htmlspecialchars($_GET['ac_id']);
-$parent_id = htmlspecialchars($_GET['parent_id']);
+$parent_id = htmlspecialchars($_GET['parrent_id']);
 
 // Handle Stop Process request (AJAX POST)
 if (isset($_POST['action']) && $_POST['action'] === 'stop_process') {
