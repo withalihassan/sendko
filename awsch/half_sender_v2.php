@@ -1,5 +1,5 @@
 <?php
-// half_sender_v2.php
+// bulk_regional_send.php
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -13,7 +13,7 @@ if (!isset($_GET['ac_id'])) {
 }
 
 $id = htmlspecialchars($_GET['ac_id']);
-$parent_id = htmlspecialchars($_GET['parrent_id']);
+$parent_id = htmlspecialchars($_GET['parent_id']);
 
 // Handle Stop Process request (AJAX POST)
 if (isset($_POST['action']) && $_POST['action'] === 'stop_process') {
@@ -72,9 +72,8 @@ if (isset($_GET['stream'])) {
     }
     $set_id = intval($_GET['set_id']);
 
-    // Retrieve language parameter from GET.
-    // Treat empty string as "no selection" => null (so LanguageCode won't be sent to AWS).
-    $language = (isset($_GET['language']) && $_GET['language'] !== '') ? trim($_GET['language']) : null;
+    // Retrieve language parameter from GET (defaulting to Spanish Latin America "es-419")
+    $language = isset($_GET['language']) ? trim($_GET['language']) : "es-419";
 
     header('Content-Type: text/event-stream');
     header('Cache-Control: no-cache');
@@ -99,14 +98,49 @@ if (isset($_GET['stream'])) {
     } else {
         // Process all regions (full list)
         $regions = array(
+            // // US
+            // "us-east-1",
+            // "us-east-2",
+            // "us-west-1",
+            // "us-west-2",
+            // // Africa
+            // "af-south-1",
+            // // Asia Pacific
+            // "ap-south-1",
             "ap-south-2",
+            // "ap-east-1",
             "ap-east-2",
+            // "ap-northeast-1",
+            // "ap-northeast-2",
+            // "ap-northeast-3",
+            // "ap-southeast-1",
+            // "ap-southeast-2",
             "ap-southeast-3",
             "ap-southeast-4",
+            // // "ap-southeast-5",
             "ap-southeast-6",
+            // // "ap-southeast-7",
+            // // Canada
+            // "ca-central-1",
+            // "ca-west-1",
+            // // Europe
+            // "eu-central-1",
             "eu-central-2",
+            // "eu-west-1",
+            // "eu-west-2",
+            // "eu-west-3",
+            // "eu-north-1",
+            // "eu-south-1",
             "eu-south-2",
-            "me-central-1"
+            // // Middle East
+            "me-central-1",
+            // "me-south-1",
+            // // Israel
+            // "il-central-1",
+            // // Mexico
+            // "mx-central-1",
+            // // South America
+            // "sa-east-1"
         );
     }
 
@@ -178,8 +212,9 @@ if (isset($_GET['stream'])) {
                 sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Failed: " . $sns['error']);
                 continue;
             }
-            // Pass language (may be null) so handler decides whether to include LanguageCode.
-            $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language);
+            // NOTE: we switched to Pinpoint's verified-destination flow within send_otp_single.
+            // $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language);
+            $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns);
             if ($result['status'] === 'success') {
                 sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Sent");
                 $totalSuccess++;
@@ -230,6 +265,7 @@ if (isset($_GET['stream'])) {
     exit;
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -399,11 +435,8 @@ if (isset($_GET['stream'])) {
                         <button id="stopButton" style="background:#dc3545;">Stop Process</button>
                     </div>
                     <?php
-                    require '../sendko_db.php';
-
-                    $sendkkoPdo = openSendkkoConnection();
                     // Fetch available sets from bulk_sets table (only fresh sets)
-                    $stmtSets = $sendkkoPdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
+                    $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
                     $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
                     ?>
                     <form id="bulk-regional-otp-form">
@@ -416,7 +449,6 @@ if (isset($_GET['stream'])) {
                                         <option value="<?php echo $set['id']; ?>"><?php echo htmlspecialchars($set['set_name']); ?></option>
                                     <?php
                                     endforeach;
-                                    closeSendkkoConnection($sendkkoPdo);
                                     ?>
                                 </select>
                             </div>
@@ -481,7 +513,7 @@ if (isset($_GET['stream'])) {
                             <div>
                                 <label for="language_select">Select Language:</label>
                                 <select id="language_select" name="language_select">
-                                    <option value="">No language selected</option>
+                                    <option value="" >No language selected</option>
                                     <option value="it-IT" selected>Default-it</option>
                                     <option value="es-419">Spanish Latin America</option>
                                     <!-- Add additional languages as needed -->
