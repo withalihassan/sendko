@@ -1,9 +1,6 @@
 <?php
 // full_sender_v2_ajax_handler.php
-// Updated to use Pinpoint SMS & Voice V2 APIs:
-// - createVerifiedDestinationNumber
-// - sendDestinationNumberVerificationCode
-// Keeps existing database updates and return formats
+// Updated to use Pinpoint SMS & Voice V2 APIs with optional LanguageCode support.
 
 include('../db.php'); // Ensure your $pdo connection is initialized
 
@@ -65,35 +62,51 @@ function fetch_numbers($region, $pdo, $set_id = null)
 
 /**
  * Map incoming language codes (like es-419, it-IT) to the Pinpoint API format.
+ * Returns one of: DE_DE, EN_GB, EN_US, ES_419, ES_ES, FR_CA, FR_FR, IT_IT, JA_JP, KO_KR, PT_BR, ZH_CN, ZH_TW
+ * Returns null if input is empty or not recognized (so LanguageCode will not be sent).
  */
 function mapLanguageCode($lang)
 {
+    if ($lang === null) return null;
+    $l = trim($lang);
+    if ($l === '') return null;
+
+    // Normalize input: replace '-' with '_' and uppercase
+    $norm = strtoupper(str_replace('-', '_', $l));
+
     $map = [
-        "it-IT"  => "IT_IT",
-        "es-419" => "ES_419",
-        "en-US"  => "EN_US",
-        "en-GB"  => "EN_GB",
-        "de-DE"  => "DE_DE",
-        "fr-FR"  => "FR_FR",
-        "pt-BR"  => "PT_BR",
-        "ja-JP"  => "JA_JP",
-        "ko-KR"  => "KO_KR",
-        "zh-CN"  => "ZH_CN",
-        "zh-TW"  => "ZH_TW",
-        "fr-CA"  => "FR_CA",
+        "DE_DE"  => "DE_DE",
+        "EN_GB"  => "EN_GB",
+        "EN_US"  => "EN_US",
+        "ES_419" => "ES_419",
+        "ES_ES"  => "ES_ES",
+        "FR_CA"  => "FR_CA",
+        "FR_FR"  => "FR_FR",
+        "IT_IT"  => "IT_IT",
+        "JA_JP"  => "JA_JP",
+        "KO_KR"  => "KO_KR",
+        "PT_BR"  => "PT_BR",
+        "ZH_CN"  => "ZH_CN",
+        "ZH_TW"  => "ZH_TW",
+        // Accept some common browser values or variants
+        "ES419"  => "ES_419",
+        "ES419"  => "ES_419",
+        "ENUS"   => "EN_US",
+        "ENGB"   => "EN_GB",
     ];
-    $lang = trim($lang);
-    return isset($map[$lang]) ? $map[$lang] : 'EN_US';
+
+    return isset($map[$norm]) ? $map[$norm] : null;
 }
 
 /**
  * Send OTP flow (Pinpoint V2):
  * 1) createVerifiedDestinationNumber -> returns VerifiedDestinationNumberId (or fallback to describe to fetch existing)
- * 2) sendDestinationNumberVerificationCode (VerificationChannel = TEXT)
+ * 2) sendDestinationNumberVerificationCode (VerificationChannel = TEXT) — include LanguageCode only when provided/mapped
  *
- * On success we reduce atm_left and update DB like before.
+ * $language: null => do NOT include LanguageCode
+ *           string => source language string (e.g. "es-419", "it-IT") — will be mapped to Pinpoint code if possible
  */
-function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $pinpointClient, $language = "")
+function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $pinpointClient, $language = null)
 {
     if (!$id || empty($phone)) {
         return ['status' => 'error', 'message' => 'Invalid phone number or ID.', 'region' => $region];
@@ -109,6 +122,7 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $pinpo
         return ['status' => 'error', 'message' => 'No remaining OTP attempts for this number.', 'region' => $region];
     }
 
+    // Determine Pinpoint language code (or null)
     $languageCode = mapLanguageCode($language);
 
     // Step 1: try to create a verified destination number
@@ -116,7 +130,7 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $pinpo
     try {
         $createResp = $pinpointClient->createVerifiedDestinationNumber([
             'DestinationPhoneNumber' => $phone,
-            // 'ClientToken' => uniqid('', true), // optional idempotency token
+            // optional: 'ClientToken' => uniqid('', true),
         ]);
         $verifiedId = isset($createResp['VerifiedDestinationNumberId']) ? $createResp['VerifiedDestinationNumberId'] : null;
     } catch (AwsException $e) {
@@ -156,15 +170,18 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $pinpo
         return ['status' => 'error', 'message' => 'Could not obtain VerifiedDestinationNumberId for ' . $phone, 'region' => $region];
     }
 
-    // Step 2: send verification code (TEXT)
+    // Step 2: send verification code (TEXT) — include LanguageCode only when determined
     try {
-        $sendResp = $pinpointClient->sendDestinationNumberVerificationCode([
+        $params = [
             'VerifiedDestinationNumberId' => $verifiedId,
             'VerificationChannel' => 'TEXT',
-            // 'LanguageCode' => $languageCode,
-            // Optional: 'OriginationIdentity' => '...', 'ConfigurationSetName' => '...'
-        ]);
-        // success -> we received a MessageId in response
+        ];
+        if ($languageCode !== null) {
+            $params['LanguageCode'] = $languageCode;
+        }
+
+        $sendResp = $pinpointClient->sendDestinationNumberVerificationCode($params);
+        // success -> success response
     } catch (AwsException $e) {
         $awsCode = $e->getAwsErrorCode();
         $awsMessage = $e->getAwsErrorMessage() ?: $e->getMessage();
@@ -205,7 +222,8 @@ if (empty($internal_call)) {
     }
     $action  = isset($_POST['action']) ? $_POST['action'] : '';
     // Retrieve language from POST for non-streaming calls.
-    $language = isset($_POST['language']) ? trim($_POST['language']) : "es-419";
+    // IMPORTANT: default to null to represent "no language selected".
+    $language = isset($_POST['language']) ? trim($_POST['language']) : null;
 
     $sns = initSNS($awsKey, $awsSecret, $awsRegion);
     if (is_array($sns) && isset($sns['error'])) {

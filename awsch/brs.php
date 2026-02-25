@@ -42,8 +42,10 @@ if (isset($_GET['stream'])) {
   }
   $set_id = intval($_GET['set_id']);
 
-  // Retrieve language parameter from GET (default to "es-419")
-  $language = isset($_GET['language']) ? trim($_GET['language']) : "es-419";
+  // Retrieve language parameter from GET.
+  // IMPORTANT: treat empty string as "no selection" => null (so language won't be sent to AWS)
+  // $language = (isset($_GET['language']) && $_GET['language'] !== '') ? trim($_GET['language']) : null;
+  $language = (isset($_GET['language']) && $_GET['language'] !== '') ? trim($_GET['language']) : null;
 
   header('Content-Type: text/event-stream');
   header('Cache-Control: no-cache');
@@ -125,9 +127,8 @@ if (isset($_GET['stream'])) {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Failed: " . $sns['error']);
         continue;
       }
-      // Pass the language parameter to send_otp_single
-      // $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language);
-      $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns);
+      // Pass the language parameter to send_otp_single (may be null)
+      $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language);
       if ($result['status'] === 'success') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Sent");
         $totalSuccess++;
@@ -351,8 +352,8 @@ if (isset($_GET['stream'])) {
               <div class="column">
                 <label for="language_select">Select Language:</label>
                 <select id="language_select" name="language_select">
-                  <option value="" selected>No language selected</option>
-                  <option value="it-IT">Default IT</option>
+                  <option value="" >No language selected</option>
+                  <option value="it-IT" selected>Default IT</option>
                   <option value="es-419">Spanish Latin America</option>
                   <!-- Add additional languages as needed -->
                 </select>
@@ -496,7 +497,7 @@ if (isset($_GET['stream'])) {
       const acId = "<?php echo htmlspecialchars($id, ENT_QUOTES); ?>";
       const userId = <?php echo $parent_id; ?>;
       const regions = [
-        "ap-south-2","ap-southeast-3",
+        "ap-south-2", "ap-southeast-3",
         "ap-southeast-4",
         "eu-south-2", "eu-central-2", "me-central-1"
       ];

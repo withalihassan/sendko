@@ -72,8 +72,9 @@ if (isset($_GET['stream'])) {
   }
   $set_id = intval($_GET['set_id']);
 
-  // Retrieve language parameter from GET (defaulting to Spanish Latin America "es-419")
-  $language = isset($_GET['language']) ? trim($_GET['language']) : "es-419";
+  // Retrieve language parameter from GET.
+  // Treat empty string as "no selection" => null (so LanguageCode won't be sent to AWS).
+  $language = (isset($_GET['language']) && $_GET['language'] !== '') ? trim($_GET['language']) : null;
 
   header('Content-Type: text/event-stream');
   header('Cache-Control: no-cache');
@@ -196,8 +197,8 @@ if (isset($_GET['stream'])) {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Failed: " . $sns['error']);
         continue;
       }
-      // NOTE: language parameter removed from the function call here so SNS call will be the simple verify variant (no LanguageCode passed).
-      $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns);
+      // Pass the language parameter (may be null) so handler decides whether to include LanguageCode.
+      $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language);
       if ($result['status'] === 'success') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Sent");
         $totalSuccess++;
@@ -481,8 +482,8 @@ if (isset($_GET['stream'])) {
               <div>
                 <label for="language_select">Select Language:</label>
                 <select id="language_select" name="language_select">
-                  <option value="" selected>No language selected</option>
-                  <option value="it-IT">Default-it</option>
+                  <option value="" >No language selected</option>
+                  <option value="it-IT" selected>Default-it</option>
                   <option value="es-419">Spanish Latin America</option>
                   <!-- Add additional languages as needed -->
                 </select>

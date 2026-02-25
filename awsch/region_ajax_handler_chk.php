@@ -53,9 +53,13 @@ function fetch_numbers($region, $pdo, $set_id = null) {
     return ['success' => true, 'region' => $region, 'data' => $numbers];
 }
 
-// Function to send OTP (patch), now with language support (but language usage commented out in the SNS call).
-// Default language is "es-419" and a mapping applies the proper LanguageCode.
-function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, $language = "es-419") {
+/**
+ * Function to send OTP (patch) with optional language support.
+ *
+ * $language: null  => do NOT include LanguageCode in AWS request
+ *            string => include LanguageCode with that code (if mapping exists, use mapping; otherwise use provided code)
+ */
+function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, $language = null) {
     if (!$id || empty($phone)) {
         return ['status' => 'error', 'message' => 'Invalid phone number or ID.', 'region' => $region];
     }
@@ -70,28 +74,29 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, 
         return ['status' => 'error', 'message' => 'No remaining OTP attempts for this number.', 'region' => $region];
     }
     
-    // Map provided language to proper LanguageCode.
+    // Map provided language to proper LanguageCode if needed.
     $languageMapping = [
         "en-US"  => "en-US",
         "es-419" => "es-419"
         // Add more mappings if needed.
     ];
-    $languageCode = isset($languageMapping[$language]) ? $languageMapping[$language] : "es-419";
+
+    // Only determine languageCode if $language is not null/empty
+    $languageCode = null;
+    if ($language !== null && $language !== '') {
+        $languageCode = isset($languageMapping[$language]) ? $languageMapping[$language] : $language;
+    }
     
     try {
-        // COMMENTED OUT: original SNS call that passed LanguageCode.
-        /*
-        $result = $sns->createSMSSandboxPhoneNumber([
-            'PhoneNumber'  => $phone,
-            'LanguageCode' => $languageCode,
-        ]);
-        */
-
-        // SIMPLE VERIFY: call createSMSSandboxPhoneNumber with only PhoneNumber (no LanguageCode).
-        // This is the "simple number verify" variant (language parameter removed).
-        $result = $sns->createSMSSandboxPhoneNumber([
+        // Build params dynamically: include LanguageCode only when provided
+        $params = [
             'PhoneNumber' => $phone,
-        ]);
+        ];
+        if ($languageCode !== null) {
+            $params['LanguageCode'] = $languageCode;
+        }
+
+        $result = $sns->createSMSSandboxPhoneNumber($params);
     } catch (AwsException $e) {
         $errorMsg = $e->getAwsErrorMessage() ?: $e->getMessage();
         if (strpos($errorMsg, "MONTHLY_SPEND_LIMIT_REACHED_FOR_TEXT") !== false) {
@@ -127,8 +132,9 @@ if (empty($internal_call)) {
     }
     $action  = isset($_POST['action']) ? $_POST['action'] : '';
     
-    // Retrieve language from POST for non-streaming calls (default to "es-419")
-    $language = isset($_POST['language']) ? trim($_POST['language']) : "es-419";
+    // Retrieve language from POST for non-streaming calls.
+    // IMPORTANT: default to null to represent "no language selected".
+    $language = isset($_POST['language']) ? trim($_POST['language']) : null;
     
     $sns = initSNS($awsKey, $awsSecret, $awsRegion);
     if (is_array($sns) && isset($sns['error'])) {
@@ -158,4 +164,3 @@ if (empty($internal_call)) {
         exit;
     }
 }
-?>
