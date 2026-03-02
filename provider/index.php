@@ -29,21 +29,54 @@ $message = "";
 $childMessage = "";
 $session_id = $_SESSION['user_id'];
 
-// Process first form: add an AWS account using provided keys
+/**
+ * Utility: check if account exists by account_id
+ */
+function accountExistsByAccountId(PDO $pdo, string $accountId): bool {
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM accounts WHERE account_id = ?");
+    $stmt->execute([$accountId]);
+    return ((int)$stmt->fetchColumn()) > 0;
+}
+
+/**
+ * Utility: check if account exists by aws_key (access key id)
+ */
+function accountExistsByAwsKey(PDO $pdo, string $awsKey): bool {
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM accounts WHERE aws_key = ?");
+    $stmt->execute([$awsKey]);
+    return ((int)$stmt->fetchColumn()) > 0;
+}
+
+/**
+ * Utility: insert account into DB
+ */
+function insertAccount(PDO $pdo, $by_user, $aws_key, $aws_secret, $account_id, $status, $ac_state, $ac_worth): bool {
+    $added_date = (new DateTime('now', new DateTimeZone('Asia/Karachi')))->format('Y-m-d H:i:s');
+    $stmt = $pdo->prepare("
+        INSERT INTO accounts 
+        (by_user, aws_key, aws_secret, account_id, status, ac_state, ac_score, ac_age, cr_offset, added_date, ac_worth)
+        VALUES (?, ?, ?, ?, ?, ?, '0', '0', '0', ?, ?)
+    ");
+    return $stmt->execute([$by_user, $aws_key, $aws_secret, $account_id, $status, $ac_state, $added_date, $ac_worth]);
+}
+
+/* -------------------------
+   First form: Add AWS Account
+   ------------------------- */
 if (isset($_POST['submit'])) {
-    $aws_key    = trim($_POST['aws_key']);
-    $aws_secret = trim($_POST['aws_secret']);
-    $ac_worth   = trim($_POST['ac_worth']);
-    $assign_to  = trim($_POST['assign_to']);
+    $aws_key    = trim($_POST['aws_key'] ?? '');
+    $aws_secret = trim($_POST['aws_secret'] ?? '');
+    $ac_worth   = trim($_POST['ac_worth'] ?? 'normal');
+    $assign_to  = trim($_POST['assign_to'] ?? '');
 
     if (empty($aws_key) || empty($aws_secret) || empty($assign_to)) {
         $message = "AWS Key, AWS Secret, and Consumer assignment cannot be empty.";
     } else {
         try {
-            // Create an STS client using provided credentials
+            // Create STS client with provided credentials to fetch account id
             $stsClient = new StsClient([
                 'version'     => 'latest',
-                'region'      => 'us-east-1', // adjust as needed
+                'region'      => 'us-east-1',
                 'credentials' => [
                     'key'    => $aws_key,
                     'secret' => $aws_secret,
@@ -52,43 +85,43 @@ if (isset($_POST['submit'])) {
             $result     = $stsClient->getCallerIdentity();
             $account_id = $result->get('Account');
 
-            // Check if this account already exists
-            $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM accounts WHERE account_id = ?");
-            $checkStmt->execute([$account_id]);
-            $count = $checkStmt->fetchColumn();
-
-            if ($count > 0) {
-                $message = "Error: Duplicate Account or this account already exists.";
+            // Duplication checks: account_id OR aws_key already present?
+            if (accountExistsByAccountId($pdo, $account_id)) {
+                $message = "Error: Duplicate Account - AWS Account ID {$account_id} already exists in the system.";
+            } elseif (accountExistsByAwsKey($pdo, $aws_key)) {
+                $message = "Error: Duplicate AWS Key - this Access Key ID is already stored.";
             } else {
-                // Set current time in Pakistan timezone
-                $added_date = (new DateTime('now', new DateTimeZone('Asia/Karachi')))->format('Y-m-d H:i:s');
-                $stmt = $pdo->prepare("INSERT INTO accounts (by_user, aws_key, aws_secret, account_id, status, ac_state, ac_score, ac_age, cr_offset, added_date, ac_worth) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                if ($stmt->execute([$assign_to, $aws_key, $aws_secret, $account_id, 'active', 'orphan', '0', '0', '0', $added_date, $ac_worth])) {
+                // Insert into DB
+                $ok = insertAccount($pdo, $assign_to, $aws_key, $aws_secret, $account_id, 'active', 'orphan', $ac_worth);
+                if ($ok) {
                     $message = "Account added successfully. AWS Account ID: " . htmlspecialchars($account_id);
                 } else {
                     $message = "Failed to insert account into the database.";
                 }
             }
         } catch (AwsException $e) {
-            $message = "AWS Error: " . $e->getAwsErrorMessage();
+            // AWS SDK error
+            $message = "AWS Error: " . htmlspecialchars($e->getAwsErrorMessage());
         } catch (Exception $e) {
-            $message = "Error: " . $e->getMessage();
+            $message = "Error: " . htmlspecialchars($e->getMessage());
         }
     }
 }
 
-// Process second form: use root keys to fetch AWS account id, then create child IAM user and its keys
+/* ----------------------------------------------------------
+   Second form: Use root keys to get account id + create child IAM
+   ---------------------------------------------------------- */
 if (isset($_POST['submit_child'])) {
-    $root_key         = trim($_POST['root_key']);
-    $root_secret      = trim($_POST['root_secret']);
-    $ac_worth_child   = trim($_POST['ac_worth_child']);
-    $assign_to_child  = trim($_POST['assign_to_child']);
+    $root_key         = trim($_POST['root_key'] ?? '');
+    $root_secret      = trim($_POST['root_secret'] ?? '');
+    $ac_worth_child   = trim($_POST['ac_worth_child'] ?? 'normal');
+    $assign_to_child  = trim($_POST['assign_to_child'] ?? '');
 
     if (empty($root_key) || empty($root_secret) || empty($assign_to_child)) {
         $childMessage = "AWS Key, AWS Secret, and Consumer assignment cannot be empty.";
     } else {
         try {
-            // Use the root credentials to get the AWS Account ID
+            // Use root credentials to get account id
             $rootStsClient = new StsClient([
                 'version'     => 'latest',
                 'region'      => 'us-east-1',
@@ -100,55 +133,98 @@ if (isset($_POST['submit_child'])) {
             $rootIdentity = $rootStsClient->getCallerIdentity();
             $account_id   = $rootIdentity->get('Account');
 
-            // Wait 1 second to ensure proper processing
-            sleep(1);
-
-            // Now, using the same root credentials, create a child IAM user
-            $iamClient = new IamClient([
-                'version'     => 'latest',
-                'region'      => 'us-east-1',
-                'credentials' => [
-                    'key'    => $root_key,
-                    'secret' => $root_secret,
-                ]
-            ]);
-
-            // Generate a unique IAM user name for the child account
-            $childUsername = "child-" . time();
-
-            // Create the IAM user (child)
-            $iamClient->createUser([
-                'UserName' => $childUsername,
-            ]);
-
-            // Attach the AdministratorAccess policy to the new user
-            $iamClient->attachUserPolicy([
-                'UserName'  => $childUsername,
-                'PolicyArn' => 'arn:aws:iam::aws:policy/AdministratorAccess',
-            ]);
-
-            // Create access keys for the new IAM user
-            $accessKeyResult = $iamClient->createAccessKey([
-                'UserName' => $childUsername,
-            ]);
-            $childAccessKey       = $accessKeyResult->get('AccessKey');
-            $childAccessKeyId     = $childAccessKey['AccessKeyId'];
-            $childSecretAccessKey = $childAccessKey['SecretAccessKey'];
-
-            // Set added date using Pakistan timezone
-            $added_date_child = (new DateTime('now', new DateTimeZone('Asia/Karachi')))->format('Y-m-d H:i:s');
-
-            // Insert the child account keys and the AWS Account ID into the database.
-            $stmt = $pdo->prepare("INSERT INTO accounts (by_user, aws_key, aws_secret, account_id, status, ac_state, ac_score, ac_age, cr_offset, added_date, ac_worth) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            if ($stmt->execute([$assign_to_child, $childAccessKeyId, $childSecretAccessKey, $account_id, 'active', 'child', '0', '0', '0', $added_date_child, $ac_worth_child])) {
-                $childMessage = "Child account created successfully. AWS Account ID: " . htmlspecialchars($account_id);
+            // Duplication check BEFORE creating IAM user: if account_id exists, do NOT create child
+            if (accountExistsByAccountId($pdo, $account_id)) {
+                $childMessage = "Error: Duplicate Account - AWS Account ID {$account_id} already exists in the system. Aborting child creation.";
             } else {
-                $childMessage = "Failed to insert child account into the database.";
+                // small delay (if desired)
+                sleep(1);
+
+                // Create IAM client using root creds
+                $iamClient = new IamClient([
+                    'version'     => 'latest',
+                    'region'      => 'us-east-1',
+                    'credentials' => [
+                        'key'    => $root_key,
+                        'secret' => $root_secret,
+                    ]
+                ]);
+
+                // Create a unique IAM username
+                $childUsername = "child-" . time() . "-" . bin2hex(random_bytes(3));
+
+                // Create the IAM user
+                $iamClient->createUser([
+                    'UserName' => $childUsername,
+                ]);
+
+                // Attach AdministratorAccess policy
+                $iamClient->attachUserPolicy([
+                    'UserName'  => $childUsername,
+                    'PolicyArn' => 'arn:aws:iam::aws:policy/AdministratorAccess',
+                ]);
+
+                // Create access keys for the child user
+                $accessKeyResult = $iamClient->createAccessKey([
+                    'UserName' => $childUsername,
+                ]);
+                $childAccessKey       = $accessKeyResult->get('AccessKey');
+                $childAccessKeyId     = $childAccessKey['AccessKeyId'];
+                $childSecretAccessKey = $childAccessKey['SecretAccessKey'];
+
+                // Double-check that the generated childAccessKeyId doesn't already exist in DB (very unlikely)
+                if (accountExistsByAwsKey($pdo, $childAccessKeyId)) {
+                    // Cleanup: delete created access key and user to avoid orphaned creds
+                    try {
+                        $iamClient->deleteAccessKey([
+                            'UserName'    => $childUsername,
+                            'AccessKeyId' => $childAccessKeyId,
+                        ]);
+                        $iamClient->detachUserPolicy([
+                            'UserName'  => $childUsername,
+                            'PolicyArn' => 'arn:aws:iam::aws:policy/AdministratorAccess',
+                        ]);
+                        $iamClient->deleteUser(['UserName' => $childUsername]);
+                    } catch (AwsException $cleanupEx) {
+                        // ignore cleanup errors but include notice in message
+                    }
+
+                    $childMessage = "Error: Generated child Access Key already exists in DB (unexpected). Child creation aborted and resources cleaned up.";
+                } else {
+                    // Insert child credentials into DB
+                    $ok = insertAccount($pdo, $assign_to_child, $childAccessKeyId, $childSecretAccessKey, $account_id, 'active', 'child', $ac_worth_child);
+                    if ($ok) {
+                        $childMessage = "Child account created successfully. AWS Account ID: " . htmlspecialchars($account_id) . " — Child IAM user: " . htmlspecialchars($childUsername);
+                    } else {
+                        // DB insertion failed: attempt to cleanup created IAM resources
+                        try {
+                            // Remove access key
+                            $iamClient->deleteAccessKey([
+                                'UserName'    => $childUsername,
+                                'AccessKeyId' => $childAccessKeyId,
+                            ]);
+                        } catch (AwsException $ae) {
+                            // ignore
+                        }
+                        try {
+                            // Detach policy and delete user
+                            $iamClient->detachUserPolicy([
+                                'UserName'  => $childUsername,
+                                'PolicyArn' => 'arn:aws:iam::aws:policy/AdministratorAccess',
+                            ]);
+                            $iamClient->deleteUser(['UserName' => $childUsername]);
+                        } catch (AwsException $ae) {
+                            // ignore
+                        }
+
+                        $childMessage = "Failed to insert child account into the database. Created IAM resources were cleaned up (if possible).";
+                    }
+                }
             }
         } catch (AwsException $e) {
-            $childMessage = "AWS Error: " . $e->getAwsErrorMessage();
+            $childMessage = "AWS Error: " . htmlspecialchars($e->getAwsErrorMessage());
         } catch (Exception $e) {
-            $childMessage = "Error: " . $e->getMessage();
+            $childMessage = "Error: " . htmlspecialchars($e->getMessage());
         }
     }
 }
@@ -190,13 +266,13 @@ if (isset($_POST['submit_child'])) {
 <body>
     <?php include "./header.php"; ?>
     <div class="container-fluid" style="padding: 4%;">
-        <h1>Welcome <?php echo ucfirst($user['name']); ?>!</h1>
+        <h1>Welcome <?php echo htmlspecialchars(ucfirst($user['name'] ?? '')); ?>!</h1>
         <div class="row">
             <!-- Left Column: Original Form -->
             <div class="col-md-6">
                 <h2 class="mt-4">Add AWS Account</h2>
                 <?php if (!empty($message)) {
-                    echo '<div class="alert alert-info">' . $message . '</div>';
+                    echo '<div class="alert alert-info">' . htmlspecialchars($message) . '</div>';
                 } ?>
                 <form method="post" action="">
                     <div class="form-group">
@@ -211,7 +287,7 @@ if (isset($_POST['submit_child'])) {
                         <label for="ac_worth">Select an Account Worth</label>
                         <select class="form-control" id="ac_worth" name="ac_worth">
                             <option value="special">Special</option>
-                            <option value="normal">Normal</option>
+                            <option value="normal" selected>Normal</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -233,7 +309,7 @@ if (isset($_POST['submit_child'])) {
             <div class="col-md-6">
                 <h2 class="mt-4">Create Child IAM Account</h2>
                 <?php if (!empty($childMessage)) {
-                    echo '<div class="alert alert-info">' . $childMessage . '</div>';
+                    echo '<div class="alert alert-info">' . htmlspecialchars($childMessage) . '</div>';
                 } ?>
                 <form method="post" action="">
                     <div class="form-group">
@@ -248,7 +324,7 @@ if (isset($_POST['submit_child'])) {
                         <label for="ac_worth_child">Select an Account Worth</label>
                         <select class="form-control" id="ac_worth_child" name="ac_worth_child">
                             <option value="special">Special</option>
-                            <option value="normal">Normal</option>
+                            <option value="normal" selected>Normal</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -285,10 +361,11 @@ if (isset($_POST['submit_child'])) {
             </thead>
             <tbody>
                 <?php
-                $stmt = $pdo->query("SELECT * FROM accounts WHERE by_user = '$session_id' AND DATE(added_date) = CURDATE()");
+                $stmt = $pdo->prepare("SELECT * FROM accounts WHERE by_user = ? AND DATE(added_date) = CURDATE()");
+                $stmt->execute([$session_id]);
                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     echo "<tr>";
-                    echo "<td>" . $row['id'] . "</td>";
+                    echo "<td>" . htmlspecialchars($row['id']) . "</td>";
                     echo "<td>" . htmlspecialchars($row['account_id']) . "</td>";
                     echo "<td>" . htmlspecialchars($row['aws_key']) . "</td>";
                     if ($row['status'] == 'active') {
@@ -308,19 +385,19 @@ if (isset($_POST['submit_child'])) {
                     echo "<td>" . htmlspecialchars($row['ac_score']) . "</td>";
                     if ($row['status'] == 'active') {
                         $td_Added_date = new DateTime($row['added_date']);
-                        $td_current_date = new DateTime();
+                        $td_current_date = new DateTime('now', new DateTimeZone('Asia/Karachi'));
                         $diff = $td_Added_date->diff($td_current_date);
                         echo "<td>" . $diff->format('%a days') . "</td>";
                     } else {
                         $td_Added_date = new DateTime($row['added_date']);
-                        $td_current_date = new DateTime($row['suspended_date']);
+                        $td_current_date = new DateTime($row['suspended_date'] ?? $row['added_date']);
                         $diff = $td_Added_date->diff($td_current_date);
                         echo "<td>" . $diff->format('%a days') . "</td>";
                     }
                     echo "<td>" . (new DateTime($row['added_date']))->format('d M') . "</td>";
                     echo "<td>
-                            <button class='btn btn-danger btn-sm delete-btn' data-id='" . $row['id'] . "'>Delete</button>
-                            <button class='btn btn-info btn-sm check-status-btn' data-id='" . $row['id'] . "'>Check Status</button>
+                            <button class='btn btn-danger btn-sm delete-btn' data-id='" . htmlspecialchars($row['id']) . "'>Delete</button>
+                            <button class='btn btn-info btn-sm check-status-btn' data-id='" . htmlspecialchars($row['id']) . "'>Check Status</button>
                           </td>";
                     echo "</tr>";
                 }
