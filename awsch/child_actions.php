@@ -66,7 +66,7 @@ try {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title><?php echo $_GET['CHID'];?> Child Manager</title>
+    <title><?php echo $_GET['CHID']; ?> Child Manager</title>
 
     <!-- Bootstrap CSS -->
     <link
@@ -310,13 +310,21 @@ try {
 
                 <div class="col-md-4 mb-3">
                     <button id="deliverBtn" class="btn btn-primary">Deliver</button>
-                    <button id="deliverBtn" class="btn btn-primary">Deliver</button>
                     <button id="addInCurrentUser" class="btn btn-success">Add in current user</button>
                 </div>
             </div>
         <?php endif; ?>
         <div class="col-md-4 mb-3">
-            <label class="form-label">Details Entry Link</label>
+            <label class="form-label">1st Address Changeing Link</label>
+            <div class="input-group">
+                <input type="text"
+                    class="form-control"
+                    readonly
+                    value="https://us-east-1.console.aws.amazon.com/billing/home?region=us-east-2#/account">
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label class="form-label">2nd Details Entry Link</label>
             <div class="input-group">
                 <input type="text"
                     class="form-control"
@@ -470,9 +478,11 @@ try {
             });
             console.log(region);
         }
+
         function launchRigInSelectedRegion() {
             launchRig($("#regionSelect").val());
         }
+
         function launchRig(region) {
             var awsAccessKey = $("#aws_access_key").val();
             var awsSecretKey = $("#aws_secret_key").val();
@@ -491,6 +501,7 @@ try {
             });
             console.log(region);
         }
+
         function fetchInstances(childId) {
             $.get("child_actions/fetch_instances.php", {
                 child_id: childId
@@ -751,4 +762,5 @@ try {
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>
