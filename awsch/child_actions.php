@@ -314,7 +314,7 @@ try {
                 </div>
             </div>
         <?php endif; ?>
-        <div class="col-md-4 mb-3">
+        <!-- <div class="col-md-4 mb-3">
             <label class="form-label">1st Address Changeing Link</label>
             <div class="input-group">
                 <input type="text"
@@ -322,7 +322,7 @@ try {
                     readonly
                     value="https://us-east-1.console.aws.amazon.com/billing/home?region=us-east-2#/account">
             </div>
-        </div>
+        </div> -->
         <div class="col-md-4 mb-3">
             <label class="form-label">2nd Details Entry Link</label>
             <div class="input-group">
