@@ -82,13 +82,13 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $user_id, $p
 
     try {
         // Include the LanguageCode parameter in the API call per AWS documentation.
-        // $result = $sns->createSMSSandboxPhoneNumber([
-        //     'PhoneNumber'  => $phone,
-        //     'LanguageCode' => $awsLang
-        // ]);
         $result = $sns->createSMSSandboxPhoneNumber([
-            'PhoneNumber' => $phone,
+            'PhoneNumber'  => $phone,
+            'LanguageCode' => $awsLang
         ]);
+        // $result = $sns->createSMSSandboxPhoneNumber([
+        //     'PhoneNumber' => $phone,
+        // ]);
     } catch (AwsException $e) {
         $errorMsg = $e->getAwsErrorMessage() ?: $e->getMessage();
         if (strpos($errorMsg, "MONTHLY_SPEND_LIMIT_REACHED_FOR_TEXT") !== false) {

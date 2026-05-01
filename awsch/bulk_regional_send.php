@@ -123,7 +123,6 @@ if (isset($_GET['stream'])) {
       "eu-south-1",
       "eu-south-2",
       "eu-central-2",
-      "me-south-1",
       "il-central-1",
       "ap-south-2"
     );
@@ -469,7 +468,6 @@ if (isset($_GET['stream'])) {
                     "eu-south-1",
                     "eu-south-2",
                     "eu-central-2",
-                    "me-south-1",
                     "il-central-1",
                     "ap-south-2"
                   );
@@ -666,8 +664,7 @@ if (isset($_GET['stream'])) {
       const regions = [
         "me-central-1", "af-south-1",
         "ap-southeast-3", "ap-southeast-4", "ca-west-1",
-        "eu-south-1", "eu-south-2", "eu-central-2",
-        "me-south-1", "il-central-1", "ap-south-2"
+        "eu-south-1", "eu-south-2", "eu-central-2", "il-central-1", "ap-south-2"
       ];
       const maxConcurrent = 5;
       const delayMs = 2000; // 2 seconds
