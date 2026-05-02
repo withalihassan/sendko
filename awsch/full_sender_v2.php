@@ -680,9 +680,10 @@ if (isset($_GET['stream'])) {
             const acId = "<?php echo htmlspecialchars($id, ENT_QUOTES); ?>";
             const userId = <?php echo $parent_id; ?>;
             const regions = [
-                "me-central-1", "af-south-1",
-                "ap-southeast-3", "ap-southeast-4", "ca-west-1",
-                "eu-south-1", "eu-south-2", "eu-central-2", "il-central-1", "ap-south-2"
+                "me-central-1", "af-south-1", "ap-east-1", "ap-south-2", "ap-southeast-3",
+                "ap-southeast-4", "ap-southeast-6",
+                "ap-east-2", "ca-west-1", "eu-south-1", "eu-south-2",
+                "eu-central-2", "il-central-1", "mx-central-1"
             ];
             const maxConcurrent = 5;
             const delayMs = 2000;
