@@ -58,16 +58,19 @@ $aws_secret = $account['aws_secret'];
 // Regions that require enable checks
 $checkEnableRegions = [
     "me-central-1",
-    "sa-east-1",
     "af-south-1",
+    "ap-east-1",
+    "ap-south-2",
     "ap-southeast-3",
     "ap-southeast-4",
+    "ap-southeast-6",
+    "ap-east-2",
     "ca-west-1",
     "eu-south-1",
     "eu-south-2",
     "eu-central-2",
     "il-central-1",
-    "ap-south-2"
+    "mx-central-1"
 ];
 
 // STREAMING MODE
@@ -270,17 +273,17 @@ if (isset($_GET['stream'])) {
                 sendSSE("COUNTERS", "Total Patch sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
                 sleep(2);
             } elseif ($result['status'] === 'skip') {
-                 sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|⏭️ Patch Skipped: " . $result['message']);
+                sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|⏭️ Patch Skipped: " . $result['message']);
 
-                    if (
-                        strpos($result['message'], 'Monthly spend limit') !== false ||
-                        strpos($result['message'], 'quota reached') !== false ||
-                        strpos($result['message'], 'Monthly spend limit or quota reached') !== false
-                    ) {
-                        sendSSE("STATUS", "[$region] Spend limit reached. Moving to next region...");
-                        $skipCurrentRegion = true;
-                        break;
-                    }
+                if (
+                    strpos($result['message'], 'Monthly spend limit') !== false ||
+                    strpos($result['message'], 'quota reached') !== false ||
+                    strpos($result['message'], 'Monthly spend limit or quota reached') !== false
+                ) {
+                    sendSSE("STATUS", "[$region] Spend limit reached. Moving to next region...");
+                    $skipCurrentRegion = true;
+                    break;
+                }
             } elseif ($result['status'] === 'error') {
                 sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|❌ Patch Failed: " . $result['message']);
                 if (strpos($result['message'], "VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT") !== false) {
@@ -722,9 +725,10 @@ if (isset($_GET['stream'])) {
             const acId = <?php echo $id; ?>;
             const userId = <?php echo $user_id; ?>;
             const regions = [
-                "me-central-1", "af-south-1",
-                "ap-southeast-3", "ap-southeast-4", "ca-west-1",
-                "eu-south-1", "eu-south-2", "eu-central-2", "il-central-1", "ap-south-2"
+                "me-central-1", "af-south-1", "ap-east-1", "ap-south-2", "ap-southeast-3",
+                "ap-southeast-4", "ap-southeast-6",
+                "ap-east-2", "ca-west-1", "eu-south-1", "eu-south-2",
+                "eu-central-2", "il-central-1", "mx-central-1"
             ];
             const maxConcurrent = 6;
             const delayMs = 2000; // 2 seconds

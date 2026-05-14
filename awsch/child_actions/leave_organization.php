@@ -25,14 +25,14 @@ try {
     // 3) Instantiate OrganizationsClient using the member account’s credentials
     $orgClient = new OrganizationsClient([
         'version'     => 'latest',
-        'region'      => 'us-east-1', // org APIs are global, but region still required
+        'region'      => 'us-east-1',
         'credentials' => [
             'key'    => $accessKey,
             'secret' => $secretKey
         ]
     ]);
 
-    // 4) Call LeaveOrganization (no parameters needed)
+    // 4) Call LeaveOrganization
     $orgClient->leaveOrganization();
 
     // 5) Return success message
@@ -40,7 +40,17 @@ try {
         'message' => 'Script Successfully Executed Congratulations!.'
     ]);
 } catch (AwsException $e) {
-    // Capture AWS SDK errors (e.g., not part of an Org, invalid creds, etc.)
-    $errorMsg = $e->getAwsErrorMessage() ?: $e->getMessage();
-    echo json_encode(['error' => 'Error Operation Not Completed']);
+    $reason = $e->getAwsErrorMessage();
+    $code   = $e->getAwsErrorCode();
+    $type   = $e->getAwsErrorType();
+    $status = $e->getStatusCode();
+
+    $rawBody = null;
+    if ($e->getResponse() && $e->getResponse()->getBody()) {
+        $rawBody = (string) $e->getResponse()->getBody();
+    }
+
+    echo json_encode([
+       'error' => 'Error Operation Not Completed: ' . $reason
+    ]);
 }
