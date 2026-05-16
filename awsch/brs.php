@@ -66,10 +66,10 @@ if (isset($_GET['stream'])) {
   // List of regions for BRS processing
   $regions = array(
     "ap-south-2",
-    // "ap-east-2",
+    "ap-east-2",
     "ap-southeast-3",
     "ap-southeast-4",
-    // "ap-southeast-6",
+    "ap-southeast-6",
     "eu-south-2",
     "eu-central-2",
     "me-central-1"
@@ -498,7 +498,7 @@ if (isset($_GET['stream'])) {
       const userId = <?php echo $parent_id; ?>;
       const regions = [
         "ap-south-2", "ap-southeast-3",
-        "ap-southeast-4",
+        "ap-southeast-4", "ap-southeast-6", "ap-east-2",
         "eu-south-2", "eu-central-2", "me-central-1"
       ];
       const maxConcurrent = 6;
