@@ -114,17 +114,20 @@ if (isset($_GET['stream'])) {
       "eu-west-2",
       "eu-west-3",
       "eu-north-1",
-      "me-central-1",
       "sa-east-1",
       "af-south-1",
+      "ap-east-2",
+      "ap-south-2",
       "ap-southeast-3",
       "ap-southeast-4",
+      "ap-southeast-6",
       "ca-west-1",
+      "eu-central-2",
       "eu-south-1",
       "eu-south-2",
-      "eu-central-2",
       "il-central-1",
-      "ap-south-2"
+      "me-central-1",
+      "mx-central-1"
     );
   }
 
@@ -459,17 +462,20 @@ if (isset($_GET['stream'])) {
                     "eu-west-2",
                     "eu-west-3",
                     "eu-north-1",
-                    "me-central-1",
                     "sa-east-1",
                     "af-south-1",
+                    "ap-east-2",
+                    "ap-south-2",
                     "ap-southeast-3",
                     "ap-southeast-4",
+                    "ap-southeast-6",
                     "ca-west-1",
+                    "eu-central-2",
                     "eu-south-1",
                     "eu-south-2",
-                    "eu-central-2",
                     "il-central-1",
-                    "ap-south-2"
+                    "me-central-1",
+                    "mx-central-1"
                   );
                   foreach ($regionsList as $reg) {
                     echo '<option value="' . $reg . '">' . $reg . '</option>';
@@ -480,7 +486,7 @@ if (isset($_GET['stream'])) {
               <div>
                 <label for="language_select">Select Language:</label>
                 <select id="language_select" name="language_select">
-                  <option value="" >No language selected</option>
+                  <option value="">No language selected</option>
                   <option value="it-IT" selected>Default-it</option>
                   <option value="es-419">Spanish Latin America</option>
                   <!-- Add additional languages as needed -->
@@ -662,9 +668,19 @@ if (isset($_GET['stream'])) {
       const acId = "<?php echo htmlspecialchars($id, ENT_QUOTES); ?>";
       const userId = <?php echo $parent_id; ?>;
       const regions = [
-        "me-central-1", "af-south-1",
-        "ap-southeast-3", "ap-southeast-4", "ca-west-1",
-        "eu-south-1", "eu-south-2", "eu-central-2", "il-central-1", "ap-south-2"
+        "af-south-1",
+        "ap-east-2",
+        "ap-south-2",
+        "ap-southeast-3",
+        "ap-southeast-4",
+        "ap-southeast-6",
+        "ca-west-1",
+        "eu-central-2",
+        "eu-south-1",
+        "eu-south-2",
+        "il-central-1",
+        "me-central-1",
+        "mx-central-1"
       ];
       const maxConcurrent = 5;
       const delayMs = 2000; // 2 seconds

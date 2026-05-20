@@ -125,17 +125,20 @@ if (isset($_GET['stream'])) {
         "eu-west-2",
         "eu-west-3",
         "eu-north-1",
-        "me-central-1",
         "sa-east-1",
         "af-south-1",
+        "ap-east-2",
+        "ap-south-2",
         "ap-southeast-3",
         "ap-southeast-4",
+        "ap-southeast-6",
         "ca-west-1",
+        "eu-central-2",
         "eu-south-1",
         "eu-south-2",
-        "eu-central-2",
         "il-central-1",
-        "ap-south-2"
+        "me-central-1",
+        "mx-central-1"
     ];
 
     $totalRegions = count($regions);
@@ -508,17 +511,20 @@ if (isset($_GET['stream'])) {
                                         "eu-west-2",
                                         "eu-west-3",
                                         "eu-north-1",
-                                        "me-central-1",
                                         "sa-east-1",
                                         "af-south-1",
+                                        "ap-east-2",
+                                        "ap-south-2",
                                         "ap-southeast-3",
                                         "ap-southeast-4",
+                                        "ap-southeast-6",
                                         "ca-west-1",
+                                        "eu-central-2",
                                         "eu-south-1",
                                         "eu-south-2",
-                                        "eu-central-2",
                                         "il-central-1",
-                                        "ap-south-2"
+                                        "me-central-1",
+                                        "mx-central-1"
                                     );
                                     foreach ($regionsList as $reg) {
                                         echo '<option value="' . $reg . '">' . $reg . '</option>';
@@ -531,7 +537,7 @@ if (isset($_GET['stream'])) {
                                 <select id="lang_select" name="lang_select">
                                     <option value="" selected>No language selected</option>
                                     <!-- Spanish Latin America is now the first/default option -->
-                                    <option value="United States" >Default-It</option>
+                                    <option value="United States">Default-It</option>
                                     <option value="Spanish Latin America">Spanish Latin America</option>
                                 </select>
                             </div>
@@ -691,9 +697,19 @@ if (isset($_GET['stream'])) {
             const acId = <?php echo $id; ?>;
             const userId = <?php echo $user_id; ?>;
             const regions = [
-                "me-central-1", "af-south-1",
-                "ap-southeast-3", "ap-southeast-4", "ca-west-1",
-                "eu-south-1", "eu-south-2", "eu-central-2", "il-central-1", "ap-south-2"
+                "af-south-1",
+                "ap-east-2",
+                "ap-south-2",
+                "ap-southeast-3",
+                "ap-southeast-4",
+                "ap-southeast-6",
+                "ca-west-1",
+                "eu-central-2",
+                "eu-south-1",
+                "eu-south-2",
+                "il-central-1",
+                "me-central-1",
+                "mx-central-1"
             ];
             const maxConcurrent = 6;
             const delayMs = 2000; // 2 seconds
