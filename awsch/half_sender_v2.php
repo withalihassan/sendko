@@ -1,5 +1,5 @@
 <?php
-// full_sender_v2.php
+// half_sender_v2.php
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -14,6 +14,67 @@ if (!isset($_GET['ac_id'])) {
 
 $id = htmlspecialchars($_GET['ac_id']);
 $parent_id = htmlspecialchars($_GET['parrent_id']);
+
+if (!function_exists('normalizePatchLimit')) {
+    function normalizePatchLimit($value)
+    {
+        if (!isset($value)) {
+            return null;
+        }
+
+        $value = trim((string)$value);
+
+        if ($value === '' || strtolower($value) === 'undefined') {
+            return null;
+        }
+
+        $limit = intval($value);
+        if ($limit < 1) {
+            return null;
+        }
+
+        return $limit;
+    }
+}
+
+if (!function_exists('buildOtpTasks')) {
+    function buildOtpTasks(array $allowedNumbers, $patchLimit = null)
+    {
+        $otpTasks = array();
+
+        if (empty($allowedNumbers)) {
+            return $otpTasks;
+        }
+
+        // Patch limit mode: send exactly the selected number of patches per region.
+        if ($patchLimit !== null) {
+            $totalAllowed = count($allowedNumbers);
+            for ($i = 0; $i < $patchLimit; $i++) {
+                $row = $allowedNumbers[$i % $totalAllowed];
+                $otpTasks[] = array(
+                    'id' => $row['id'],
+                    'phone' => $row['phone_number']
+                );
+            }
+            return $otpTasks;
+        }
+
+        // Default / undefined mode: keep your original behavior.
+        if (count($allowedNumbers) >= 6) {
+            for ($i = 0; $i < 8; $i++) {
+                $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
+            }
+            $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
+            $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
+        } else {
+            foreach ($allowedNumbers as $number) {
+                $otpTasks[] = array('id' => $number['id'], 'phone' => $number['phone_number']);
+            }
+        }
+
+        return $otpTasks;
+    }
+}
 
 // Handle Stop Process request (AJAX POST)
 if (isset($_POST['action']) && $_POST['action'] === 'stop_process') {
@@ -77,6 +138,11 @@ if (isset($_GET['stream'])) {
     // Retrieve language parameter from GET.
     // Empty string means "no selection" => null.
     $language = (isset($_GET['language']) && $_GET['language'] !== '') ? trim($_GET['language']) : null;
+
+    // Patch limit:
+    // undefined / empty => keep old behavior
+    // 1..10 => send exact number of patches per region
+    $patchLimit = normalizePatchLimit($_GET['patch_limit'] ?? null);
 
     header('Content-Type: text/event-stream');
     header('Cache-Control: no-cache');
@@ -177,18 +243,7 @@ if (isset($_GET['stream'])) {
             continue;
         }
 
-        $otpTasks = array();
-        if (count($allowedNumbers) >= 6) {
-            for ($i = 0; $i < 8; $i++) {
-                $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
-            }
-            $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
-            $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
-        } else {
-            foreach ($allowedNumbers as $number) {
-                $otpTasks[] = array('id' => $number['id'], 'phone' => $number['phone_number']);
-            }
-        }
+        $otpTasks = buildOtpTasks($allowedNumbers, $patchLimit);
 
         $otpSentInThisRegion = false;
         $verifDestError = false;
@@ -472,7 +527,7 @@ if (isset($_GET['stream'])) {
                                         // "ap-southeast-2",
                                         "ap-southeast-3",
                                         "ap-southeast-4",
-                                        // "ap-southeast-5", //not available 
+                                        // "ap-southeast-5", //not available
                                         "ap-southeast-6",
                                         // "ap-southeast-7", // Not available
                                         // Canada
@@ -507,19 +562,35 @@ if (isset($_GET['stream'])) {
                                 <label for="language_select">Select Language:</label>
                                 <select id="language_select" name="language_select">
                                     <option value="">No language selected</option>
-                                    <option value="ES_419" selected>Spanish Latin America</option>
+                                    <option value="ES_419" selected>Spanish LT America - 3P</option>
                                     <option value="EN_US">English (US)</option>
                                     <option value="EN_GB">English (UK)</option>
-                                    <option value="ES_ES">Spanish (Spain)</option>
-                                    <option value="FR_CA">French (Canada)</option>
-                                    <option value="FR_FR">French (France)</option>
-                                    <option value="IT_IT">Italian</option>
-                                    <option value="JA_JP">Japanese</option>
-                                    <option value="KO_KR">Korean</option>
-                                    <option value="PT_BR">Portuguese (Brazil)</option>
+                                    <option value="ES_ES">Spanish (Spain) - 3P</option>
+                                    <option value="FR_CA">French (Canada) - 3P</option>
+                                    <option value="FR_FR">French (France) - 3P</option>
+                                    <option value="IT_IT">Italian - 1P</option>
+                                    <option value="JA_JP">Japanese - 2P</option>
+                                    <option value="KO_KR">Korean - 2P</option>
+                                    <option value="PT_BR">Portuguese (Brazil) - 3P </option>
                                     <option value="ZH_CN">Chinese Simplified</option>
                                     <option value="ZH_TW">Chinese Traditional</option>
                                     <option value="DE_DE">German</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="patch_limit">Patch limit:</label>
+                                <select id="patch_limit" name="patch_limit">
+                                    <option value="undefined" selected>Undefined</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10</option>
                                 </select>
                             </div>
                         </div>
@@ -558,9 +629,10 @@ if (isset($_GET['stream'])) {
     </div>
 
     <script>
+        window.evtSource = null;
+
         $(document).ready(function() {
             var acId = "<?php echo $id; ?>";
-            var evtSource;
 
             $('#set_id, #region_select').change(function() {
                 var set_id = $('#set_id').val();
@@ -610,13 +682,15 @@ if (isset($_GET['stream'])) {
 
                 var region = $('#region_select').val();
                 var language = $('#language_select').val();
-                var sseUrl = "half_sender_v2.php?ac_id=" + acId + "&set_id=" + set_id + "&stream=1&language=" + encodeURIComponent(language || '');
+                var patch_limit = $('#patch_limit').val();
+
+                var sseUrl = "half_sender_v2.php?ac_id=" + acId + "&set_id=" + set_id + "&stream=1&language=" + encodeURIComponent(language || '') + "&patch_limit=" + encodeURIComponent(patch_limit || 'undefined');
                 if (region) {
                     sseUrl += "&region=" + region;
                 }
 
-                evtSource = new EventSource(sseUrl);
-                evtSource.onmessage = function(e) {
+                window.evtSource = new EventSource(sseUrl);
+                window.evtSource.onmessage = function(e) {
                     var data = e.data;
                     var parts = data.split("|");
                     var type = parts[0];
@@ -638,9 +712,9 @@ if (isset($_GET['stream'])) {
                         }
                     }
                 };
-                evtSource.onerror = function() {
+                window.evtSource.onerror = function() {
                     $('#process-status').text("An error occurred with the SSE connection.").addClass('error').show();
-                    evtSource.close();
+                    window.evtSource.close();
                 };
             });
         });
@@ -649,8 +723,8 @@ if (isset($_GET['stream'])) {
     <script>
         $(document).ready(function() {
             $("#stopButton").click(function() {
-                if (evtSource) {
-                    evtSource.close();
+                if (window.evtSource) {
+                    window.evtSource.close();
                 }
                 $.ajax({
                     url: window.location.href,
@@ -704,9 +778,9 @@ if (isset($_GET['stream'])) {
             const acId = "<?php echo htmlspecialchars($id, ENT_QUOTES); ?>";
             const userId = <?php echo $parent_id; ?>;
             const regions = [
-                "ap-south-2", "ap-east-2",  "ap-southeast-3",
+                "ap-south-2", "ap-east-2", "ap-southeast-3",
                 "ap-southeast-4", "ap-southeast-6",
-                "eu-south-2", "eu-central-2", "me-central-1"
+                "eu-central-2", "eu-south-2", "me-central-1"
             ];
             const maxConcurrent = 5;
             const delayMs = 2000;

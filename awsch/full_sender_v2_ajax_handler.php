@@ -246,3 +246,4 @@ if (empty($internal_call)) {
         exit;
     }
 }
+?>

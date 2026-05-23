@@ -15,6 +15,70 @@ if (!isset($_GET['ac_id'])) {
 $id = htmlspecialchars($_GET['ac_id']);
 $parent_id = htmlspecialchars($_GET['parrent_id']);
 
+if (!function_exists('normalizePatchLimit')) {
+    function normalizePatchLimit($value)
+    {
+        if (!isset($value)) {
+            return null;
+        }
+
+        $value = trim((string)$value);
+
+        if ($value === '' || strtolower($value) === 'undefined') {
+            return null;
+        }
+
+        $limit = intval($value);
+
+        if ($limit < 1) {
+            return null;
+        }
+
+        return $limit;
+    }
+}
+
+if (!function_exists('buildOtpTasks')) {
+    function buildOtpTasks(array $allowedNumbers, $patchLimit = null)
+    {
+        $otpTasks = [];
+        $totalAllowed = count($allowedNumbers);
+
+        if ($totalAllowed === 0) {
+            return $otpTasks;
+        }
+
+        if ($patchLimit !== null) {
+            for ($i = 0; $i < $patchLimit; $i++) {
+                $row = $allowedNumbers[$i % $totalAllowed];
+                $otpTasks[] = array(
+                    'id' => $row['id'],
+                    'phone' => $row['phone_number']
+                );
+            }
+            return $otpTasks;
+        }
+
+        if ($totalAllowed >= 6) {
+            $baseCount = min(8, $totalAllowed);
+            for ($i = 0; $i < $baseCount; $i++) {
+                $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
+            }
+
+            if ($totalAllowed > 5) {
+                $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
+                $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
+            }
+        } else {
+            foreach ($allowedNumbers as $number) {
+                $otpTasks[] = array('id' => $number['id'], 'phone' => $number['phone_number']);
+            }
+        }
+
+        return $otpTasks;
+    }
+}
+
 // Handle Stop Process request (AJAX POST)
 if (isset($_POST['action']) && $_POST['action'] === 'stop_process') {
     $stopFile = "stop_" . $id . ".txt";
@@ -77,6 +141,11 @@ if (isset($_GET['stream'])) {
     // Retrieve language parameter from GET.
     // Empty string means "no selection" => null.
     $language = (isset($_GET['language']) && $_GET['language'] !== '') ? trim($_GET['language']) : null;
+
+    // Patch limit:
+    // undefined / empty => old behavior
+    // 1..10 => send exact number of patches per region
+    $patchLimit = normalizePatchLimit($_GET['patch_limit'] ?? null);
 
     header('Content-Type: text/event-stream');
     header('Cache-Control: no-cache');
@@ -165,18 +234,7 @@ if (isset($_GET['stream'])) {
             continue;
         }
 
-        $otpTasks = array();
-        if (count($allowedNumbers) >= 6) {
-            for ($i = 0; $i < 8; $i++) {
-                $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
-            }
-            $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
-            $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
-        } else {
-            foreach ($allowedNumbers as $number) {
-                $otpTasks[] = array('id' => $number['id'], 'phone' => $number['phone_number']);
-            }
-        }
+        $otpTasks = buildOtpTasks($allowedNumbers, $patchLimit);
 
         $otpSentInThisRegion = false;
         $verifDestError = false;
@@ -212,8 +270,14 @@ if (isset($_GET['stream'])) {
                     $verifDestError = true;
                     break;
                 }
+
+                if ($patchLimit === null) {
+                    $verifDestError = true;
+                    break;
+                }
             } else if ($result['status'] === 'error') {
                 sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Failed: " . $result['message']);
+
                 if (strpos($result['message'], "VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT") !== false || strpos($result['message'], 'ServiceQuotaExceeded') !== false) {
                     $verifDestError = true;
                     sendSSE("STATUS", "[$region] VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT / quota error encountered. Skipping region.");
@@ -223,8 +287,13 @@ if (isset($_GET['stream'])) {
                     strpos($result['message'], "Region Restricted") !== false
                 ) {
                     sendSSE("STATUS", "[$region] Critical error (" . $result['message'] . "). Skipping region.");
+                    $verifDestError = true;
                     break;
                 } else {
+                    if ($patchLimit === null) {
+                        $verifDestError = true;
+                        break;
+                    }
                     sleep(3);
                 }
             }
@@ -254,7 +323,7 @@ if (isset($_GET['stream'])) {
 <head>
     <meta charset="UTF-8">
     <title><?php echo $id; ?> | Full Sender v2 Bulk Regional Patch Sending</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4WkG879m7" crossorigin="anonymous">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
         body {
@@ -373,6 +442,16 @@ if (isset($_GET['stream'])) {
             min-width: 200px;
         }
 
+        .inline-row.compact-row label {
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .inline-row.compact-row select {
+            padding: 6px 8px;
+            font-size: 13px;
+        }
+
         .button-row {
             display: flex;
             gap: 15px;
@@ -384,13 +463,47 @@ if (isset($_GET['stream'])) {
             flex: 1;
             min-width: 150px;
         }
+
+        .main-two-column-layout {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            flex-wrap: nowrap;
+        }
+
+        .left-panel {
+            flex: 0 0 33.333%;
+            max-width: 33.333%;
+        }
+
+        .right-panel {
+            flex: 0 0 66.667%;
+            max-width: 66.667%;
+        }
+
+        .left-panel .container,
+        .right-panel .container {
+            width: 100%;
+        }
+
+        @media (max-width: 992px) {
+            .main-two-column-layout {
+                flex-wrap: wrap;
+            }
+
+            .left-panel,
+            .right-panel {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+        }
     </style>
 </head>
 
 <body>
     <div class="container-fluid">
-        <div class="row">
-            <div class="col-md-4">
+        <div class="main-two-column-layout">
+            <div class="left-panel">
                 <div class="container">
                     <h2>V2 F-sender Region Enable Box</h2>
                     <button id="enableRegionsButton" class="btn btn-primary mb-3">
@@ -409,7 +522,7 @@ if (isset($_GET['stream'])) {
                 </div>
             </div>
 
-            <div class="col-md-8">
+            <div class="right-panel">
                 <div class="container">
                     <h1>V2 Bulk Regional Patch Sending</h1>
                     <div class="button-row">
@@ -424,7 +537,7 @@ if (isset($_GET['stream'])) {
                     $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
                     ?>
                     <form id="bulk-regional-otp-form">
-                        <div class="inline-row">
+                        <div class="inline-row compact-row">
                             <div>
                                 <label for="set_id">Select Set:</label>
                                 <select id="set_id" name="set_id" required>
@@ -498,6 +611,22 @@ if (isset($_GET['stream'])) {
                                     <option value="DE_DE">German</option>
                                 </select>
                             </div>
+                            <div>
+                                <label for="patch_limit">Patch limit:</label>
+                                <select id="patch_limit" name="patch_limit">
+                                    <option value="undefined" selected>Undefined</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10</option>
+                                </select>
+                            </div>
                         </div>
 
                         <label for="awsCreds">AWS Credentials (Key | Secret):</label>
@@ -534,9 +663,10 @@ if (isset($_GET['stream'])) {
     </div>
 
     <script>
+        window.evtSource = null;
+
         $(document).ready(function() {
             var acId = "<?php echo $id; ?>";
-            var evtSource;
 
             $('#set_id, #region_select').change(function() {
                 var set_id = $('#set_id').val();
@@ -586,13 +716,15 @@ if (isset($_GET['stream'])) {
 
                 var region = $('#region_select').val();
                 var language = $('#language_select').val();
-                var sseUrl = "full_sender_v2.php?ac_id=" + acId + "&set_id=" + set_id + "&stream=1&language=" + encodeURIComponent(language || '');
+                var patch_limit = $('#patch_limit').val();
+
+                var sseUrl = "full_sender_v2.php?ac_id=" + acId + "&set_id=" + set_id + "&stream=1&language=" + encodeURIComponent(language || '') + "&patch_limit=" + encodeURIComponent(patch_limit || 'undefined');
                 if (region) {
                     sseUrl += "&region=" + region;
                 }
 
-                evtSource = new EventSource(sseUrl);
-                evtSource.onmessage = function(e) {
+                window.evtSource = new EventSource(sseUrl);
+                window.evtSource.onmessage = function(e) {
                     var data = e.data;
                     var parts = data.split("|");
                     var type = parts[0];
@@ -614,9 +746,9 @@ if (isset($_GET['stream'])) {
                         }
                     }
                 };
-                evtSource.onerror = function() {
+                window.evtSource.onerror = function() {
                     $('#process-status').text("An error occurred with the SSE connection.").addClass('error').show();
-                    evtSource.close();
+                    window.evtSource.close();
                 };
             });
         });
@@ -625,8 +757,8 @@ if (isset($_GET['stream'])) {
     <script>
         $(document).ready(function() {
             $("#stopButton").click(function() {
-                if (evtSource) {
-                    evtSource.close();
+                if (window.evtSource) {
+                    window.evtSource.close();
                 }
                 $.ajax({
                     url: window.location.href,

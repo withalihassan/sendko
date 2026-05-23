@@ -18,7 +18,6 @@ if (!isset($_GET['ac_id']) || !isset($_GET['user_id'])) {
 $ac_id   = isset($_GET['ac_id'])   ?        $_GET['ac_id']   : null;
 $user_id = isset($_GET['user_id']) ?        $_GET['user_id'] : null;
 
-
 $stmt = $pdo->prepare("SELECT aws_access_key, aws_secret_key FROM child_accounts WHERE account_id = :account_id");
 $stmt->execute([':account_id'=>$ac_id]);
 $acct = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -65,3 +64,4 @@ switch ($action) {
     echo json_encode(['success'=>false,'error'=>'Invalid action']);
     exit;
 }
+?>
