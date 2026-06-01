@@ -10,12 +10,14 @@ if (!function_exists('get_sns_supported_languages')) {
     function get_sns_supported_languages()
     {
         return [
-            'es-419' => 'Spanish (Latin America) - 3P',
             'en-US' => 'English (United States)',
             'en-GB' => 'English (United Kingdom)',
-            'es-ES' => 'Spanish (Spain) -3P',
+            'es-419' => 'Spanish (Latin America) - 3P',
+            'es-ES' => 'Spanish (Spain) - 3P',
             'de-DE' => 'German',
             'fr-CA' => 'French (Canada) - 3P',
+            'fr-FR' => 'French (France) - 3P',
+            'it-IT' => 'Italian - 1P',
             'ja-JP' => 'Japanese - 2P',
             'pt-BR' => 'Portuguese (Brazil) - 3P',
             'kr-KR' => 'Korean - 2P',
@@ -77,22 +79,37 @@ if (!function_exists('buildOtpTasks')) {
             $totalAllowed = count($allowedNumbers);
             for ($i = 0; $i < $patchLimit; $i++) {
                 $row = $allowedNumbers[$i % $totalAllowed];
-                $otpTasks[] = ['id' => $row['id'], 'phone' => $row['phone_number']];
+                $otpTasks[] = [
+                    'id' => $row['id'],
+                    'phone' => $row['phone_number']
+                ];
             }
             return $otpTasks;
         }
 
-        // Default / undefined mode: keep existing behavior.
+        // Default / undefined mode: keep the original behavior.
         if (count($allowedNumbers) >= 6) {
             $limit = min(8, count($allowedNumbers));
             for ($i = 0; $i < $limit; $i++) {
-                $otpTasks[] = ['id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']];
+                $otpTasks[] = [
+                    'id' => $allowedNumbers[$i]['id'],
+                    'phone' => $allowedNumbers[$i]['phone_number']
+                ];
             }
-            $otpTasks[] = ['id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']];
-            $otpTasks[] = ['id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']];
+            $otpTasks[] = [
+                'id' => $allowedNumbers[5]['id'],
+                'phone' => $allowedNumbers[5]['phone_number']
+            ];
+            $otpTasks[] = [
+                'id' => $allowedNumbers[5]['id'],
+                'phone' => $allowedNumbers[5]['phone_number']
+            ];
         } else {
             foreach ($allowedNumbers as $number) {
-                $otpTasks[] = ['id' => $number['id'], 'phone' => $number['phone_number']];
+                $otpTasks[] = [
+                    'id' => $number['id'],
+                    'phone' => $number['phone_number']
+                ];
             }
         }
 
@@ -140,10 +157,9 @@ if (isset($_GET['stream'])) {
 
     $set_id = intval($_GET['set_id']);
 
-    // Retrieve language parameter from GET.
     // Empty string means no selection => do not send LanguageCode to AWS.
     $language = (isset($_GET['language']) && $_GET['language'] !== '') ? trim($_GET['language']) : null;
-    if ($language !== null && !isset($snsSupportedLanguages[$language])) {
+    if ($language !== null && !array_key_exists($language, $snsSupportedLanguages)) {
         $language = null;
     }
 
@@ -168,7 +184,7 @@ if (isset($_GET['stream'])) {
 
     $regionParam = isset($_GET['region']) ? trim($_GET['region']) : '';
     if ($regionParam !== '' && $regionParam !== 'all') {
-        $regions = array($regionParam);
+        $regions = [$regionParam];
     } else {
         $regions = get_brs_regions();
     }
@@ -181,6 +197,13 @@ if (isset($_GET['stream'])) {
     require_once('region_ajax_handler_brs.php');
 
     foreach ($regions as $region) {
+        $stopFile = "stop_" . $accountId . ".txt";
+        if (file_exists($stopFile)) {
+            sendSSE("STATUS", "Process stopped by user.");
+            unlink($stopFile);
+            exit;
+        }
+
         $usedRegions++;
         sendSSE("STATUS", "Moving to region: " . $region);
         sendSSE("COUNTERS", "Total Patch Done: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
@@ -205,6 +228,12 @@ if (isset($_GET['stream'])) {
         $verifDestError = false;
 
         foreach ($otpTasks as $task) {
+            if (file_exists($stopFile)) {
+                sendSSE("STATUS", "Process stopped by user.");
+                unlink($stopFile);
+                exit;
+            }
+
             sendSSE("STATUS", "[$region] Sending Patching...");
             $sns = initSNS($aws_key, $aws_secret, $region);
             if (is_array($sns) && isset($sns['error'])) {
@@ -241,6 +270,7 @@ if (isset($_GET['stream'])) {
                     strpos($result['message'], "Region Restricted") !== false
                 ) {
                     sendSSE("STATUS", "[$region] Critical error (" . $result['message'] . "). Skipping region.");
+                    $verifDestError = true;
                     break;
                 } else {
                     sleep(3);
@@ -271,7 +301,7 @@ if (isset($_GET['stream'])) {
 
 <head>
     <meta charset="UTF-8">
-    <title><?php echo $id; ?> | Bulk Regional Patch Sending</title>
+    <title><?php echo $id; ?> | Half Regional Patch Sending</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
@@ -282,7 +312,7 @@ if (isset($_GET['stream'])) {
         }
 
         .container {
-            max-width: auto;
+            max-width: none;
             margin: auto;
             background: #fff;
             padding: 20px;
@@ -380,25 +410,63 @@ if (isset($_GET['stream'])) {
             width: auto;
         }
 
-        .row {
+        .page-grid {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             gap: 20px;
+            align-items: flex-start;
         }
 
-        .row .column {
-            flex: 1;
-            min-width: 200px;
+        .left-panel {
+            flex: 0 0 33.333%;
+            max-width: 33.333%;
+        }
+
+        .right-panel {
+            flex: 0 0 66.667%;
+            max-width: 66.667%;
+        }
+
+        .form-grid {
+            display: flex;
+            gap: 15px;
+            flex-wrap: nowrap;
+            align-items: flex-start;
+        }
+
+        .form-grid .column {
+            flex: 1 1 0;
+            min-width: 170px;
+        }
+
+        @media (max-width: 992px) {
+            .page-grid {
+                flex-wrap: wrap;
+            }
+
+            .left-panel,
+            .right-panel {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+
+            .form-grid {
+                flex-wrap: wrap;
+            }
+
+            .form-grid .column {
+                min-width: 220px;
+            }
         }
     </style>
 </head>
 
 <body>
     <div class="container-fluid">
-        <div class="row">
-            <div class="col-md-4">
+        <div class="page-grid">
+            <div class="left-panel">
                 <div class="container">
-                    <h1>Region Enable Box</h1>
+                    <h1> Half Enable Box</h1>
                     <button id="enableRegionsButton" class="btn btn-primary mb-3">
                         Enable All Opt-In Regions
                     </button>
@@ -415,16 +483,16 @@ if (isset($_GET['stream'])) {
                 </div>
             </div>
 
-            <div class="col-md-7">
+            <div class="right-panel">
                 <div class="container">
-                    <h1>Bulk Regional Patch Sending</h1>
+                    <h1> Half Bulk Regional Patch Sending</h1>
                     <?php
                     $stmtSets = $pdo->query("SELECT id, set_name FROM bulk_sets WHERE status = 'fresh' ORDER BY set_name ASC");
                     $sets = $stmtSets->fetchAll(PDO::FETCH_ASSOC);
                     ?>
 
                     <form id="bulk-regional-otp-form">
-                        <div class="row">
+                        <div class="form-grid">
                             <div class="column">
                                 <label for="set_id">Select Set:</label>
                                 <select id="set_id" name="set_id" required>
@@ -444,13 +512,11 @@ if (isset($_GET['stream'])) {
                                     <?php endforeach; ?>
                                 </select>
                             </div>
-                        </div>
 
-                        <div class="row">
                             <div class="column">
                                 <label for="language_select">Select Language:</label>
                                 <select id="language_select" name="language_select">
-                                    <option value="">Use AWS default (es-419)</option>
+                                    <option value="">AWS Default (en-US)</option>
                                     <?php foreach ($snsSupportedLanguages as $code => $label): ?>
                                         <option value="<?php echo htmlspecialchars($code); ?>" <?php echo ($code === 'es-419') ? 'selected' : ''; ?>>
                                             <?php echo htmlspecialchars($label); ?>
@@ -477,16 +543,11 @@ if (isset($_GET['stream'])) {
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="column">
-                                <label for="awsKey">AWS Key:</label>
-                                <input type="text" id="awsKey" name="awsKey" value="<?php echo htmlspecialchars($aws_key, ENT_QUOTES); ?>" disabled>
-                            </div>
-                            <div class="column">
-                                <label for="awsSecret">AWS Secret:</label>
-                                <input type="text" id="awsSecret" name="awsSecret" value="<?php echo htmlspecialchars($aws_secret, ENT_QUOTES); ?>" disabled>
-                            </div>
-                        </div>
+                        <label for="awsKey">AWS Key:</label>
+                        <input type="text" id="awsKey" name="awsKey" value="<?php echo htmlspecialchars($aws_key, ENT_QUOTES); ?>" disabled>
+
+                        <label for="awsSecret">AWS Secret:</label>
+                        <input type="text" id="awsSecret" name="awsSecret" value="<?php echo htmlspecialchars($aws_secret, ENT_QUOTES); ?>" disabled>
 
                         <button type="button" id="start-bulk-regional-otp">Start Bulk Patch Process for Selected Set</button>
                     </form>
@@ -522,8 +583,7 @@ if (isset($_GET['stream'])) {
     <script>
         $(document).ready(function() {
             const acId = <?php echo json_encode($id); ?>;
-            const userId = <?php echo json_encode($parent_id); ?>;
-            let evtSource;
+            let evtSource = null;
 
             $('#set_id, #region_select').change(function() {
                 var set_id = $('#set_id').val();
@@ -616,7 +676,9 @@ if (isset($_GET['stream'])) {
 
                 evtSource.onerror = function() {
                     $('#process-status').text("An error occurred with the SSE connection.").addClass('error').show();
-                    evtSource.close();
+                    if (evtSource) {
+                        evtSource.close();
+                    }
                 };
             });
         });
@@ -684,7 +746,7 @@ if (isset($_GET['stream'])) {
                             'json'
                         ).done(() => {
                             activeCount++;
-                            startPolling(region, $status, $tbody);
+                            startPolling(region, $status);
                         }).fail(() => {
                             $status.text('Enable Error');
                         });
@@ -694,7 +756,7 @@ if (isset($_GET['stream'])) {
                 });
             }
 
-            function startPolling(region, $status, $tbody) {
+            function startPolling(region, $status) {
                 if (pollIntervals[region]) {
                     clearInterval(pollIntervals[region]);
                 }

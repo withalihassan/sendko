@@ -37,6 +37,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_region' && isset($_GET
     $deletedCount = 0;
     $skippedCount = 0;
     $messages = [];
+
     try {
         // Create an SNS client for the current region.
         $snsClient = new SnsClient([
@@ -61,7 +62,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_region' && isset($_GET
         }
 
         $messages[] = "Found " . count($phoneNumbers) . " phone number(s) in region {$region}.";
-
         $currentTime = time();
 
         // Process each phone number.
@@ -70,6 +70,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_region' && isset($_GET
             if (!isset($number['PhoneNumber'])) {
                 continue;
             }
+
             sleep(2);
 
             $phone = $number['PhoneNumber'];
@@ -86,6 +87,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_region' && isset($_GET
                     continue;
                 }
             }
+
             // If no CreatedTimestamp is provided or if it's older than 24 hours, attempt deletion.
             try {
                 $snsClient->deleteSMSSandboxPhoneNumber([
@@ -113,7 +115,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_region' && isset($_GET
 ?>
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <title>Contacts Cleanup</title>
@@ -139,9 +140,15 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_region' && isset($_GET
             color: #333;
         }
 
-        #startButton {
-            display: block;
-            margin: 20px auto;
+        .button-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .action-button {
             background: #007BFF;
             color: #fff;
             border: none;
@@ -151,7 +158,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_region' && isset($_GET
             cursor: pointer;
         }
 
-        #startButton:disabled {
+        .action-button.half {
+            background: #f0ad4e;
+        }
+
+        .action-button:disabled {
             background: #aaa;
             cursor: not-allowed;
         }
@@ -178,78 +189,115 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_region' && isset($_GET
         .error {
             color: red;
         }
+
+        .info {
+            color: #333;
+        }
     </style>
 </head>
-
 <body>
-    <div class="container">
-        <h1>Contact Cleanup</h1>
-        <?php
-        // Ensure the account ID is provided via query parameter.
-        $ac_id = isset($_GET['ac_id']) ? intval($_GET['ac_id']) : 0;
-        if ($ac_id === 0) {
-            echo '<p class="error">No account ID provided.</p>';
-            exit;
-        }
-        ?>
-        <button id="startButton">Start Cleanup Process</button>
-        <div id="log"></div>
+<div class="container">
+    <h1>Contact Cleanup</h1>
+    <?php
+    // Ensure the account ID is provided via query parameter.
+    $ac_id = isset($_GET['ac_id']) ? intval($_GET['ac_id']) : 0;
+    if ($ac_id === 0) {
+        echo '<p class="error">No account ID provided.</p>';
+        exit;
+    }
+    ?>
+
+    <div class="button-row">
+        <button id="startFullButton" class="action-button">Start Cleanup Process</button>
+        <button id="startHalfButton" class="action-button half">Start Half Cleanup</button>
     </div>
 
-    <script>
-        // Helper: sleep for a given number of milliseconds.
-        function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
+    <div id="log"></div>
+</div>
 
-        // Define the AWS regions to process.
-        const regions = ["us-east-1", "us-east-2", "us-west-1", "us-west-2", "ap-south-1", "ap-northeast-3", 
-        "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "ca-central-1", "eu-central-1", "eu-west-1", "eu-west-2", "eu-west-3",
-        "eu-north-1", "me-central-1", "sa-east-1", "af-south-1", "ap-southeast-3", "ap-southeast-4", "ca-west-1", "eu-south-1", 
-        "eu-south-2", "eu-central-2", "me-south-1", "il-central-1",  "ap-south-2"];
-        const ac_id = <?php echo json_encode($ac_id); ?>;
-        const log = document.getElementById("log");
-        const startButton = document.getElementById("startButton");
+<script>
+    // Helper: sleep for a given number of milliseconds.
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
-        function appendLog(message, className = "") {
-            const p = document.createElement("p");
-            p.className = "log-entry " + className;
-            p.innerHTML = message;
-            log.appendChild(p);
-            log.scrollTop = log.scrollHeight;
-        }
+    // Full cleanup regions
+    const fullRegions = [
+        "us-east-1", "us-east-2", "us-west-1", "us-west-2", "ap-south-1", "ap-northeast-3",
+        "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "ca-central-1", "eu-central-1",
+        "eu-west-1", "eu-west-2", "eu-west-3", "eu-north-1", "me-central-1", "sa-east-1",
+        "af-south-1", "ap-southeast-3", "ap-southeast-4", "ca-west-1", "eu-south-1",
+        "eu-south-2", "eu-central-2", "me-south-1", "il-central-1", "ap-south-2"
+    ];
 
-        async function processRegions() {
-            for (let region of regions) {
-                appendLog(`Processing region: <strong>${region}</strong>...`);
-                try {
-                    const response = await fetch(`?action=delete_region&ac_id=${ac_id}&region=${region}`);
-                    const result = await response.json();
-                    if (result.error) {
-                        appendLog(`Region ${region} error: ${result.error}`, "error");
-                    } else {
-                        appendLog(`Region ${region}: Deleted <strong>${result.deleted}</strong> phone number(s).`, "success");
-                        appendLog(`Region ${region}: Skipped <strong>${result.skipped}</strong> phone number(s) (added recently).`, "error");
-                        if (result.messages && result.messages.length > 0) {
-                            result.messages.forEach(msg => appendLog(`&nbsp;&nbsp;&nbsp;${msg}`));
-                        }
+    // Half cleanup regions
+    const halfRegions = [
+        "ap-south-2",
+        "ap-east-2",
+        "ap-southeast-3",
+        "ap-southeast-4",
+        "ap-southeast-6",
+        "eu-south-2",
+        "eu-central-2",
+        "me-central-1"
+    ];
+
+    const ac_id = <?php echo json_encode($ac_id); ?>;
+    const log = document.getElementById("log");
+    const startFullButton = document.getElementById("startFullButton");
+    const startHalfButton = document.getElementById("startHalfButton");
+
+    function appendLog(message, className = "info") {
+        const p = document.createElement("p");
+        p.className = "log-entry " + className;
+        p.innerHTML = message;
+        log.appendChild(p);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    async function processRegions(regions, label) {
+        for (let region of regions) {
+            appendLog(`Processing region: <strong>${region}</strong>...`, "info");
+            try {
+                const response = await fetch(`?action=delete_region&ac_id=${ac_id}&region=${encodeURIComponent(region)}`);
+                const result = await response.json();
+
+                if (result.error) {
+                    appendLog(`Region ${region} error: ${result.error}`, "error");
+                } else {
+                    appendLog(`Region ${region}: Deleted <strong>${result.deleted}</strong> phone number(s).`, "success");
+                    appendLog(`Region ${region}: Skipped <strong>${result.skipped}</strong> phone number(s) (added recently).`, "error");
+
+                    if (result.messages && result.messages.length > 0) {
+                        result.messages.forEach(msg => appendLog(`&nbsp;&nbsp;&nbsp;${msg}`, "info"));
                     }
-                } catch (err) {
-                    appendLog(`Fetch error for region ${region}: ${err.message}`, "error");
                 }
-                // Wait 2 seconds before processing the next region.
-                await sleep(2000);
+            } catch (err) {
+                appendLog(`Fetch error for region ${region}: ${err.message}`, "error");
             }
-            appendLog("Cleanup process complete.");
-            startButton.disabled = false;
+
+            // Wait 2 seconds before processing the next region.
+            await sleep(2000);
         }
 
-        startButton.addEventListener("click", function() {
-            log.innerHTML = "";
-            startButton.disabled = true;
-            processRegions();
-        });
-    </script>
-</body>
+        appendLog(`${label} complete.`, "info");
+        startFullButton.disabled = false;
+        startHalfButton.disabled = false;
+    }
 
+    startFullButton.addEventListener("click", function() {
+        log.innerHTML = "";
+        startFullButton.disabled = true;
+        startHalfButton.disabled = true;
+        processRegions(fullRegions, "Full cleanup process");
+    });
+
+    startHalfButton.addEventListener("click", function() {
+        log.innerHTML = "";
+        startHalfButton.disabled = true;
+        startFullButton.disabled = true;
+        processRegions(halfRegions, "Half cleanup process");
+    });
+</script>
+</body>
 </html>

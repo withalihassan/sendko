@@ -7,25 +7,6 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-if (!function_exists('get_sns_supported_languages')) {
-    function get_sns_supported_languages()
-    {
-        return [
-            'en-US',
-            'en-GB',
-            'es-419',
-            'es-ES',
-            'de-DE',
-            'fr-CA',
-            'ja-JP',
-            'pt-BR',
-            'kr-KR',
-            'zh-CN',
-            'zh-TW',
-        ];
-    }
-}
-
 if (empty($internal_call)) {
     header('Content-Type: application/json');
 }
@@ -35,10 +16,31 @@ require_once __DIR__ . '/../aws/aws-autoloader.php';
 use Aws\Sns\SnsClient;
 use Aws\Exception\AwsException;
 
+if (!function_exists('get_sns_supported_languages')) {
+    function get_sns_supported_languages()
+    {
+        return [
+            'en-US' => 'English (United States)',
+            'en-GB' => 'English (United Kingdom)',
+            'es-419' => 'Spanish (Latin America) - 3P',
+            'es-ES' => 'Spanish (Spain) - 3P',
+            'de-DE' => 'German',
+            'fr-CA' => 'French (Canada) - 3P',
+            'fr-FR' => 'French (France) - 3P',
+            'it-IT' => 'Italian - 1P',
+            'ja-JP' => 'Japanese - 2P',
+            'pt-BR' => 'Portuguese (Brazil) - 3P',
+            'kr-KR' => 'Korean - 2P',
+            'zh-CN' => 'Chinese (Simplified)',
+            'zh-TW' => 'Chinese (Traditional)',
+        ];
+    }
+}
+
 function initSNS($awsKey, $awsSecret, $awsRegion)
 {
     try {
-        $sns = new SnsClient([
+        return new SnsClient([
             'version'     => 'latest',
             'region'      => $awsRegion,
             'credentials' => [
@@ -46,13 +48,11 @@ function initSNS($awsKey, $awsSecret, $awsRegion)
                 'secret' => $awsSecret,
             ],
         ]);
-        return $sns;
     } catch (Exception $e) {
         return ['error' => 'Error initializing SNS client: ' . $e->getMessage()];
     }
 }
 
-// Fetch phone numbers based solely on the set_id.
 function fetch_numbers($region, $pdo, $set_id = null)
 {
     if (empty($region)) {
@@ -62,7 +62,7 @@ function fetch_numbers($region, $pdo, $set_id = null)
     $query = "SELECT id, phone_number, atm_left, DATE_FORMAT(created_at, '%Y-%m-%d') as formatted_date
               FROM allowed_numbers
               WHERE status = 'fresh' AND atm_left > 0";
-    $params = array();
+    $params = [];
 
     if (!empty($set_id)) {
         $query .= " AND set_id = ?";
@@ -78,12 +78,6 @@ function fetch_numbers($region, $pdo, $set_id = null)
     return ['success' => true, 'region' => $region, 'data' => $numbers];
 }
 
-/**
- * Send OTP / create SMS sandbox phone number.
- *
- * $language: null  => do NOT include LanguageCode in AWS request
- *            string => include LanguageCode with that code
- */
 function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, $language = null)
 {
     if (!$id || empty($phone)) {
@@ -103,7 +97,7 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, 
         return ['status' => 'error', 'message' => 'No remaining OTP attempts for this number.', 'region' => $region];
     }
 
-    $supportedLanguages = get_sns_supported_languages();
+    $supportedLanguages = array_keys(get_sns_supported_languages());
 
     $languageCode = null;
     if ($language !== null && $language !== '') {
@@ -122,23 +116,32 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, 
             $params['LanguageCode'] = $languageCode;
         }
 
-        $result = $sns->createSMSSandboxPhoneNumber($params);
+        $sns->createSMSSandboxPhoneNumber($params);
     } catch (AwsException $e) {
-        $errorMsg = $e->getAwsErrorMessage() ?: $e->getMessage();
+        $awsCode = $e->getAwsErrorCode();
+        $awsMessage = $e->getAwsErrorMessage() ?: $e->getMessage();
 
-        if (strpos($errorMsg, "MONTHLY_SPEND_LIMIT_REACHED_FOR_TEXT") !== false) {
+        if (
+            stripos($awsMessage, 'MONTHLY_SPEND_LIMIT_REACHED_FOR_TEXT') !== false ||
+            stripos($awsMessage, 'Spend limit') !== false ||
+            stripos($awsCode, 'ServiceQuotaExceeded') !== false ||
+            stripos($awsMessage, 'ServiceQuotaExceededException') !== false
+        ) {
             return ['status' => 'skip', 'message' => "Monthly spend limit reached. Skipping this number.", 'region' => $region];
         }
 
-        if (strpos($errorMsg, "VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT") !== false) {
+        if (
+            stripos($awsMessage, 'VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT') !== false ||
+            stripos($awsMessage, 'verified destination') !== false
+        ) {
             return ['status' => 'error', 'message' => "VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT error. Try another region.", 'region' => $region];
         }
 
-        if (strpos($errorMsg, "Access Denied") !== false) {
+        if (stripos($awsMessage, 'Access Denied') !== false) {
             return ['status' => 'error', 'message' => "Region Restricted moving to next", 'region' => $region];
         }
 
-        return ['status' => 'error', 'message' => "Error sending OTP: " . $errorMsg, 'region' => $region];
+        return ['status' => 'error', 'message' => "Error sending OTP: " . $awsMessage, 'region' => $region];
     }
 
     try {
@@ -166,10 +169,8 @@ if (empty($internal_call)) {
 
     $action = isset($_POST['action']) ? $_POST['action'] : '';
 
-    // Retrieve language from POST for non-streaming calls.
-    // Default to null to represent "no language selected".
     $language = isset($_POST['language']) ? trim($_POST['language']) : null;
-    $supportedLanguages = get_sns_supported_languages();
+    $supportedLanguages = array_keys(get_sns_supported_languages());
     if ($language !== null && $language !== '' && !in_array($language, $supportedLanguages, true)) {
         $language = null;
     }

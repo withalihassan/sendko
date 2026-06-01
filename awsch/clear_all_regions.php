@@ -71,6 +71,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_region' && isset($_GET
             if (!isset($number['PhoneNumber'])) {
                 continue;
             }
+
             // Pause for 2 seconds between deletions.
             sleep(2);
             $phone = $number['PhoneNumber'];
@@ -84,6 +85,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_region' && isset($_GET
                     continue;
                 }
             }
+
             // Attempt deletion.
             try {
                 $snsClient->deleteSMSSandboxPhoneNumber([
@@ -116,7 +118,7 @@ if (!isset($_GET['parent_id'])) {
 $parent_id = $_GET['parent_id'];
 
 // Fetch all child accounts belonging to the given parent.
-$stmt = $pdo->prepare("SELECT * FROM child_accounts WHERE parent_id = ? AND account_id!='$parent_id' AND  status!='pending'");
+$stmt = $pdo->prepare("SELECT * FROM child_accounts WHERE parent_id = ? AND account_id!='$parent_id' AND status!='pending'");
 $stmt->execute([$parent_id]);
 $childAccounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -125,7 +127,6 @@ $childAccounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <head>
     <meta charset="UTF-8">
     <title>Clear Regions for Child Accounts</title>
-    <!-- Include Bootstrap CSS from a CDN -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
         .card {
@@ -139,14 +140,24 @@ $childAccounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
             padding: 10px;
             font-size: 0.9rem;
         }
+        .action-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
 <div class="container-fluid p-5">
     <h1 class="mb-4">Clear Regions for Child Accounts</h1>
     <p>Parent ID: <?php echo htmlspecialchars($parent_id); ?></p>
-    <!-- Global Button to start cleanup for all child accounts -->
-    <button id="startAll" class="btn btn-primary mb-4">Start Cleanup For All Child Accounts</button>
+
+    <!-- Top action buttons -->
+    <div class="action-bar mb-4">
+        <button id="cleanupHalfAll" class="btn btn-warning">Cleanup as Half</button>
+        <button id="cleanupFullAll" class="btn btn-primary">Cleanup as Full</button>
+    </div>
+
     <div id="childCards" class="row">
         <?php foreach ($childAccounts as $child): ?>
             <div class="col-md-4">
@@ -163,17 +174,28 @@ $childAccounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 </div>
 
-<!-- Include jQuery and Bootstrap JS -->
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 <script>
-// List of AWS regions to process.
-const regions = [
-    "us-east-1", "us-east-2", "us-west-1", "us-west-2", "ap-south-1", "ap-northeast-3", 
-    "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "ca-central-1", "eu-central-1", 
-    "eu-west-1", "eu-west-2", "eu-west-3", "eu-north-1", "me-central-1", "sa-east-1", 
-    "af-south-1", "ap-southeast-3", "ap-southeast-4", "ca-west-1", "eu-south-1", 
+// Full region list
+const fullRegions = [
+    "us-east-1", "us-east-2", "us-west-1", "us-west-2", "ap-south-1", "ap-northeast-3",
+    "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "ca-central-1", "eu-central-1",
+    "eu-west-1", "eu-west-2", "eu-west-3", "eu-north-1", "me-central-1", "sa-east-1",
+    "af-south-1", "ap-southeast-3", "ap-southeast-4", "ca-west-1", "eu-south-1",
     "eu-south-2", "eu-central-2", "il-central-1", "ap-south-2"
+];
+
+// Half cleanup region list
+const halfRegions = [
+    "ap-south-2",
+    "ap-east-2",
+    "ap-southeast-3",
+    "ap-southeast-4",
+    "ap-southeast-6",
+    "eu-south-2",
+    "eu-central-2",
+    "me-central-1"
 ];
 
 // Helper function to pause execution for a specified duration (in milliseconds)
@@ -189,12 +211,13 @@ function appendLog(child_id, message, className = '') {
 }
 
 // Function to process region cleanup for a given child account
-async function processRegionsForChild(child_id, parent_id) {
-    for (let region of regions) {
+async function processRegionsForChild(child_id, parent_id, regionsToProcess) {
+    for (let region of regionsToProcess) {
         appendLog(child_id, `Processing region: <strong>${region}</strong>...`);
         try {
-            let response = await fetch(`?action=delete_region&ac_id=${child_id}&parrent_id=${parent_id}&region=${region}`);
+            let response = await fetch(`?action=delete_region&ac_id=${encodeURIComponent(child_id)}&parrent_id=${encodeURIComponent(parent_id)}&region=${encodeURIComponent(region)}`);
             let result = await response.json();
+
             if (result.error) {
                 appendLog(child_id, `Region ${region} error: ${result.error}`, 'text-danger');
             } else {
@@ -207,37 +230,50 @@ async function processRegionsForChild(child_id, parent_id) {
         } catch (err) {
             appendLog(child_id, `Fetch error for region ${region}: ${err.message}`, 'text-danger');
         }
+
         // Wait 2 seconds before processing the next region.
         await sleep(2000);
     }
     appendLog(child_id, "Cleanup process complete.", 'font-weight-bold');
 }
 
-// Handler for the individual "Start Cleanup" button on each child card.
-$(".startCleanup").on("click", function() {
-    let child_id = $(this).data("child-id");
+// Process cleanup for all child accounts with a selected region list
+async function processCleanupForAllChildren(regionsToProcess, buttonSelector) {
     let parent_id = <?php echo json_encode($parent_id); ?>;
-    // Disable the button once clicked.
-    $(this).prop("disabled", true);
-    processRegionsForChild(child_id, parent_id);
-});
+    $(buttonSelector).prop("disabled", true);
+    $(".startCleanup").prop("disabled", true);
 
-// Handler for the global "Start Cleanup For All Child Accounts" button.
-$("#startAll").on("click", function() {
-    let parent_id = <?php echo json_encode($parent_id); ?>;
-    // Disable the global button while processing.
-    $(this).prop("disabled", true);
-    // For each child account, start the cleanup process with a delay between each.
     let delay = 0;
     $(".startCleanup").each(function() {
         let child_id = $(this).data("child-id");
         let button = $(this);
+
         setTimeout(function() {
             button.prop("disabled", true);
-            processRegionsForChild(child_id, parent_id);
+            processRegionsForChild(child_id, parent_id, regionsToProcess);
         }, delay);
-        delay +=  1200; // delay for all regions (2.1 sec per region)
+
+        delay += 1200;
     });
+}
+
+// Individual "Start Cleanup" button on each child card = full cleanup
+$(".startCleanup").on("click", function() {
+    let child_id = $(this).data("child-id");
+    let parent_id = <?php echo json_encode($parent_id); ?>;
+
+    $(this).prop("disabled", true);
+    processRegionsForChild(child_id, parent_id, fullRegions);
+});
+
+// Top button: cleanup as half
+$("#cleanupHalfAll").on("click", function() {
+    processCleanupForAllChildren(halfRegions, "#cleanupHalfAll");
+});
+
+// Top button: cleanup as full
+$("#cleanupFullAll").on("click", function() {
+    processCleanupForAllChildren(fullRegions, "#cleanupFullAll");
 });
 </script>
 </body>
