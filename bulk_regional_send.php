@@ -14,27 +14,27 @@ $user_id = intval($_GET['user_id']);
 
 // Handle Stop Process request (AJAX POST)
 if (isset($_POST['action']) && $_POST['action'] === 'stop_process') {
-    $stopFile = "stop_" . $id . ".txt";
-    file_put_contents($stopFile, "stop");
-    echo json_encode(['success' => true, 'message' => 'Process stopped successfully.']);
-    exit;
+  $stopFile = "stop_" . $id . ".txt";
+  file_put_contents($stopFile, "stop");
+  echo json_encode(['success' => true, 'message' => 'Process stopped successfully.']);
+  exit;
 }
 
 // Update account request (Mark as Completed)
 if (isset($_POST['action']) && $_POST['action'] === 'update_account') {
   if ($id > 0) {
-      // Update the account with current Pakistan time
-      date_default_timezone_set('Asia/Karachi');
-      $currentTimestamp = date('Y-m-d H:i:s');
-      $stmt = $pdo->prepare("UPDATE accounts SET ac_score = ac_score + 1, last_used = :last_used WHERE id = :id");
-      try {
-          $stmt->execute([':id' => $id, ':last_used' => $currentTimestamp]);
-          echo json_encode(['success' => true, 'message' => 'Account updated successfully.', 'time' => $currentTimestamp]);
-      } catch (PDOException $e) {
-          echo json_encode(['success' => false, 'message' => 'Database update failed: ' . $e->getMessage()]);
-      }
+    // Update the account with current Pakistan time
+    date_default_timezone_set('Asia/Karachi');
+    $currentTimestamp = date('Y-m-d H:i:s');
+    $stmt = $pdo->prepare("UPDATE accounts SET ac_score = ac_score + 1, last_used = :last_used WHERE id = :id");
+    try {
+      $stmt->execute([':id' => $id, ':last_used' => $currentTimestamp]);
+      echo json_encode(['success' => true, 'message' => 'Account updated successfully.', 'time' => $currentTimestamp]);
+    } catch (PDOException $e) {
+      echo json_encode(['success' => false, 'message' => 'Database update failed: ' . $e->getMessage()]);
+    }
   } else {
-      echo json_encode(['success' => false, 'message' => 'Invalid account ID.']);
+    echo json_encode(['success' => false, 'message' => 'Invalid account ID.']);
   }
   exit;
 }
@@ -66,13 +66,13 @@ if (isset($_GET['stream'])) {
   // If a region is provided via GET, use it; otherwise process all regions.
   $selectedRegion = "";
   if (isset($_GET['region'])) {
-      $selectedRegion = trim($_GET['region']);
+    $selectedRegion = trim($_GET['region']);
   }
-  
+
   // Remove any pre-existing stop file.
   $stopFile = "stop_" . $id . ".txt";
   if (file_exists($stopFile)) {
-      unlink($stopFile);
+    unlink($stopFile);
   }
 
   header('Content-Type: text/event-stream');
@@ -83,7 +83,8 @@ if (isset($_GET['stream'])) {
   set_time_limit(0);
   ignore_user_abort(true);
 
-  function sendSSE($type, $message) {
+  function sendSSE($type, $message)
+  {
     echo "data:" . $type . "|" . str_replace("\n", "\\n", $message) . "\n\n";
     flush();
   }
@@ -92,39 +93,41 @@ if (isset($_GET['stream'])) {
 
   // Use the selected region if provided; otherwise, process all regions.
   if (!empty($selectedRegion)) {
-      $regions = array($selectedRegion);
+    $regions = array($selectedRegion);
   } else {
-      $regions = array(
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2",
-        "ap-south-1",
-        "ap-northeast-3",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ap-northeast-1",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "eu-north-1",
-        "me-central-1",
-        "sa-east-1",
-        "af-south-1",
-        "ap-southeast-3",
-        "ap-southeast-4",
-        "ca-west-1",
-        "eu-south-1",
-        "eu-south-2",
-        "eu-central-2",
-        "me-south-1",
-        "il-central-1",
-        "ap-south-2"
-      );
+    $regions = array(
+      "us-east-1",
+      "us-east-2",
+      "us-west-1",
+      "us-west-2",
+      "ap-south-1",
+      "ap-northeast-3",
+      "ap-southeast-1",
+      "ap-southeast-2",
+      "ap-northeast-1",
+      "ca-central-1",
+      "eu-central-1",
+      "eu-west-1",
+      "eu-west-2",
+      "eu-west-3",
+      "eu-north-1",
+      "sa-east-1",
+      "af-south-1",
+      "ap-east-2",
+      "ap-south-2",
+      "ap-southeast-3",
+      "ap-southeast-4",
+      "ap-southeast-6",
+      "ca-west-1",
+      "eu-central-2",
+      "eu-south-1",
+      "eu-south-2",
+      "il-central-1",
+      "me-central-1",
+      "mx-central-1"
+    );
   }
-  
+
   $totalRegions = count($regions);
   $totalSuccess = 0;
   $usedRegions = 0;
@@ -135,11 +138,11 @@ if (isset($_GET['stream'])) {
   foreach ($regions as $region) {
     // Check for stop flag.
     if (file_exists($stopFile)) {
-        sendSSE("STATUS", "Process stopped by user.");
-        unlink($stopFile);
-        exit;
+      sendSSE("STATUS", "Process stopped by user.");
+      unlink($stopFile);
+      exit;
     }
-    
+
     $usedRegions++;
     sendSSE("STATUS", "Moving to region: " . $region);
     sendSSE("COUNTERS", "Total Patch sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
@@ -164,17 +167,17 @@ if (isset($_GET['stream'])) {
     $otpTasks = array();
     $numbersCount = count($allowedNumbers);
     if ($numbersCount >= 6) {
-        for ($i = 0; $i < 5; $i++) {
-          $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
-        }
-        // For the 6th number, attempt twice.
-        $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
-        $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
+      for ($i = 0; $i < 5; $i++) {
+        $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
+      }
+      // For the 6th number, attempt twice.
+      $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
+      $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
     } else {
-        // Process fewer than 6 numbers normally.
-        foreach ($allowedNumbers as $number) {
-            $otpTasks[] = array('id' => $number['id'], 'phone' => $number['phone_number']);
-        }
+      // Process fewer than 6 numbers normally.
+      foreach ($allowedNumbers as $number) {
+        $otpTasks[] = array('id' => $number['id'], 'phone' => $number['phone_number']);
+      }
     }
 
     $otpSentInThisRegion = false;
@@ -183,11 +186,11 @@ if (isset($_GET['stream'])) {
     foreach ($otpTasks as $task) {
       // Check stop flag in inner loop.
       if (file_exists($stopFile)) {
-          sendSSE("STATUS", "Process stopped by user.");
-          unlink($stopFile);
-          exit;
+        sendSSE("STATUS", "Process stopped by user.");
+        unlink($stopFile);
+        exit;
       }
-      
+
       sendSSE("STATUS", "[$region] Sending Patch...");
       $sns = initSNS($aws_key, $aws_secret, $region);
       if (is_array($sns) && isset($sns['error'])) {
@@ -205,7 +208,7 @@ if (isset($_GET['stream'])) {
         // usleep(500000);
       } else if ($result['status'] === 'skip') {
         sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Skipped: " . $result['message']);
-         // Detect spend limit and break region
+        // Detect spend limit and break region
         if (strpos($result['message'], 'Monthly spend limit reached') !== false) {
           sendSSE("STATUS", "[$region] Spend limit hit. Skipping region...");
           sleep(3);
@@ -249,6 +252,7 @@ if (isset($_GET['stream'])) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title><?php echo $id; ?> | Bulk Regional Patch Sending</title>
@@ -260,24 +264,32 @@ if (isset($_GET['stream'])) {
       margin: 20px;
       background: #f7f7f7;
     }
+
     .container {
       max-width: 900px;
       margin: auto;
       background: #fff;
       padding: 20px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
       border-radius: 5px;
     }
-    h1, h2 {
+
+    h1,
+    h2 {
       text-align: center;
       color: #333;
     }
+
     label {
       font-weight: bold;
       margin-bottom: 5px;
       display: block;
     }
-    input, textarea, select, button {
+
+    input,
+    textarea,
+    select,
+    button {
       width: 100%;
       padding: 10px;
       margin-bottom: 10px;
@@ -285,6 +297,7 @@ if (isset($_GET['stream'])) {
       border: 1px solid #ccc;
       box-sizing: border-box;
     }
+
     button {
       background: #007bff;
       color: #fff;
@@ -292,31 +305,51 @@ if (isset($_GET['stream'])) {
       cursor: pointer;
       font-size: 16px;
     }
+
     button:disabled {
       background: #6c757d;
       cursor: not-allowed;
     }
+
     .message {
       padding: 10px;
       border-radius: 5px;
       margin: 10px 0;
       display: none;
     }
-    .success { background: #d4edda; color: #155724; }
-    .error { background: #f8d7da; color: #721c24; }
+
+    .success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 20px;
     }
-    table, th, td {
+
+    table,
+    th,
+    td {
       border: 1px solid #ccc;
     }
-    th, td {
+
+    th,
+    td {
       padding: 8px;
       text-align: center;
     }
-    th { background: #f4f4f4; }
+
+    th {
+      background: #f4f4f4;
+    }
+
     #counters {
       background: #eee;
       color: #333;
@@ -329,6 +362,7 @@ if (isset($_GET['stream'])) {
       border-radius: 3px;
       display: inline-block;
     }
+
     /* Inline row for form controls */
     .inline-row {
       display: flex;
@@ -336,10 +370,12 @@ if (isset($_GET['stream'])) {
       gap: 15px;
       margin-bottom: 15px;
     }
-    .inline-row > div {
+
+    .inline-row>div {
       flex: 1;
       min-width: 200px;
     }
+
     /* Button row for actions */
     .button-row {
       display: flex;
@@ -347,12 +383,14 @@ if (isset($_GET['stream'])) {
       gap: 15px;
       margin-bottom: 15px;
     }
+
     .button-row button {
       flex: 1;
       min-width: 150px;
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <h1>Bulk Regional Patch Sending</h1>
@@ -380,39 +418,41 @@ if (isset($_GET['stream'])) {
           <label for="region_select">Select Region:</label>
           <select id="region_select" name="region_select">
             <option value="">All Regions</option>
-            <?php 
-              $regionsList = array(
-                "us-east-1",
-                "us-east-2",
-                "us-west-1",
-                "us-west-2",
-                "ap-south-1",
-                "ap-northeast-3",
-                "ap-southeast-1",
-                "ap-southeast-2",
-                "ap-northeast-1",
-                "ca-central-1",
-                "eu-central-1",
-                "eu-west-1",
-                "eu-west-2",
-                "eu-west-3",
-                "eu-north-1",
-                "me-central-1",
-                "sa-east-1",
-                "af-south-1",
-                "ap-southeast-3",
-                "ap-southeast-4",
-                "ca-west-1",
-                "eu-south-1",
-                "eu-south-2",
-                "eu-central-2",
-                "me-south-1",
-                "il-central-1",
-                "ap-south-2"
-              );
-              foreach ($regionsList as $reg) {
-                echo '<option value="'.$reg.'">'.$reg.'</option>';
-              }
+            <?php
+            $regionsList = array(
+              "us-east-1",
+              "us-east-2",
+              "us-west-1",
+              "us-west-2",
+              "ap-south-1",
+              "ap-northeast-3",
+              "ap-southeast-1",
+              "ap-southeast-2",
+              "ap-northeast-1",
+              "ca-central-1",
+              "eu-central-1",
+              "eu-west-1",
+              "eu-west-2",
+              "eu-west-3",
+              "eu-north-1",
+              "sa-east-1",
+              "af-south-1",
+              "ap-east-2",
+              "ap-south-2",
+              "ap-southeast-3",
+              "ap-southeast-4",
+              "ap-southeast-6",
+              "ca-west-1",
+              "eu-central-2",
+              "eu-south-1",
+              "eu-south-2",
+              "il-central-1",
+              "me-central-1",
+              "mx-central-1"
+            );
+            foreach ($regionsList as $reg) {
+              echo '<option value="' . $reg . '">' . $reg . '</option>';
+            }
             ?>
           </select>
         </div>
@@ -423,7 +463,7 @@ if (isset($_GET['stream'])) {
 
             <option value="United States" selected>Default</option>
             <!-- <option value="it-IT" selected>Default</option> -->
-            <option value="Spanish Latin America" >Spanish Latin America</option>
+            <option value="Spanish Latin America">Spanish Latin America</option>
           </select>
         </div>
       </div>
@@ -520,7 +560,7 @@ if (isset($_GET['stream'])) {
         var region = $('#region_select').val();
         var language = $('#lang_select').val();
         var sseUrl = "bulk_regional_send.php?ac_id=" + acId + "&user_id=" + userId + "&set_id=" + set_id + "&stream=1&language=" + encodeURIComponent(language);
-        if(region) {
+        if (region) {
           sseUrl += "&region=" + region;
         }
         evtSource = new EventSource(sseUrl);
@@ -560,7 +600,9 @@ if (isset($_GET['stream'])) {
           url: window.location.href,
           type: 'POST',
           dataType: 'json',
-          data: { action: 'update_account' },
+          data: {
+            action: 'update_account'
+          },
           success: function(response) {
             if (response.success) {
               $("#result").html("<p style='color: green;'>" + response.message + "</p>");
@@ -576,4 +618,5 @@ if (isset($_GET['stream'])) {
     });
   </script>
 </body>
+
 </html>
