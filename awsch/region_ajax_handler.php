@@ -79,7 +79,9 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, 
     // Map the provided language to the proper LanguageCode (if you want mapping).
     $languageMapping = [
         "it-IT" => "it-IT",
-        "es-419" => "es-419"
+        "es-419" => "es-419",
+        "pt-BR" => "pt-BR",
+        "de-DE" => "de-DE"
         // Add more mappings as required
     ];
 

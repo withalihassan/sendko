@@ -550,6 +550,8 @@ if (isset($_GET['stream'])) {
                   <option value="">No language selected</option>
                   <option value="it-IT" selected>Default-it</option>
                   <option value="es-419">Spanish Latin America</option>
+                  <option value="pt-BR">Portuguese - Brazil</option>
+                  <option value="de-DE">German</option>
                   <!-- Add additional languages as needed -->
                 </select>
               </div>
