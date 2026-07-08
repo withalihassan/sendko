@@ -194,12 +194,12 @@ try {
             <div class="col-md-2">
                 <select id="instanceType" class="form-select">
                     <option value="t2.micro">t2.micro</option>
-                    <option value="c7a.4xlarge">C7 32v</option>
+                    <option value="c7a.4xlarge">C7 16v</option>
                     <option value="c7a.2xlarge">c7a 8V</option>
                     <option value="c7a.xlarge">C7 4v</option>
                     <option value="c5a.xlarge">c5a.xlarge</option>
                     <option value="c7a.8xlarge">c7a.8xlarge</option>
-                    <option value="c7i.xlarge">c7i.xlarge</option>
+                    <option value="c7i.2xlarge">c7i.xlarge</option>
                     <option value="c7i.8xlarge">c7i.8xlarge</option>
                 </select>
             </div>

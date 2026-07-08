@@ -78,23 +78,82 @@ function fetch_numbers($region, $pdo, $set_id = null)
     return ['success' => true, 'region' => $region, 'data' => $numbers];
 }
 
-function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, $language = null)
+function fetch_pending_sns_numbers($region, $awsKey, $awsSecret)
 {
-    if (!$id || empty($phone)) {
+    if (empty($region)) {
+        return ['error' => 'Region is required.'];
+    }
+
+    $sns = initSNS($awsKey, $awsSecret, $region);
+    if (is_array($sns) && isset($sns['error'])) {
+        return ['error' => $sns['error']];
+    }
+
+    $numbers = [];
+    $nextToken = null;
+
+    try {
+        do {
+            $params = ['MaxResults' => 100];
+            if (!empty($nextToken)) {
+                $params['NextToken'] = $nextToken;
+            }
+
+            $result = $sns->listSMSSandboxPhoneNumbers($params);
+            $items = isset($result['PhoneNumbers']) ? $result['PhoneNumbers'] : [];
+
+            foreach ($items as $item) {
+                $phoneNumber = isset($item['PhoneNumber']) ? trim((string)$item['PhoneNumber']) : '';
+                $status = isset($item['Status']) ? trim((string)$item['Status']) : '';
+
+                if ($phoneNumber !== '' && strcasecmp($status, 'Pending') === 0) {
+                    $numbers[] = [
+                        'id' => null,
+                        'phone_number' => $phoneNumber,
+                        'atm_left' => null,
+                        'formatted_date' => null,
+                        'status' => $status
+                    ];
+                }
+            }
+
+            $nextToken = isset($result['NextToken']) ? (string)$result['NextToken'] : null;
+        } while (!empty($nextToken));
+    } catch (AwsException $e) {
+        $msg = $e->getAwsErrorMessage() ?: $e->getMessage();
+        return ['error' => 'Error fetching pending SNS numbers: ' . $msg];
+    } catch (Exception $e) {
+        return ['error' => 'Error fetching pending SNS numbers: ' . $e->getMessage()];
+    }
+
+    return ['success' => true, 'region' => $region, 'data' => $numbers];
+}
+
+function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, $language = null, $update_db = true)
+{
+    if (empty($phone)) {
+        return ['status' => 'error', 'message' => 'Invalid phone number.', 'region' => $region];
+    }
+
+    if ($update_db && (!$id || intval($id) <= 0)) {
         return ['status' => 'error', 'message' => 'Invalid phone number or ID.', 'region' => $region];
     }
 
-    $stmt = $pdo->prepare("SELECT atm_left FROM allowed_numbers WHERE id = ?");
-    $stmt->execute([$id]);
-    $numberData = $stmt->fetch(PDO::FETCH_ASSOC);
+    $current_atm = null;
 
-    if (!$numberData) {
-        return ['status' => 'error', 'message' => 'Number not found in database.', 'region' => $region];
-    }
+    if ($update_db) {
+        $stmt = $pdo->prepare("SELECT atm_left FROM allowed_numbers WHERE id = ?");
+        $stmt->execute([$id]);
+        $numberData = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    $current_atm = intval($numberData['atm_left']);
-    if ($current_atm <= 0) {
-        return ['status' => 'error', 'message' => 'No remaining OTP attempts for this number.', 'region' => $region];
+        if (!$numberData) {
+            return ['status' => 'error', 'message' => 'Number not found in database.', 'region' => $region];
+        }
+
+        $current_atm = intval($numberData['atm_left']);
+        if ($current_atm <= 0) {
+            return ['status' => 'error', 'message' => 'No remaining OTP attempts for this number.', 'region' => $region];
+        }
     }
 
     $supportedLanguages = array_keys(get_sns_supported_languages());
@@ -144,15 +203,17 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, 
         return ['status' => 'error', 'message' => "Error sending OTP: " . $awsMessage, 'region' => $region];
     }
 
-    try {
-        $new_atm = $current_atm - 1;
-        $new_status = ($new_atm == 0) ? 'used' : 'fresh';
-        $last_used = date("Y-m-d H:i:s");
+    if ($update_db) {
+        try {
+            $new_atm = $current_atm - 1;
+            $new_status = ($new_atm == 0) ? 'used' : 'fresh';
+            $last_used = date("Y-m-d H:i:s");
 
-        $updateStmt = $pdo->prepare("UPDATE allowed_numbers SET atm_left = ?, last_used = ?, status = ? WHERE id = ?");
-        $updateStmt->execute([$new_atm, $last_used, $new_status, $id]);
-    } catch (PDOException $e) {
-        return ['status' => 'error', 'message' => 'Database update error: ' . $e->getMessage(), 'region' => $region];
+            $updateStmt = $pdo->prepare("UPDATE allowed_numbers SET atm_left = ?, last_used = ?, status = ? WHERE id = ?");
+            $updateStmt->execute([$new_atm, $last_used, $new_status, $id]);
+        } catch (PDOException $e) {
+            return ['status' => 'error', 'message' => 'Database update error: ' . $e->getMessage(), 'region' => $region];
+        }
     }
 
     return ['status' => 'success', 'message' => "OTP sent to $phone successfully.", 'region' => $region];
@@ -192,12 +253,23 @@ if (empty($internal_call)) {
             echo json_encode(array_merge(['status' => 'success'], $result));
         }
         exit;
+    } elseif ($action === 'fetch_pending_sns_numbers') {
+        $region = isset($_POST['region']) ? trim($_POST['region']) : '';
+        $result = fetch_pending_sns_numbers($region, $awsKey, $awsSecret);
+
+        if (isset($result['error'])) {
+            echo json_encode(['status' => 'error', 'message' => $result['error']]);
+        } else {
+            echo json_encode(array_merge(['status' => 'success'], $result));
+        }
+        exit;
     } elseif ($action === 'send_otp_single') {
         $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
         $phone = isset($_POST['phone']) ? trim($_POST['phone']) : '';
         $region = isset($_POST['region']) ? trim($_POST['region']) : $awsRegion;
+        $update_db = isset($_POST['update_db']) ? filter_var($_POST['update_db'], FILTER_VALIDATE_BOOLEAN) : true;
 
-        $result = send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, $language);
+        $result = send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $pdo, $sns, $language, $update_db);
         echo json_encode($result);
         exit;
     } else {

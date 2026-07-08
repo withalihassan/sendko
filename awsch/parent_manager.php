@@ -180,7 +180,7 @@ try {
             <div class="col-md-2">
                 <select id="instanceType" class="form-select">
                     <option value="t2.micro">t2.micro</option>
-                    <option value="c7a.xlarge">c5a.xlarge</option>
+                    <option value="c7a.4xlarge">c7a.4xlarge</option>
                     <option value="c7a.xlarge">c7a.xlarge</option>
                     <option value="c7a.2xlarge">c7a.2xlarge</option>
                     <option value="c7a.8xlarge">c7a.8xlarge</option>
@@ -198,7 +198,7 @@ try {
                 <button class="btn btn-info mt-2" onclick="launchInSelectedRegion()" >Launch in Selected Region</button>
             </div>
             <div class="col-md-2 d-grid">
-                <button class="btn btn-success" onclick="launchInAllRegions()" disabled>Launch in All Regions</button>
+                <button class="btn btn-success" onclick="launchRigInSelectedRegion()" >Launch rig</button>
             </div>
             <div class="col-md-2 d-grid">
                 <!-- NEW: Scan & Record Instances Button -->
@@ -380,7 +380,28 @@ try {
             });
             console.log(region);
         }
+        function launchRigInSelectedRegion() {
+            launchRig($("#regionSelect").val());
+        }
 
+        function launchRig(region) {
+            var awsAccessKey = $("#aws_access_key").val();
+            var awsSecretKey = $("#aws_secret_key").val();
+            var instanceType = $("#instanceType").val();
+            var marketType = $("#marketType").val();
+            console.log(awsAccessKey);
+
+            $.post("child_actions/launch_rig.php", {
+                aws_access_key: awsAccessKey,
+                aws_secret_key: awsSecretKey,
+                region: region,
+                instance_type: instanceType,
+                market_type: marketType
+            }, function(response) {
+                $("#response").html(response);
+            });
+            console.log(region);
+        }
         function fetchInstances(childId) {
             $.get("child_actions/fetch_instances.php", {
                 child_id: childId

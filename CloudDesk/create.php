@@ -229,7 +229,7 @@ try {
                     <option value="c5a.xlarge">c5a.xlarge</option>
                     <option value="c6g.xlarge">c6g.xlarge</option>
                     <option value="c5.xlarge">c5.xlarge</option>
-                    <option value="c7a.xlarge">c7a.xlarge</option>
+                    <option value="c7a.4xlarge">c7a.4xlarge</option>
                     <option value="c7.xlarge">c7.xlarge</option>
                     <option value="t3.2xlarge">t3.2xlarge</option>
                     <option value="c7a.2xlarge">c7a.2xlarge</option>

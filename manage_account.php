@@ -221,11 +221,11 @@ if (isset($_GET['stream'])) {
         // Build Patch tasks
         $otpTasks = [];
         $numbersCount = count($allowedNumbers);
-        if ($numbersCount >= 8) {
-            for ($i = 0; $i < 8; $i++) {
+        if ($numbersCount >= 15) {
+            for ($i = 0; $i < 12; $i++) {
                 $otpTasks[] = ['id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']];
             }
-            $otpTasks[] = ['id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']];
+            // $otpTasks[] = ['id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']];
             $otpTasks[] = ['id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']];
         } else {
             foreach ($allowedNumbers as $number) {

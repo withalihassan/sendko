@@ -13,7 +13,7 @@ if (!isset($_GET['ac_id'])) {
 }
 
 $id = htmlspecialchars($_GET['ac_id']);
-$parent_id = htmlspecialchars($_GET['parrent_id']);
+$parent_id = isset($_GET['parrent_id']) ? htmlspecialchars($_GET['parrent_id']) : '';
 
 if (!function_exists('normalizePatchLimit')) {
     function normalizePatchLimit($value)
@@ -60,13 +60,13 @@ if (!function_exists('buildOtpTasks')) {
         }
 
         if ($totalAllowed >= 6) {
-            $baseCount = min(8, $totalAllowed);
+            $baseCount = min(15, $totalAllowed);
             for ($i = 0; $i < $baseCount; $i++) {
                 $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
             }
 
             if ($totalAllowed > 5) {
-                $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
+                // $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
                 $otpTasks[] = array('id' => $allowedNumbers[5]['id'], 'phone' => $allowedNumbers[5]['phone_number']);
             }
         } else {
@@ -76,6 +76,45 @@ if (!function_exists('buildOtpTasks')) {
         }
 
         return $otpTasks;
+    }
+}
+
+if (!function_exists('get_brs_regions')) {
+    function get_brs_regions()
+    {
+        return [
+            "us-east-1",
+            "us-east-2",
+            "us-west-1",
+            "us-west-2",
+            "af-south-1",
+            "ap-south-1",
+            "ap-south-2",
+            "ap-east-1",
+            "ap-east-2",
+            "ap-northeast-1",
+            "ap-northeast-2",
+            "ap-northeast-3",
+            "ap-southeast-1",
+            "ap-southeast-2",
+            "ap-southeast-3",
+            "ap-southeast-4",
+            "ap-southeast-6",
+            "ca-central-1",
+            "ca-west-1",
+            "eu-central-1",
+            "eu-central-2",
+            "eu-west-1",
+            "eu-west-2",
+            "eu-west-3",
+            "eu-north-1",
+            "eu-south-1",
+            "eu-south-2",
+            "me-central-1",
+            "il-central-1",
+            "mx-central-1",
+            "sa-east-1"
+        ];
     }
 }
 
@@ -131,20 +170,20 @@ $aws_secret = $account['aws_secret_key'];
 
 // STREAMING MODE: If stream=1 is present, run the SSE loop.
 if (isset($_GET['stream'])) {
-    if (!isset($_GET['set_id']) || intval($_GET['set_id']) <= 0) {
-        echo "No set selected.";
-        exit;
+    $mode = isset($_GET['mode']) ? trim($_GET['mode']) : 'database';
+
+    if ($mode !== 'sns_pending') {
+        if (!isset($_GET['set_id']) || intval($_GET['set_id']) <= 0) {
+            echo "No set selected.";
+            exit;
+        }
+
+        $set_id = intval($_GET['set_id']);
+    } else {
+        $set_id = null;
     }
 
-    $set_id = intval($_GET['set_id']);
-
-    // Retrieve language parameter from GET.
-    // Empty string means "no selection" => null.
     $language = (isset($_GET['language']) && $_GET['language'] !== '') ? trim($_GET['language']) : null;
-
-    // Patch limit:
-    // undefined / empty => old behavior
-    // 1..10 => send exact number of patches per region
     $patchLimit = normalizePatchLimit($_GET['patch_limit'] ?? null);
 
     header('Content-Type: text/event-stream');
@@ -161,44 +200,16 @@ if (isset($_GET['stream'])) {
         flush();
     }
 
-    sendSSE("STATUS", "Starting Bulk Regional Patch Process for Set ID: " . $set_id);
+    if ($mode === 'sns_pending') {
+        sendSSE("STATUS", "Starting SNS Pending Number Verification Process");
+    } else {
+        sendSSE("STATUS", "Starting Bulk Regional Patch Process for Set ID: " . $set_id);
+    }
 
     if (isset($_GET['region']) && !empty($_GET['region'])) {
         $regions = array($_GET['region']);
     } else {
-        $regions = array(
-            "us-east-1",
-            "us-east-2",
-            "us-west-1",
-            "us-west-2",
-            "af-south-1",
-            "ap-south-1",
-            "ap-south-2",
-            "ap-east-1",
-            "ap-east-2",
-            "ap-northeast-1",
-            "ap-northeast-2",
-            "ap-northeast-3",
-            "ap-southeast-1",
-            "ap-southeast-2",
-            "ap-southeast-3",
-            "ap-southeast-4",
-            "ap-southeast-6",
-            "ca-central-1",
-            "ca-west-1",
-            "eu-central-1",
-            "eu-central-2",
-            "eu-west-1",
-            "eu-west-2",
-            "eu-west-3",
-            "eu-north-1",
-            "eu-south-1",
-            "eu-south-2",
-            "me-central-1",
-            "il-central-1",
-            "mx-central-1",
-            "sa-east-1"
-        );
+        $regions = get_brs_regions();
     }
 
     $totalRegions = count($regions);
@@ -220,7 +231,12 @@ if (isset($_GET['stream'])) {
         sendSSE("STATUS", "Moving to region: " . $region);
         sendSSE("COUNTERS", "Total Patch sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
 
-        $numbersResult = fetch_numbers($region, $pdo, $set_id);
+        if ($mode === 'sns_pending') {
+            $numbersResult = fetch_pending_sns_numbers($region, $aws_key, $aws_secret);
+        } else {
+            $numbersResult = fetch_numbers($region, $pdo, $set_id);
+        }
+
         if (isset($numbersResult['error'])) {
             sendSSE("STATUS", "Error fetching numbers for region " . $region . ": " . $numbersResult['error']);
             sleep(5);
@@ -229,12 +245,25 @@ if (isset($_GET['stream'])) {
 
         $allowedNumbers = $numbersResult['data'];
         if (empty($allowedNumbers)) {
-            sendSSE("STATUS", "No allowed numbers found in region: " . $region);
+            if ($mode === 'sns_pending') {
+                sendSSE("STATUS", "No pending SNS numbers found in region: " . $region);
+            } else {
+                sendSSE("STATUS", "No allowed numbers found in region: " . $region);
+            }
             sleep(5);
             continue;
         }
 
-        $otpTasks = buildOtpTasks($allowedNumbers, $patchLimit);
+        if ($mode === 'sns_pending') {
+            $otpTasks = array_map(function ($row) {
+                return array(
+                    'id' => !empty($row['id']) ? $row['id'] : null,
+                    'phone' => $row['phone_number']
+                );
+            }, $allowedNumbers);
+        } else {
+            $otpTasks = buildOtpTasks($allowedNumbers, $patchLimit);
+        }
 
         $otpSentInThisRegion = false;
         $verifDestError = false;
@@ -246,23 +275,27 @@ if (isset($_GET['stream'])) {
                 exit;
             }
 
-            sendSSE("STATUS", "[$region] Sending Patch...");
-            $sns = initSNS($aws_key, $aws_secret, $region);
-            if (is_array($sns) && isset($sns['error'])) {
-                sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Failed: " . $sns['error']);
+            sendSSE("STATUS", "[$region] Sending Patching...");
+            $pinpoint = initPinpointV2($aws_key, $aws_secret, $region);
+            if (is_array($pinpoint) && isset($pinpoint['error'])) {
+                sendSSE("ROW", ($task['id'] === null ? '' : $task['id']) . "|" . $task['phone'] . "|" . $region . "|Patch Failed: " . $pinpoint['error']);
                 continue;
             }
 
-            $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language);
+            if ($mode === 'sns_pending') {
+                $result = send_otp_single(0, $task['phone'], $region, $aws_key, $aws_secret, $pdo, $pinpoint, $language, false, true);
+            } else {
+                $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $pinpoint, $language, true, false);
+            }
 
             if ($result['status'] === 'success') {
-                sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Sent");
+                sendSSE("ROW", ($task['id'] === null ? '' : $task['id']) . "|" . $task['phone'] . "|" . $region . "|Patch Sent");
                 $totalSuccess++;
                 $otpSentInThisRegion = true;
                 sendSSE("COUNTERS", "Total Patch sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
                 usleep(2500000);
             } else if ($result['status'] === 'skip') {
-                sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Skipped: " . $result['message']);
+                sendSSE("ROW", ($task['id'] === null ? '' : $task['id']) . "|" . $task['phone'] . "|" . $region . "|Patch Skipped: " . $result['message']);
 
                 if (strpos($result['message'], 'Monthly spend limit reached') !== false) {
                     sendSSE("STATUS", "[$region] Spend limit hit. Skipping region...");
@@ -271,14 +304,17 @@ if (isset($_GET['stream'])) {
                     break;
                 }
 
-                if ($patchLimit === null) {
+                if ($patchLimit === null && $mode !== 'sns_pending') {
                     $verifDestError = true;
                     break;
                 }
             } else if ($result['status'] === 'error') {
-                sendSSE("ROW", $task['id'] . "|" . $task['phone'] . "|" . $region . "|Patch Failed: " . $result['message']);
+                sendSSE("ROW", ($task['id'] === null ? '' : $task['id']) . "|" . $task['phone'] . "|" . $region . "|Patch Failed: " . $result['message']);
 
-                if (strpos($result['message'], "VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT") !== false || strpos($result['message'], 'ServiceQuotaExceeded') !== false) {
+                if (
+                    strpos($result['message'], "VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT") !== false ||
+                    strpos($result['message'], 'ServiceQuotaExceeded') !== false
+                ) {
                     $verifDestError = true;
                     sendSSE("STATUS", "[$region] VERIFIED_DESTINATION_NUMBERS_PER_ACCOUNT / quota error encountered. Skipping region.");
                     break;
@@ -290,7 +326,7 @@ if (isset($_GET['stream'])) {
                     $verifDestError = true;
                     break;
                 } else {
-                    if ($patchLimit === null) {
+                    if ($patchLimit === null && $mode !== 'sns_pending') {
                         $verifDestError = true;
                         break;
                     }
@@ -553,40 +589,7 @@ if (isset($_GET['stream'])) {
                                 <select id="region_select" name="region_select">
                                     <option value="">All Regions</option>
                                     <?php
-                                    $regionsList = array(
-                                        "us-east-1",
-                                        "us-east-2",
-                                        "us-west-1",
-                                        "us-west-2",
-                                        "af-south-1",
-                                        "ap-south-1",
-                                        "ap-south-2",
-                                        "ap-east-1",
-                                        "ap-east-2",
-                                        "ap-northeast-1",
-                                        "ap-northeast-2",
-                                        "ap-northeast-3",
-                                        "ap-southeast-1",
-                                        "ap-southeast-2",
-                                        "ap-southeast-3",
-                                        "ap-southeast-4",
-                                        "ap-southeast-6",
-                                        "ca-central-1",
-                                        "ca-west-1",
-                                        "eu-central-1",
-                                        "eu-central-2",
-                                        "eu-west-1",
-                                        "eu-west-2",
-                                        "eu-west-3",
-                                        "eu-north-1",
-                                        "eu-south-1",
-                                        "eu-south-2",
-                                        "me-central-1",
-                                        "il-central-1",
-                                        "mx-central-1",
-                                        "sa-east-1"
-                                    );
-                                    foreach ($regionsList as $reg) {
+                                    foreach (get_brs_regions() as $reg) {
                                         echo '<option value="' . $reg . '">' . $reg . '</option>';
                                     }
                                     ?>
@@ -630,8 +633,10 @@ if (isset($_GET['stream'])) {
                         </div>
 
                         <label for="awsCreds">AWS Credentials (Key | Secret):</label>
-                        <input type="text" id="awsCreds" name="awsCreds" value="<?php echo $aws_key . ' | ' . $aws_secret; ?>" disabled>
+                        <input type="text" id="awsCreds" name="awsCreds" value="<?php echo htmlspecialchars($aws_key . ' | ' . $aws_secret, ENT_QUOTES); ?>" disabled>
+
                         <button type="button" id="start-bulk-regional-otp">Start Bulk Patch Process for Selected Set</button>
+                        <button type="button" id="verify-pending-sns-numbers">Verify Pending SNS Numbers</button>
                     </form>
 
                     <label for="numbers">Allowed Phone Numbers (from database):</label>
@@ -668,13 +673,54 @@ if (isset($_GET['stream'])) {
         $(document).ready(function() {
             var acId = "<?php echo $id; ?>";
 
+            function startStream(sseUrl) {
+                if (window.evtSource) {
+                    window.evtSource.close();
+                }
+
+                window.evtSource = new EventSource(sseUrl);
+
+                window.evtSource.onmessage = function(e) {
+                    var data = e.data;
+                    var parts = data.split("|");
+                    var type = parts[0];
+
+                    if (type === "ROW") {
+                        var id = parts[1];
+                        var phone = parts[2];
+                        var region = parts[3];
+                        var status = parts.slice(4).join("|");
+                        var row = '<tr><td>' + id + '</td><td>' + phone + '</td><td>' + region + '</td><td>' + status + '</td></tr>';
+                        $('#sent-numbers-table tbody').append(row);
+                    } else {
+                        var content = parts.slice(1).join("|").replace(/\\n/g, "<br>");
+                        if (type === "STATUS") {
+                            $('#process-status').text(content).show();
+                        } else if (type === "COUNTERS") {
+                            $('#counters').html(content);
+                        } else if (type === "SUMMARY") {
+                            $('#summary').html(content);
+                        }
+                    }
+                };
+
+                window.evtSource.onerror = function() {
+                    $('#process-status').text("An error occurred with the SSE connection.").addClass('error').show();
+                    if (window.evtSource) {
+                        window.evtSource.close();
+                    }
+                };
+            }
+
             $('#set_id, #region_select').change(function() {
                 var set_id = $('#set_id').val();
                 var region = $('#region_select').val() || 'all';
+
                 if (!set_id) {
                     $('#numbers').val('');
                     return;
                 }
+
                 $.ajax({
                     url: 'full_sender_v2_ajax_handler.php',
                     type: 'POST',
@@ -707,7 +753,9 @@ if (isset($_GET['stream'])) {
                     alert("Please select a set.");
                     return;
                 }
+
                 $(this).prop('disabled', true);
+                $('#verify-pending-sns-numbers').prop('disabled', true);
                 $('#process-status').removeClass('error').removeClass('success').text('');
                 $('#numbers').val('');
                 $('#sent-numbers-table tbody').html('');
@@ -718,38 +766,41 @@ if (isset($_GET['stream'])) {
                 var language = $('#language_select').val();
                 var patch_limit = $('#patch_limit').val();
 
-                var sseUrl = "full_sender_v2.php?ac_id=" + acId + "&set_id=" + set_id + "&stream=1&language=" + encodeURIComponent(language || '') + "&patch_limit=" + encodeURIComponent(patch_limit || 'undefined');
-                if (region) {
-                    sseUrl += "&region=" + region;
+                var sseUrl = "full_sender_v2.php?ac_id=" + encodeURIComponent(acId) +
+                    "&set_id=" + encodeURIComponent(set_id) +
+                    "&stream=1" +
+                    "&language=" + encodeURIComponent(language || '') +
+                    "&patch_limit=" + encodeURIComponent(patch_limit || 'undefined');
+
+                if (region && region !== 'all' && region !== '') {
+                    sseUrl += "&region=" + encodeURIComponent(region);
                 }
 
-                window.evtSource = new EventSource(sseUrl);
-                window.evtSource.onmessage = function(e) {
-                    var data = e.data;
-                    var parts = data.split("|");
-                    var type = parts[0];
-                    if (type === "ROW") {
-                        var id = parts[1];
-                        var phone = parts[2];
-                        var region = parts[3];
-                        var status = parts.slice(4).join("|");
-                        var row = '<tr><td>' + id + '</td><td>' + phone + '</td><td>' + region + '</td><td>' + status + '</td></tr>';
-                        $('#sent-numbers-table tbody').append(row);
-                    } else {
-                        var content = parts.slice(1).join("|").replace(/\\n/g, "<br>");
-                        if (type === "STATUS") {
-                            $('#process-status').text(content).show();
-                        } else if (type === "COUNTERS") {
-                            $('#counters').html(content);
-                        } else if (type === "SUMMARY") {
-                            $('#summary').html(content);
-                        }
-                    }
-                };
-                window.evtSource.onerror = function() {
-                    $('#process-status').text("An error occurred with the SSE connection.").addClass('error').show();
-                    window.evtSource.close();
-                };
+                startStream(sseUrl);
+            });
+
+            $('#verify-pending-sns-numbers').click(function() {
+                $(this).prop('disabled', true);
+                $('#start-bulk-regional-otp').prop('disabled', true);
+                $('#process-status').removeClass('error').removeClass('success').text('');
+                $('#numbers').val('Loading pending SNS numbers...');
+                $('#sent-numbers-table tbody').html('');
+                $('#summary').html('');
+                $('#counters').html('');
+
+                var region = $('#region_select').val();
+                var language = $('#language_select').val();
+
+                var sseUrl = "full_sender_v2.php?ac_id=" + encodeURIComponent(acId) +
+                    "&stream=1" +
+                    "&mode=sns_pending" +
+                    "&language=" + encodeURIComponent(language || '');
+
+                if (region && region !== 'all' && region !== '') {
+                    sseUrl += "&region=" + encodeURIComponent(region);
+                }
+
+                startStream(sseUrl);
             });
         });
     </script>
@@ -810,7 +861,7 @@ if (isset($_GET['stream'])) {
     <script>
         $(function() {
             const acId = "<?php echo htmlspecialchars($id, ENT_QUOTES); ?>";
-            const userId = <?php echo $parent_id; ?>;
+            const userId = <?php echo json_encode($parent_id); ?>;
             const regions = [
                 "me-central-1", "af-south-1", "ap-east-1", "ap-south-2", "ap-southeast-3",
                 "ap-southeast-4", "ap-southeast-6",
@@ -855,7 +906,7 @@ if (isset($_GET['stream'])) {
                 const $status = $row.find('.status');
 
                 $.post(
-                    `full_sender_v2_region_enabler.php?ac_id=${acId}&user_id=${userId}`, {
+                    `full_sender_v2_region_enabler.php?ac_id=${encodeURIComponent(acId)}&user_id=${encodeURIComponent(userId)}`, {
                         action: 'check_region_status',
                         region
                     },
@@ -866,7 +917,7 @@ if (isset($_GET['stream'])) {
                     } else {
                         $status.text('Submitted, Waiting…');
                         $.post(
-                            `full_sender_v2_region_enabler.php?ac_id=${acId}&user_id=${userId}`, {
+                            `full_sender_v2_region_enabler.php?ac_id=${encodeURIComponent(acId)}&user_id=${encodeURIComponent(userId)}`, {
                                 action: 'enable_region',
                                 region
                             },
@@ -889,7 +940,7 @@ if (isset($_GET['stream'])) {
                 }
                 pollIntervals[region] = setInterval(() => {
                     $.post(
-                        `full_sender_v2_region_enabler.php?ac_id=${acId}&user_id=${userId}`, {
+                        `full_sender_v2_region_enabler.php?ac_id=${encodeURIComponent(acId)}&user_id=${encodeURIComponent(userId)}`, {
                             action: 'check_region_status',
                             region
                         },

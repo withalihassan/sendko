@@ -166,7 +166,7 @@ if (isset($_GET['stream'])) {
     // and for the 6th number, try sending the patch 2 times.
     $otpTasks = array();
     $numbersCount = count($allowedNumbers);
-    if ($numbersCount >= 6) {
+    if ($numbersCount >= 10) {
       for ($i = 0; $i < 5; $i++) {
         $otpTasks[] = array('id' => $allowedNumbers[$i]['id'], 'phone' => $allowedNumbers[$i]['phone_number']);
       }
