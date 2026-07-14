@@ -144,7 +144,42 @@ function fetch_numbers($region, $user_id, $pdo, $set_id = null)
     return ['success' => true, 'region' => $region, 'data' => $numbers];
 }
 
-function fetch_pending_sns_numbers($region, $awsKey, $awsSecret)
+function find_allowed_number_by_phone($pdo, $phone): ?array
+{
+    $normalizedPhone = normalize_phone_number($phone);
+    $digitsOnly = preg_replace('/\D/', '', $normalizedPhone);
+    $phoneVariants = array_unique(array_filter([
+        trim((string) $phone),
+        $normalizedPhone,
+        $digitsOnly,
+        $digitsOnly !== '' ? '+' . $digitsOnly : '',
+    ]));
+
+    if (empty($phoneVariants)) {
+        return null;
+    }
+
+    $placeholders = implode(',', array_fill(0, count($phoneVariants), '?'));
+    $stmt = $pdo->prepare(
+        "SELECT id, phone_number, atm_left, status, DATE_FORMAT(created_at, '%Y-%m-%d') as formatted_date
+         FROM allowed_numbers
+         WHERE phone_number IN ($placeholders)
+         ORDER BY
+             CASE
+                 WHEN status = 'fresh' AND atm_left > 0 THEN 0
+                 WHEN atm_left > 0 THEN 1
+                 ELSE 2
+             END,
+             id DESC
+         LIMIT 1"
+    );
+    $stmt->execute(array_values($phoneVariants));
+    $number = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return $number ?: null;
+}
+
+function fetch_pending_sns_numbers($region, $awsKey, $awsSecret, $pdo = null)
 {
     if (empty($region)) {
         return ['error' => 'Region is required.'];
@@ -180,13 +215,31 @@ function fetch_pending_sns_numbers($region, $awsKey, $awsSecret)
                     continue;
                 }
 
-                $numbers[] = [
+                $numberRow = [
                     'id' => null,
                     'phone_number' => $phoneNumber,
                     'atm_left' => null,
                     'formatted_date' => null,
                     'status' => $status,
                 ];
+
+                if ($pdo instanceof PDO) {
+                    $allowedNumber = find_allowed_number_by_phone($pdo, $phoneNumber);
+
+                    if ($allowedNumber) {
+                        $numberRow['id'] = $allowedNumber['id'];
+                        $numberRow['phone_number'] = $allowedNumber['phone_number'];
+                        $numberRow['atm_left'] = $allowedNumber['atm_left'];
+                        $numberRow['formatted_date'] = $allowedNumber['formatted_date'];
+                        $numberRow['db_status'] = $allowedNumber['status'];
+                        $numberRow['db_match'] = true;
+                    } else {
+                        $numberRow['db_status'] = null;
+                        $numberRow['db_match'] = false;
+                    }
+                }
+
+                $numbers[] = $numberRow;
             }
 
             $nextToken = $data['NextToken'] ?? null;
@@ -356,6 +409,25 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $user_id, $p
     }
 
     if ($pending_flow) {
+        if ($update_db) {
+            $dbId = (int) $id;
+            if ($dbId <= 0) {
+                return ['status' => 'error', 'message' => 'Invalid phone number or ID.', 'region' => $region];
+            }
+
+            $current = $pdo->prepare("SELECT atm_left FROM allowed_numbers WHERE id = ?");
+            $current->execute([$dbId]);
+            $numberData = $current->fetch(PDO::FETCH_ASSOC);
+
+            if (!$numberData) {
+                return ['status' => 'error', 'message' => 'Number not found in database.', 'region' => $region];
+            }
+
+            if ((int) $numberData['atm_left'] <= 0) {
+                return ['status' => 'error', 'message' => 'No remaining OTP attempts for this number.', 'region' => $region];
+            }
+        }
+
         try {
             $createResult = $sns->createVerifiedDestinationNumber([
                 'DestinationPhoneNumber' => $phone,
@@ -376,6 +448,18 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $user_id, $p
             }
 
             $sns->sendDestinationNumberVerificationCode($params);
+
+            if ($update_db) {
+                $dbId = (int) $id;
+                if ($dbId <= 0) {
+                    return ['status' => 'error', 'message' => 'Invalid phone number or ID.', 'region' => $region];
+                }
+
+                $update = update_allowed_number_usage($pdo, $dbId);
+                if ($update['status'] !== 'success') {
+                    return ['status' => 'error', 'message' => $update['message'], 'region' => $region];
+                }
+            }
 
             return [
                 'status' => 'success',
@@ -414,6 +498,18 @@ function send_otp_single($id, $phone, $region, $awsKey, $awsSecret, $user_id, $p
                         }
 
                         $sns->sendDestinationNumberVerificationCode($params);
+
+                        if ($update_db) {
+                            $dbId = (int) $id;
+                            if ($dbId <= 0) {
+                                return ['status' => 'error', 'message' => 'Invalid phone number or ID.', 'region' => $region];
+                            }
+
+                            $update = update_allowed_number_usage($pdo, $dbId);
+                            if ($update['status'] !== 'success') {
+                                return ['status' => 'error', 'message' => $update['message'], 'region' => $region];
+                            }
+                        }
 
                         return [
                             'status' => 'success',
@@ -599,7 +695,7 @@ if (empty($internal_call)) {
 
     if ($action === 'fetch_pending_sns_numbers') {
         $region = isset($_POST['region']) ? trim($_POST['region']) : '';
-        $result = fetch_pending_sns_numbers($region, $awsKey, $awsSecret);
+        $result = fetch_pending_sns_numbers($region, $awsKey, $awsSecret, $pdo);
 
         if (isset($result['error'])) {
             echo json_encode(['status' => 'error', 'message' => $result['error']]);

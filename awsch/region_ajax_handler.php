@@ -80,7 +80,54 @@ function fetch_numbers($region, $pdo, $set_id = null)
     return ['success' => true, 'region' => $region, 'data' => $numbers];
 }
 
-function fetch_pending_sns_numbers($region, $awsKey, $awsSecret)
+function normalize_sns_phone_number($phone)
+{
+    $phone = trim((string)$phone);
+    $phone = preg_replace('/[^\d+]/', '', $phone);
+
+    if (substr($phone, 0, 2) === '00') {
+        $phone = '+' . substr($phone, 2);
+    }
+
+    return $phone;
+}
+
+function find_allowed_number_by_phone($pdo, $phone)
+{
+    $normalizedPhone = normalize_sns_phone_number($phone);
+    $digitsOnly = preg_replace('/\D/', '', $normalizedPhone);
+    $phoneVariants = array_unique(array_filter([
+        trim((string)$phone),
+        $normalizedPhone,
+        $digitsOnly,
+        $digitsOnly !== '' ? '+' . $digitsOnly : ''
+    ]));
+
+    if (empty($phoneVariants)) {
+        return null;
+    }
+
+    $placeholders = implode(',', array_fill(0, count($phoneVariants), '?'));
+    $stmt = $pdo->prepare(
+        "SELECT id, phone_number, atm_left, status, DATE_FORMAT(created_at, '%Y-%m-%d') as formatted_date
+         FROM allowed_numbers
+         WHERE phone_number IN ($placeholders)
+         ORDER BY
+             CASE
+                 WHEN status = 'fresh' AND atm_left > 0 THEN 0
+                 WHEN atm_left > 0 THEN 1
+                 ELSE 2
+             END,
+             id DESC
+         LIMIT 1"
+    );
+    $stmt->execute(array_values($phoneVariants));
+    $number = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return $number ?: null;
+}
+
+function fetch_pending_sns_numbers($region, $awsKey, $awsSecret, $pdo = null)
 {
     if (empty($region)) {
         return ['error' => 'Region is required.'];
@@ -105,17 +152,34 @@ function fetch_pending_sns_numbers($region, $awsKey, $awsSecret)
             $items = isset($result['PhoneNumbers']) ? $result['PhoneNumbers'] : [];
 
             foreach ($items as $item) {
-                $phoneNumber = isset($item['PhoneNumber']) ? trim((string)$item['PhoneNumber']) : '';
+                $phoneNumber = isset($item['PhoneNumber']) ? normalize_sns_phone_number($item['PhoneNumber']) : '';
                 $status = isset($item['Status']) ? trim((string)$item['Status']) : '';
 
                 if ($phoneNumber !== '' && strcasecmp($status, 'Pending') === 0) {
-                    $numbers[] = [
+                    $numberRow = [
                         'id' => null,
                         'phone_number' => $phoneNumber,
                         'atm_left' => null,
                         'formatted_date' => null,
-                        'status' => $status
+                        'status' => $status,
+                        'db_status' => null,
+                        'db_match' => false
                     ];
+
+                    if ($pdo instanceof PDO) {
+                        $allowedNumber = find_allowed_number_by_phone($pdo, $phoneNumber);
+
+                        if ($allowedNumber) {
+                            $numberRow['id'] = $allowedNumber['id'];
+                            $numberRow['phone_number'] = $allowedNumber['phone_number'];
+                            $numberRow['atm_left'] = $allowedNumber['atm_left'];
+                            $numberRow['formatted_date'] = $allowedNumber['formatted_date'];
+                            $numberRow['db_status'] = $allowedNumber['status'];
+                            $numberRow['db_match'] = true;
+                        }
+                    }
+
+                    $numbers[] = $numberRow;
                 }
             }
 

@@ -256,7 +256,7 @@ if (isset($_GET['stream'])) {
         sendSSE("COUNTERS", "Total Patch sent: $totalSuccess; In region: $region; Regions processed: $usedRegions; Remaining: " . ($totalRegions - $usedRegions));
 
         if ($mode === 'sns_pending') {
-            $numbersResult = fetch_pending_sns_numbers($region, $aws_key, $aws_secret);
+            $numbersResult = fetch_pending_sns_numbers($region, $aws_key, $aws_secret, $pdo);
         } else {
             $numbersResult = fetch_numbers($region, $pdo, $set_id);
         }
@@ -279,12 +279,30 @@ if (isset($_GET['stream'])) {
         }
 
         if ($mode === 'sns_pending') {
-            $otpTasks = array_map(function ($row) {
-                return array(
-                    'id' => isset($row['id']) ? $row['id'] : '',
-                    'phone' => $row['phone_number']
+            $otpTasks = [];
+
+            foreach ($allowedNumbers as $row) {
+                $verifiedId = isset($row['id']) ? trim((string)$row['id']) : '';
+                $dbId = isset($row['db_id']) ? intval($row['db_id']) : 0;
+                $phone = isset($row['phone_number']) ? $row['phone_number'] : '';
+                $atmLeft = isset($row['atm_left']) ? intval($row['atm_left']) : 0;
+
+                if ($dbId <= 0) {
+                    sendSSE("ROW", "|" . $phone . "|" . $region . "|Patch Skipped: Number not found in database.");
+                    continue;
+                }
+
+                if ($atmLeft <= 0) {
+                    sendSSE("ROW", $dbId . "|" . $phone . "|" . $region . "|Patch Skipped: No remaining OTP attempts for this number.");
+                    continue;
+                }
+
+                $otpTasks[] = array(
+                    'id' => $verifiedId,
+                    'db_id' => $dbId,
+                    'phone' => $phone
                 );
-            }, $allowedNumbers);
+            }
         } else {
             $otpTasks = buildOtpTasks($allowedNumbers, $patchLimit);
         }
@@ -307,7 +325,7 @@ if (isset($_GET['stream'])) {
             }
 
             if ($mode === 'sns_pending') {
-                $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language, false);
+                $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language, false, $task['db_id']);
             } else {
                 $result = send_otp_single($task['id'], $task['phone'], $region, $aws_key, $aws_secret, $pdo, $sns, $language, true);
             }
