@@ -63,7 +63,7 @@ function fetch_numbers($region, $pdo, $set_id = null)
 
     $query = "SELECT id, phone_number, atm_left, DATE_FORMAT(created_at, '%Y-%m-%d') as formatted_date
               FROM allowed_numbers
-              WHERE status = 'fresh' AND atm_left > 0";
+              WHERE status = 'fresh' AND atm_left >= 3";
     $params = array();
 
     if (!empty($set_id)) {
