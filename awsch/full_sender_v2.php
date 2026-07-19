@@ -355,8 +355,8 @@ if (isset($_GET['stream'])) {
             sendSSE("STATUS", "Region $region encountered an error. Waiting 5 seconds...");
             sleep(5);
         } else if ($otpSentInThisRegion) {
-            sendSSE("STATUS", "Completed Patch sending for region $region. Waiting 5 seconds...");
-            sleep(5);
+            sendSSE("STATUS", "Completed Patch sending for region $region. Waiting 10 seconds...");
+            sleep(10);
         } else {
             sendSSE("STATUS", "Completed OTP sending for region $region. Waiting 5 seconds...");
             sleep(5);
