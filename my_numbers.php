@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Get current timestamp in Pakistan timezone
             $created_at = (new DateTime('now', new DateTimeZone('Asia/Karachi')))->format('Y-m-d H:i:s');
             // Insert new number with atm_left = 10, include set_id and the created_at timestamp
-            $stmt = $pdo->prepare("INSERT INTO allowed_numbers (phone_number, status, atm_left, by_user, set_id, created_at) VALUES (?, 'fresh', 10, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO allowed_numbers (phone_number, status, atm_left, by_user, set_id, created_at) VALUES (?, 'fresh', 5, ?, ?, ?)");
             $stmt->execute([$num, $session_id, $set_id, $created_at]);
             $importedCount++;
           } catch (PDOException $e) {

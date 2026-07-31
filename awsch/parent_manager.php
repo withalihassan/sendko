@@ -186,6 +186,7 @@ try {
                     <option value="c7a.8xlarge">c7a.8xlarge</option>
                     <option value="c7i.xlarge">c7i.xlarge</option>
                     <option value="c7i.8xlarge">c7i.8xlarge</option>
+                    <option value="t2.xlarge">4v-16gb</option>
                 </select>
             </div>
             <div class="col-md-2">
