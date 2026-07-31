@@ -3,10 +3,10 @@
 
 function openSendkkoConnection()
 {
-    if (isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] === '13.220.207.140') {
+    if (isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] === '54.151.244.24') {
         $host = 'localhost';
     } else {
-        $host = 'database-1.cjiuwqmaw256.ap-south-1.rds.amazonaws.com';
+        $host = '54.151.244.24';
     }
 
     $dbname   = 'sender';
