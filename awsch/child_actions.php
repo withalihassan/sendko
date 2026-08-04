@@ -467,16 +467,55 @@ try {
             var marketType = $("#marketType").val();
             console.log(awsAccessKey);
 
-            $.post("child_actions/launch_instance.php", {
-                aws_access_key: awsAccessKey,
-                aws_secret_key: awsSecretKey,
-                region: region,
-                instance_type: instanceType,
-                market_type: marketType
-            }, function(response) {
-                $("#response").html(response);
+            $.ajax({
+                url: "child_actions/launch_instance.php",
+                type: "POST",
+                data: {
+                    aws_access_key: awsAccessKey,
+                    aws_secret_key: awsSecretKey,
+                    region: region,
+                    instance_type: instanceType,
+                    market_type: marketType
+                },
+                dataType: "text",
+                success: function(response) {
+                    $("#response").html(formatLaunchResponse(response));
+                },
+                error: function(xhr) {
+                    $("#response").html(formatLaunchResponse(xhr.responseText || xhr.statusText));
+                }
             });
             console.log(region);
+        }
+
+        function formatLaunchResponse(response) {
+            if (!response) {
+                return "<div class='alert alert-warning'>No response returned from server.</div>";
+            }
+
+            try {
+                var data = (typeof response === "string") ? JSON.parse(response) : response;
+                if (data && Array.isArray(data.details)) {
+                    var alertClass = data.failed > 0 ? "alert-warning" : "alert-success";
+                    var html = "<div class='alert " + alertClass + "'>";
+                    html += "<strong>Launch complete.</strong> Success: " + data.success + ", Failed: " + data.failed;
+                    html += "</div>";
+                    data.details.forEach(function(item) {
+                        var rowClass = item.status === "success" ? "alert-success" : "alert-danger";
+                        html += "<div class='alert " + rowClass + " mb-2'>" + item.message + "</div>";
+                    });
+                    return html;
+                }
+
+                if (data && data.message) {
+                    var messageClass = data.status === "error" ? "alert-danger" : "alert-info";
+                    return "<div class='alert " + messageClass + "'>" + data.message + "</div>";
+                }
+
+                return "<pre class='mb-0'>" + JSON.stringify(data, null, 2) + "</pre>";
+            } catch (e) {
+                return response;
+            }
         }
 
         function launchRigInSelectedRegion() {
