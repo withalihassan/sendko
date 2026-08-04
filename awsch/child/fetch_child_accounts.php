@@ -66,8 +66,7 @@ if (isset($_GET['parent_id'])) {
                             <a href='./brs.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-success btn-sm'>Half Sndr</a>
                             <a href='./half_sender_v2.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-info btn-sm'>V2</a>
                         </div>
-                        <a href='./enable_regions.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-secondary btn-sm'>E-R</a>
-                        <a href='./clear_single.php?ac_id=" . $account['account_id'] . "&parrent_id=" . $parentId . "' target='_blank' class='btn btn-warning btn-sm'>Clear</a>
+                        <a target='_blank' href='./configure.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "&user_id=" . urlencode($session_id) . "&CHID=" . urlencode($index + 1) . "&chage=" . urlencode($child_ac_Age) . "' class='btn btn-danger btn-sm'>Configure</a>
                         <a target='_blank' href='child_account.php?child_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "' class='btn btn-primary btn-sm'>Setup</a>
                         <a target='_blank' rel='noopener noreferrer' href='./chk_quality.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "' class='btn btn-warning btn-sm'>CHK-Q</a>
                         <a target='_blank' href='./child_actions.php?ac_id=" . urlencode($account['account_id']) . "&parent_id=" . urlencode($parentId) . "&user_id=" . urlencode($session_id) . "&CHID=" . urlencode($index + 1) . "&chage=" . urlencode($child_ac_Age) . "' class='btn btn-success btn-sm'>Open</a>
