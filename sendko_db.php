@@ -3,15 +3,10 @@
 
 function openSendkkoConnection()
 {
-    if (isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] === '54.151.244.24') {
-        $host = 'localhost';
-    } else {
-        $host = '54.151.244.24';
-    }
-
+    $host = 'database-1.cj8e4u0u2aoh.ap-south-1.rds.amazonaws.com';
     $dbname   = 'sender';
     $username = 'admin';
-    $password = '3CFz8no5NSxCXiDOMz8g';
+    $password = 'iRPIhAfKKsAIedz3UiRw';
 
     try {
         $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
